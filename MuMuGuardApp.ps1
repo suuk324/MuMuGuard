@@ -221,7 +221,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.0.5'
+$script:appVersion = '1.0.6'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -812,6 +812,22 @@ $win = [Windows.Markup.XamlReader]::Parse($xaml)
 
 # 主题资源：必须在界面显示前设好，DynamicResource 才能取到
 Set-ThemeResources $win (Get-ActiveTheme)
+
+# 独立的任务栏身份：否则会并入 powershell.exe 分组，显示 PowerShell 的图标
+if (-not ('AppId' -as [type])) {
+    try {
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class AppId {
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+    private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
+    public static void Set(string id) { SetCurrentProcessExplicitAppUserModelID(id); }
+}
+"@
+    } catch { }
+}
+try { [AppId]::Set('Titen.MuMuGuard.Panel') } catch { }
 
 # 窗口 / 任务栏图标
 try {

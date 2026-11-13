@@ -1,4 +1,4 @@
-"""
+﻿"""
 生成 MuMuGuard 图标：白底圆角方块 + 黑色图形
 输出多尺寸 ICO（16/24/32/48/64/128/256）以及 256px PNG 预览
 """
@@ -12,7 +12,7 @@ OUT_PREVIEW = r"C:\Users\MOOM\AppData\Local\Temp\icon_preview.png"
 
 BASE = 1024          # 主画布
 RADIUS_RATIO = 0.225 # 圆角半径占画布比例（苹果式圆角）
-GLYPH_RATIO = 0.72   # 图形占画布比例
+GLYPH_RATIO = 0.84   # 图形占画布比例
 
 # 1) 读入黑色图形，去掉四周透明留白
 glyph = Image.open(SRC).convert("RGBA")

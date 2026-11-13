@@ -11,8 +11,8 @@ function Get-RingView($r, [string]$ctx) {
     if ($r.Sleeping) {
         return [pscustomobject]@{
             Mode        = 'sleep'
-            Dashed      = $true
-            TrackColor  = '#232B3A'
+            Dashed      = $false
+            TrackColor  = '#252E3E'
             CenterText  = $(if ($r.WakeAt) { $r.WakeAt.ToString('HH:mm') } else { '—' })
             CenterSize  = $smallSize
             CenterColor = '#7C8BA8'
@@ -71,7 +71,6 @@ function Set-RingBase($c, $v) {
 function New-RingCell {
     $panel = New-Object System.Windows.Controls.StackPanel
     $panel.HorizontalAlignment = 'Center'
-
     $grid = New-Object System.Windows.Controls.Grid
     $grid.Width  = $RingSize
     $grid.Height = $RingSize
@@ -113,9 +112,16 @@ function New-RingCell {
     [void]$inner.Children.Add($num)
     [void]$grid.Children.Add($inner)
 
+
     [void]$panel.Children.Add($grid)
 
-    return [pscustomobject]@{ Panel=$panel; Track=$track; Arc=$arc; Pct=$pct; Num=$num; Sig=''; Scale=1.0 }
+    $viewbox = New-Object System.Windows.Controls.Viewbox
+    $viewbox.Stretch = 'Uniform'
+    $viewbox.StretchDirection = 'Both'
+    $viewbox.HorizontalAlignment = 'Center'
+    $viewbox.VerticalAlignment = 'Center'
+    $viewbox.Child = $panel
+    return [pscustomobject]@{ Panel=$viewbox; Box=$viewbox; Track=$track; Arc=$arc; Pct=$pct; Num=$num; Sig=''; Scale=1.0 }
 }
 
 
@@ -174,13 +180,15 @@ function Sync-Compact($data, $hm) {
     if ($cmpRings.Visibility -ne 'Visible')   { $cmpRings.Visibility = 'Visible' }
     if ($cmpList.Visibility  -ne 'Collapsed') { $cmpList.Visibility = 'Collapsed' }
 
-    # 环的大小与列数随数量变化
-    $cols = [math]::Max(1, [math]::Min(5, $count))
-    if ($cmpRings.Columns -ne $cols) { $cmpRings.Columns = $cols }
-    $scale = Get-RingScale -Count $cols
+    # 自适应尺寸：按容器宽度平均分配，环之间留固定间距
+    $hostW = 324.0
+    try { if ($cmpRingsHost -and $cmpRingsHost.ActualWidth -gt 20) { $hostW = $cmpRingsHost.ActualWidth } } catch { }
+    $gap  = if ($count -le 2) { 22.0 } elseif ($count -le 3) { 18.0 } else { 12.0 }
+    $size = [math]::Floor(($hostW - $gap * [math]::Max(0, $count - 1)) / [math]::Max(1, $count))
+    $size = [math]::Min(96.0, [math]::Max(40.0, $size))
     $shortMap = if ($script:shortLabels) { $script:shortLabels } else { @{} }
 
-    # ---- 三个环（仅在数据变化时更新控件，避免每轮触发 WPF 重排）----
+    # ---- 环形（仅在数据变化时更新控件，避免每轮触发 WPF 重排）----
     $alive = @{}
     foreach ($r in $data) {
         $key = "$($r.PID)"
@@ -192,18 +200,16 @@ function Sync-Compact($data, $hm) {
         }
         $c = $script:cmpMap[$key]
 
-        # 用一行签名描述"该环当前该显示成什么样"，没变就整段跳过
         $rv = Get-RingView $r 'compact'
         $label = if ($shortMap.ContainsKey("$($r.Index)")) { $shortMap["$($r.Index)"] } else { $r.Name }
-        $sig = "$($rv.Mode)|$($r.Index)|$($rv.CenterText)|$($r.Level)|$label|$scale"
+        $sig = "$($rv.Mode)|$($r.Index)|$($rv.CenterText)|$($r.Level)|$label|$size"
         if ($c.Sig -eq $sig) { continue }
         $c.Sig = $sig
 
         $c.Num.Text = $label
-        if (-not $c.Panel.LayoutTransform -or [math]::Abs($c.Scale - $scale) -gt 0.001) {
-            $c.Panel.LayoutTransform = New-Object System.Windows.Media.ScaleTransform($scale, $scale)
-            $c.Scale = $scale
-        }
+        $c.Box.Width  = $size
+        $c.Box.Height = [math]::Round($size * 1.02)
+        $c.Box.Margin = [System.Windows.Thickness]::new(($gap / 2), 0, ($gap / 2), 0)
         Set-RingBase $c $rv
         if ($rv.Mode -eq 'on') {
             Set-RingArc $c $rv.Pct $rv.ArcColor

@@ -219,7 +219,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.0.2'
+$script:appVersion = '1.0.3'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -785,17 +785,18 @@ $xaml = @'
 
         <DockPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,4">
           <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-            <Button x:Name="BtnGuard" Content="启动看护" Width="130" Style="{StaticResource Btn}" Background="#E8EDF5"/>
-            <Button x:Name="BtnSleep" Content="休眠 开" Width="96" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" ToolTip="升级等待时自动关闭模拟器省内存"/>
-            <Button x:Name="BtnClean" Content="立即清理" Width="118" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24"/>
-            <Button x:Name="BtnLog" Content="打开日志" Width="112" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#161C26"/>
-            <Button x:Name="BtnAllRestart" Content="全部重启" Width="96" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="重启所有运行中的实例"/>
-            <Button x:Name="BtnAllSleep" Content="全部休眠" Width="96" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="关闭所有可休眠的实例"/>
-            <Button x:Name="BtnAllWake" Content="全部唤醒" Width="96" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="唤醒所有休眠中的实例"/>
+            <Button x:Name="BtnGuard" Content="启动看护" Width="112" Style="{StaticResource Btn}" Background="#E8EDF5"/>
+            <Button x:Name="BtnSleep" Content="休眠 开" Width="84" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" ToolTip="升级等待时自动关闭模拟器省内存"/>
+            <Button x:Name="BtnClean" Content="立即清理" Width="102" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24"/>
+            <Button x:Name="BtnLog" Content="打开日志" Width="94" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#161C26"/>
+            <Button x:Name="BtnAllRestart" Content="全部重启" Width="86" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="重启所有运行中的实例"/>
+            <Button x:Name="BtnAllSleep" Content="全部休眠" Width="86" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="关闭所有可休眠的实例"/>
+            <Button x:Name="BtnAllWake" Content="全部唤醒" Width="86" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="唤醒所有休眠中的实例"/>
           </StackPanel>
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="BtnExport" Content="导出报告" Style="{StaticResource Mini}" Margin="0,0,8,0"/>
-            <Button x:Name="BtnSettings" Content="设置" Style="{StaticResource Mini}"/>
+          <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Button x:Name="BtnExport" Content="导出报告" Style="{StaticResource Mini}" Margin="0,0,8,0" MinWidth="76" ToolTip="导出当前状态到文本报告"/>
+            <Button x:Name="BtnUpdate" Content="检查更新" Style="{StaticResource Mini}" Margin="0,0,8,0" MinWidth="76" ToolTip="从 GitHub 检查是否有新版本"/>
+            <Button x:Name="BtnSettings" Content="设置" Style="{StaticResource Mini}" MinWidth="56" ToolTip="阈值与路径设置"/>
           </StackPanel>
         </DockPanel>
       </Grid>
@@ -841,6 +842,7 @@ $btnClean   = $win.FindName('BtnClean')
 $btnLog     = $win.FindName('BtnLog')
 $btnExport  = $win.FindName('BtnExport')
 $btnSettings = $win.FindName('BtnSettings')
+$btnUpdate   = $win.FindName('BtnUpdate')
 $btnSleep    = $win.FindName('BtnSleep')
 $btnAll     = $win.FindName('BtnAll')
 $btnWarn    = $win.FindName('BtnWarn')
@@ -946,9 +948,9 @@ $compactXaml = @'
     </DockPanel>
 
     <!-- 实例区：≤5 个用环，>5 个自动切列表 -->
-    <Grid Grid.Row="1" Margin="0,8,0,0">
-      <UniformGrid x:Name="CmpRings" Columns="3" VerticalAlignment="Center"
-                   HorizontalAlignment="Center"/>
+    <Grid x:Name="CmpRingsHost" Grid.Row="1" Margin="16,8,16,0">
+      <StackPanel x:Name="CmpRings" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
       <StackPanel x:Name="CmpList" Visibility="Collapsed"/>
     </Grid>
 
@@ -985,6 +987,7 @@ $cmpMin       = $compact.FindName('CmpMin')
 $cmpClose     = $compact.FindName('CmpClose')
 $cmpRings     = $compact.FindName('CmpRings')
 $cmpList      = $compact.FindName('CmpList')
+$cmpRingsHost = $compact.FindName('CmpRingsHost')
 $cmpMemText   = $compact.FindName('CmpMemText')
 $cmpCells     = $compact.FindName('CmpCells')
 $cmpGuardBtn  = $compact.FindName('CmpGuardBtn')
@@ -1102,6 +1105,7 @@ $btnClean.Add_Click({ [void](Invoke-GuardCleanup); Update-Ui })
 $btnLog.Add_Click({ if (Test-Path $LogDir) { Start-Process explorer.exe -ArgumentList $LogDir } })
 $btnExport.Add_Click({ Export-Report })
 $btnSettings.Add_Click({ Show-Settings })
+$btnUpdate.Add_Click({ Invoke-UpdateCheckUI -Silent $false })
 
 $btnAllRestart.Add_Click({
     $n = @($script:lastInstances | Where-Object { $_.Index -ne '-' }).Count

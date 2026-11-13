@@ -103,6 +103,11 @@ if (-not (Test-Path $exePath)) { throw 'exe 未生成' }
 $exeSize = [math]::Round((Get-Item $exePath).Length / 1KB, 1)
 Write-Host "  $exeName ($exeSize KB)"
 
+# ---------- 5b. exe 冒烟测试 ----------
+Write-Host ''
+Write-Host '--- exe 冒烟测试 ---' -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot 'smoke-test.ps1') -ExePath $exePath
+
 # ---------- 6. 源码包 ----------
 Write-Host ''
 Write-Host '--- 打包源码 ---' -ForegroundColor Cyan

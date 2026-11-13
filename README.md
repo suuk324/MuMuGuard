@@ -1,8 +1,10 @@
-﻿# MuMuGuard · MuMu 模拟器看护面板
+﻿<img src="icon.png" width="72" align="left" style="margin-right:12px" alt="MuMuGuard">
+
+# MuMuGuard · MuMu 模拟器看护面板
 
 给 MuMu 模拟器多开用的轻量监控与自动化工具。**打开就用，关掉即走**，不留后台服务。
 
-![版本](https://img.shields.io/badge/version-1.0.3-3DDC84)
+![版本](https://img.shields.io/badge/version-1.0.4-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
 

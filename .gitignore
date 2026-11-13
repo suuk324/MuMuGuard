@@ -1,0 +1,22 @@
+# 运行时生成（含个人配置与历史数据）
+config.json
+sleep.json
+trend.json
+state.json
+logs/
+*.bak
+
+# 构建产物
+_build/
+_dist/
+_backup_*/
+
+# 系统文件
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 编辑器
+.vs/
+.vscode/
+*.swp

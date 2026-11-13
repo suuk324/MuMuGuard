@@ -12,12 +12,15 @@ OUT_PREVIEW = r"C:\Users\MOOM\AppData\Local\Temp\icon_preview.png"
 
 BASE = 1024          # 主画布
 RADIUS_RATIO = 0.225 # 圆角半径占画布比例（苹果式圆角）
-GLYPH_RATIO = 0.90   # 图形占画布比例
+GLYPH_RATIO = 0.94   # 图形占画布比例
 
-# 1) 读入黑色图形，去掉四周透明留白
+# 1) 读入黑色图形，按 alpha 阈值裁掉四周的淡残留
 glyph = Image.open(SRC).convert("RGBA")
-bbox = glyph.getbbox()
-glyph = glyph.crop(bbox)
+alpha = glyph.getchannel("A")
+hard = alpha.point(lambda v: 255 if v > 8 else 0)
+bbox = hard.getbbox()
+if bbox:
+    glyph = glyph.crop(bbox)
 
 # 2) 把图形缩放后居中放进画布，留出白边
 side = int(BASE * GLYPH_RATIO)

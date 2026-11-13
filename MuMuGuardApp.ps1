@@ -133,10 +133,21 @@ foreach ($f in @('90-pure', '00-common', '05-instances', '10-data', '20-actions'
     else { throw "缺少模块: $p" }
 }
 
-$LogDir   = Join-Path $Root 'logs'
-$CfgPath  = Join-Path $Root 'config.json'
-$TrendFile = Join-Path $Root 'trend.json'
-$SleepFile = Join-Path $Root 'sleep.json'
+# 数据目录：程序目录可写就放旁边，否则（如放在 Program Files）退回 LOCALAPPDATA
+$DataDir = $Root
+try {
+    $probe = Join-Path $Root '.write_test'
+    [System.IO.File]::WriteAllText($probe, 'x')
+    Remove-Item $probe -Force -ErrorAction SilentlyContinue
+} catch {
+    $DataDir = Join-Path $env:LOCALAPPDATA 'MuMuGuard'
+    if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir -Force | Out-Null }
+}
+
+$LogDir   = Join-Path $DataDir 'logs'
+$CfgPath  = Join-Path $DataDir 'config.json'
+$TrendFile = Join-Path $DataDir 'trend.json'
+$SleepFile = Join-Path $DataDir 'sleep.json'
 $MuMuRoot = 'D:\Program Files\Netease\MuMu'
 $AdbExe   = Join-Path $MuMuRoot 'nx_device\15.0\shell\adb.exe'
 $MuMuMgr  = Join-Path $MuMuRoot 'nx_main\MuMuManager.exe'
@@ -208,7 +219,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.0.0'
+$script:appVersion = '1.0.1'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 

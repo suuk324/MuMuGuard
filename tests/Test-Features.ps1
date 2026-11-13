@@ -84,7 +84,9 @@ Write-Host '=== 1. 进程 ===' -ForegroundColor Cyan
 $procs = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -match 'MuMuGuardApp\.ps1' -and $_.CommandLine -notmatch 'Get-CimInstance' })
 Check '面板进程' ($procs.Count -eq 1) "数量 $($procs.Count)"
-$sleepList = @(Get-Content (Join-Path $dir 'sleep.json') -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json)
+$sleepList = @()
+$rawSleep = Get-Content (Join-Path $dir 'sleep.json') -Raw -ErrorAction SilentlyContinue
+if ($rawSleep) { $tmpSleep = $rawSleep | ConvertFrom-Json; if ($tmpSleep) { $sleepList = @($tmpSleep) } }
 $wakers = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -match 'Waker\.ps1' })
 Check '唤醒器' ($(if ($sleepList.Count -gt 0) { $wakers.Count -eq 1 } else { $true })) "数量 $($wakers.Count) 任务 $($sleepList.Count)"

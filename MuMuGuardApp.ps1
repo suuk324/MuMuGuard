@@ -1220,8 +1220,16 @@ $recoverTimer.Add_Tick({
     } catch { }
 })
 
+# 启动 20 秒后检查一次更新（不阻塞启动）
+$updateTimer = New-Object System.Windows.Threading.DispatcherTimer
+$updateTimer.Interval = [TimeSpan]::FromSeconds(20)
+$updateTimer.Add_Tick({
+    $updateTimer.Stop()
+    try { Invoke-AutoUpdateCheck } catch { }
+})
 $win.Add_Loaded({
     Invoke-LogRotation
+    $updateTimer.Start()
     Load-Trend
     Set-View 'compact'
     if ($txtVersion) { $txtVersion.Text = 'v' + $script:appVersion }

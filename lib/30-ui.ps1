@@ -162,7 +162,6 @@ function Sync-Compact($data, $hm) {
     # 实例数决定布局：≤5 个用环，>5 个切列表
     $count = @($data).Count
     $mode  = Get-CompactMode -Count $count
-    $script:compactMode = $mode
 
     if ($mode -eq 'list') {
         if ($cmpRings.Visibility -ne 'Collapsed') { $cmpRings.Visibility = 'Collapsed' }
@@ -217,6 +216,9 @@ function Sync-Compact($data, $hm) {
             $script:cmpMap.Remove($k)
         }
     }
+    Sync-CompactFoot $data $hm
+}
+
 # 紧凑面板底部：内存格 + 文字 + 看护状态（环形/列表两种模式共用）
 function Sync-CompactFoot($data, $hm) {
     # ---- 16 格内存 ----
@@ -358,9 +360,6 @@ function Sync-CompactList($data) {
             $script:listRows.Remove($k)
         }
     }
-}
-
-    Sync-CompactFoot $data $hm
 }
 
 

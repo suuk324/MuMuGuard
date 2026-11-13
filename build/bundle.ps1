@@ -41,7 +41,7 @@ $head = $main.Substring(0, $startIdx)
 $tail = $main.Substring($endIdx)
 
 # ---- 依次拼入各模块 ----
-$order = @('90-pure', '00-common', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update')
+$order = @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update')
 $parts = New-Object System.Collections.Generic.List[string]
 $parts.Add('# ---------------- 模块（已内联）----------------')
 foreach ($name in $order) {

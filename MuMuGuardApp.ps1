@@ -127,7 +127,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -185,6 +185,8 @@ $defaultCfg = [ordered]@{
     PkgGame      = 'com.tencent.tmgp.supercell.clashofclans com.supercell.clashofclans'
     # 开机自启（可选，默认关闭）
     StartWithWindows = $false
+    # 主题：auto / dark / light
+    Theme        = 'auto'
     # 实例别名（编号 -> 自定义名称）
     Aliases      = @{}
     # 更新
@@ -219,7 +221,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.0.4'
+$script:appVersion = '1.0.5'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -527,7 +529,7 @@ $xaml = @'
 
   <Window.Resources>
     <Style x:Key="Btn" TargetType="Button">
-      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="Foreground" Value="{DynamicResource T_E8EDF5}"/>
       <Setter Property="FontSize" Value="12.5"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Padding" Value="16,0"/>
@@ -805,7 +807,11 @@ $xaml = @'
 </Window>
 '@
 
+$xaml = Convert-XamlTheme $xaml
 $win = [Windows.Markup.XamlReader]::Parse($xaml)
+
+# 主题资源：必须在界面显示前设好，DynamicResource 才能取到
+Set-ThemeResources $win (Get-ActiveTheme)
 
 # 窗口 / 任务栏图标
 try {
@@ -974,6 +980,7 @@ $compactXaml = @'
 </Border>
 '@
 
+$compactXaml = Convert-XamlTheme $compactXaml
 $compact = [Windows.Markup.XamlReader]::Parse($compactXaml)
 $script:detailContent = $win.Content
 $script:viewMode = 'compact'

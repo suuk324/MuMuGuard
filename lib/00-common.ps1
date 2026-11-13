@@ -20,6 +20,7 @@ function Save-Config {    try {
 
 
 function Brush([string]$hex) {
+    $hex = Convert-ThemeHex $hex
     return New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($hex))
 }
 

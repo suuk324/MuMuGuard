@@ -12,7 +12,7 @@ function Get-RingView($r, [string]$ctx) {
         return [pscustomobject]@{
             Mode        = 'sleep'
             Dashed      = $false
-            TrackColor  = '#252E3E'
+            TrackColor  = '#232B3A'
             CenterText  = $(if ($r.WakeAt) { $r.WakeAt.ToString('HH:mm') } else { '—' })
             CenterSize  = $smallSize
             CenterColor = '#7C8BA8'
@@ -1145,9 +1145,47 @@ function Update-Ui {
 
 
 function Show-Settings {
-    $sw = [Windows.Markup.XamlReader]::Parse($settingsXaml)
+    $sw = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $settingsXaml))
     $sw.Owner = $win
+    Set-ThemeResources $sw (Get-ActiveTheme)
     $pnl = $sw.FindName('PnlFields')
+
+    # ---- 主题选择（改了立刻生效）----
+    $themeRow = New-Object System.Windows.Controls.DockPanel
+    $themeRow.Margin = [System.Windows.Thickness]::new(0,0,0,14)
+
+    $themeLbl = New-Object System.Windows.Controls.TextBlock
+    $themeLbl.Text = '界面主题'
+    $themeLbl.Foreground = Brush '#8A94A6'
+    $themeLbl.FontSize = 11.5
+    $themeLbl.Width = 190
+    $themeLbl.VerticalAlignment = 'Center'
+    [void]$themeRow.Children.Add($themeLbl)
+
+    $themePanel = New-Object System.Windows.Controls.StackPanel
+    $themePanel.Orientation = 'Horizontal'
+    foreach ($opt in @(
+        @{ K = 'auto';  T = '跟随系统' },
+        @{ K = 'dark';  T = '深色' },
+        @{ K = 'light'; T = '浅色' }
+    )) {
+        $rb = New-Object System.Windows.Controls.RadioButton
+        $rb.Content = $opt.T
+        $rb.GroupName = 'ThemeGroup'
+        $rb.Tag = $opt.K
+        $rb.Foreground = Brush '#E6EAF2'
+        $rb.Margin = [System.Windows.Thickness]::new(0,0,16,0)
+        $rb.VerticalAlignment = 'Center'
+        $rb.IsChecked = ("$($script:cfg.Theme)" -eq $opt.K)
+        $rb.Add_Checked({
+            param($s, $e)
+            if ($script:themeApplying) { return }
+            try { Set-Theme "$($s.Tag)" } catch { }
+        })
+        [void]$themePanel.Children.Add($rb)
+    }
+    [void]$themeRow.Children.Add($themePanel)
+    [void]$pnl.Children.Add($themeRow)
 
     $fields = @(
         @{ Key = 'CefKeep';      Label = 'CEF 保留数量';      Step = 1 },

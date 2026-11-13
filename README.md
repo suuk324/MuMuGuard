@@ -4,7 +4,7 @@
 
 给 MuMu 模拟器多开用的轻量监控与自动化工具。**打开就用，关掉即走**，不留后台服务。
 
-![版本](https://img.shields.io/badge/version-1.0.4-3DDC84)
+![版本](https://img.shields.io/badge/version-1.0.5-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
 
@@ -116,6 +116,7 @@ powershell -STA -NoProfile -ExecutionPolicy Bypass -File .\MuMuGuardApp.ps1
 | `SleepLeadMin` | 10 | 升级完成前多少分钟唤醒 |
 | `PkgScript` | `com.coc.zkqcode` | 你的脚本包名 |
 | `UpdateRepo` | `suuk324/MuMuGuard` | 检查更新用的仓库 |
+| `Theme` | `auto` | 界面主题：`auto` 跟随系统 / `dark` 深色 / `light` 浅色 |
 
 各实例的内存刻度会优先读 MuMu 自己的配置（`vms\...\vm_config.json` 的 `vm.memory`），所以 4G 和 6G 的实例刻度各自正确。
 

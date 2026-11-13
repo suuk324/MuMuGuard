@@ -12,7 +12,7 @@ OUT_PREVIEW = r"C:\Users\MOOM\AppData\Local\Temp\icon_preview.png"
 
 BASE = 1024          # 主画布
 RADIUS_RATIO = 0.225 # 圆角半径占画布比例（苹果式圆角）
-GLYPH_RATIO = 0.84   # 图形占画布比例
+GLYPH_RATIO = 0.90   # 图形占画布比例
 
 # 1) 读入黑色图形，去掉四周透明留白
 glyph = Image.open(SRC).convert("RGBA")

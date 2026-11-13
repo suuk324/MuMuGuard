@@ -221,7 +221,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.0.6'
+$script:appVersion = '1.0.7'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -629,9 +629,8 @@ $xaml = @'
       <!-- 顶栏 -->
       <Grid x:Name="Header" Grid.Row="0" Background="Transparent">
         <StackPanel Orientation="Horizontal" Margin="24,0,0,0" VerticalAlignment="Center">
-          <Border Width="36" Height="36" CornerRadius="10" Background="#3DDC84">
-            <TextBlock Text="M" Foreground="#052E16" FontSize="18" FontWeight="Bold"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <Border x:Name="LogoBox" Width="40" Height="40" CornerRadius="11" Background="#00000000">
+            <Image x:Name="LogoImg" Stretch="Uniform"/>
           </Border>
           <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
             <StackPanel Orientation="Horizontal"><TextBlock Text="MuMuGuard" Foreground="#E6EAF2" FontSize="17" FontWeight="Bold"/><TextBlock x:Name="TxtVersion" Text="" Foreground="#4B566B" FontSize="10" VerticalAlignment="Bottom" Margin="6,0,0,3"/></StackPanel>
@@ -835,6 +834,14 @@ try {
     if (Test-Path $icoPath) {
         $win.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$icoPath)
     }
+        $logoImg = $win.FindName('LogoImg')
+        if ($logoImg) {
+            # 优先用 256px PNG，缩小后更清晰
+            $pngPath = Join-Path $Root 'icon.png'
+            $src = if (Test-Path $pngPath) { $pngPath } else { $icoPath }
+            try { $logoImg.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$src) } catch { }
+            try { [System.Windows.Media.RenderOptions]::SetBitmapScalingMode($logoImg, 'HighQuality') } catch { }
+        }
 } catch { }
 
 $header     = $win.FindName('Header')

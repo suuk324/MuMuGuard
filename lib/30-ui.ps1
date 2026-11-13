@@ -186,6 +186,13 @@ function Sync-Compact($data, $hm) {
     $gap  = if ($count -le 2) { 22.0 } elseif ($count -le 3) { 18.0 } else { 12.0 }
     $size = [math]::Floor(($hostW - $gap * [math]::Max(0, $count - 1)) / [math]::Max(1, $count))
     $size = [math]::Min(96.0, [math]::Max(40.0, $size))
+
+    # 紧凑窗口高度随内容自适应，避免底部按钮被裁掉
+    $needH = 20 + 18 + 8 + [math]::Ceiling($size * 1.02) + 20 + 20 + 37
+    $curH = if ($win) { $win.Height } else { 214 }
+    if ($script:compactMode -eq 'rings' -and $needH -gt $curH - 0.5) {
+        try { $win.Height = $needH } catch { }
+    }
     $shortMap = if ($script:shortLabels) { $script:shortLabels } else { @{} }
 
     # ---- 环形（仅在数据变化时更新控件，避免每轮触发 WPF 重排）----

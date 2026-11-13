@@ -28,15 +28,29 @@ function Write-Log([string]$msg) {
 
 Write-Log "更新助手启动：目标=$TargetPath 新文件=$NewPath 等待PID=$ProcessId"
 
-# 1) 等待主程序退出（最多 60 秒）
+# 1) 等待主程序退出；超过 20 秒仍未退出就强制结束（用户已确认更新，避免卡住）
 $waited = 0
-while ($waited -lt 60) {
+while ($waited -lt 40) {
     $p = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
     if (-not $p) { break }
     Start-Sleep -Milliseconds 500
     $waited++
 }
-Start-Sleep -Milliseconds 500
+
+$still = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+if ($still) {
+    Write-Log '主程序未自行退出，强制结束'
+    try { Stop-Process -Id $ProcessId -Force -ErrorAction Stop } catch {
+        Write-Log "强制结束失败：$($_.Exception.Message)"
+    }
+    # 等文件句柄释放
+    for ($i = 0; $i -lt 20; $i++) {
+        if (-not (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) { break }
+        Start-Sleep -Milliseconds 300
+    }
+}
+Start-Sleep -Milliseconds 600
+Write-Log '主程序已退出，开始替换'
 
 if (-not (Test-Path $NewPath)) {
     Write-Log "新文件不存在，放弃：$NewPath"

@@ -127,8 +127,14 @@ function Start-UpdateInstall([string]$NewFile) {
     Start-Process -FilePath 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' `
         -ArgumentList $argList -WindowStyle Hidden | Out-Null
 
+    # 确定性退出：不依赖窗口关闭消息（在定时器回调里 Close 可能被推迟）
+    Write-Diag '开始更新：准备退出主程序'
     $script:reallyExit = $true
-    try { $win.Close() } catch { }
+    try { $tray.Visible = $false } catch { }
+    try { $tray.Dispose() } catch { }
+    try { $win.Hide() } catch { }
+    try { $script:mutex.ReleaseMutex(); $script:mutex.Dispose() } catch { }
+    [Environment]::Exit(0)
 }
 
 # 检查更新（带界面提示）

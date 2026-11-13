@@ -100,13 +100,16 @@ function Get-InstanceData {
         $memPct = Get-MemPercent -PrivateMB $privateMB -BaseMB $memBase
 
         $level = 0
+        # 实例开机时长：adb 在开机初期未就绪属正常，不要误报成掉线
+        $uptimeSec = 9999
+        try { $uptimeSec = ((Get-Date) - $proc.StartTime).TotalSeconds } catch { }
         $judge = '正常'
         $detectOff = (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains "$index")
         # 只以脚本是否在跑作为"在线"判据；游戏未运行属正常（脚本占用中）
         if ($detectOff)              { $level = 0; $judge = '已暂停' }
         elseif ($scriptOn -eq $false)    { $level = 2; $judge = '脚本停止' }
+        elseif ($online -eq $false -and $uptimeSec -lt 90)  { $level = 0; $judge = '启动中' }
         elseif ($online -eq $false)  { $level = 1; $judge = 'adb 未连接' }
-        elseif ($spin -ne $null -and $spin -gt [double]$script:cfg.NemuSpinPct) { $level = 2; $judge = '空转' }
         elseif ($cefCount -gt [int]$script:cfg.CefAlert) { $level = 1; $judge = 'CEF 泄漏' }
         elseif ($cores -gt [double]$script:cfg.CpuAlert) { $level = 1; $judge = 'CPU 偏高' }
         elseif ($privateMB -gt $memBase) { $level = 1; $judge = '内存偏高' }

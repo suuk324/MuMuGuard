@@ -24,8 +24,8 @@ function Get-RingView($r, [string]$ctx) {
     if ($r.Script -eq $false) {
         return [pscustomobject]@{
             Mode        = 'off'
-            Dashed      = $true
-            TrackColor  = '#262E3C'
+            Dashed      = $false
+            TrackColor  = '#2A1214'
             CenterText  = '—'
             CenterSize  = $bigSize
             CenterColor = '#414B5E'
@@ -188,7 +188,7 @@ function Sync-Compact($data, $hm) {
     $size = [math]::Min(96.0, [math]::Max(40.0, $size))
 
     # 紧凑窗口高度随内容自适应，避免底部按钮被裁掉
-    $needH = 20 + 18 + 8 + [math]::Ceiling($size * 1.02) + 20 + 20 + 37
+    $needH = 30 + 18 + 8 + [math]::Ceiling($size * 1.02) + 23 + 20 + 37
     $curH = if ($win) { $win.Height } else { 214 }
     if ($script:compactMode -eq 'rings' -and $needH -gt $curH - 0.5) {
         try { $win.Height = $needH } catch { }

@@ -2,9 +2,23 @@
 
 给 MuMu 模拟器多开用的轻量监控与自动化工具。**打开就用，关掉即走**，不留后台服务。
 
-![版本](https://img.shields.io/badge/version-1.0.2-3DDC84)
+![版本](https://img.shields.io/badge/version-1.0.3-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
+
+---
+
+## 界面
+
+**紧凑视图**（平时挂在角落，只占一小块）
+
+![紧凑视图](docs/screenshots/compact.png)
+
+实例多于一屏时自动切成列表。环的填充是内存占用，环里的大字是百分比，休眠中的实例显示唤醒时间。
+
+**详情视图**
+
+![详情视图](docs/screenshots/detail.png)
 
 ---
 

@@ -79,7 +79,7 @@ if (-not (Get-Module -ListAvailable -Name ps2exe)) {
 Import-Module ps2exe -Force
 
 if (-not (Test-Path $distDir)) { New-Item -ItemType Directory -Path $distDir -Force | Out-Null }
-$exeName = "MuMuGuard_v$Version.exe"
+$exeName = "MuMuGuard.exe"
 $exePath = Join-Path $distDir $exeName
 
 $icon = Join-Path $root 'MuMuGuard.ico'
@@ -106,7 +106,7 @@ Write-Host "  $exeName ($exeSize KB)"
 # ---------- 6. 源码包 ----------
 Write-Host ''
 Write-Host '--- 打包源码 ---' -ForegroundColor Cyan
-$srcZip = Join-Path $distDir "MuMuGuard_源码_v$Version.zip"
+$srcZip = Join-Path $distDir "MuMuGuard_source_v$Version.zip"
 if (Test-Path $srcZip) { Remove-Item $srcZip -Force }
 
 $stage = Join-Path $outDir 'srcstage'

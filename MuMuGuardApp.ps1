@@ -803,11 +803,12 @@ $xaml = @'
         <!-- 左：实例 + 事件 -->
         <Grid Grid.Column="0">
           <Grid.RowDefinitions>
-            <RowDefinition Height="1.35*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
 
-          <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+          <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                        MaxHeight="360" Padding="0,0,6,0">
             <StackPanel x:Name="PnlInstances"/>
           </ScrollViewer>
 

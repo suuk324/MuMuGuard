@@ -1446,6 +1446,8 @@ $recoverTimer.Add_Tick({
     try {
         Invoke-AutoSleep
     } catch { Write-Diag ('自动休眠异常: ' + $_.Exception.Message) }
+    # 看门狗：有休眠任务但没有唤醒器进程，就补拉一个（否则实例永远不会被唤醒）
+    try { if (@(Get-SleepList).Count -gt 0) { Start-Waker } } catch { }
     try {
         Invoke-AlertScan
     } catch { }

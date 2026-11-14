@@ -1,8 +1,5 @@
 name: CI
 
-# 每次推送和 PR 都会跑：编码检查 + 语法 + 单元测试
-# 目的：避免「本机能跑、推上去的参数忘了测」这类问题
-
 on:
   push:
     branches: [ master, main ]
@@ -19,40 +16,24 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: 检出代码
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 检查编码（PS 5.1 需要 UTF-8 BOM）
+      - name: Encoding check (PS 5.1 needs UTF-8 BOM)
         shell: powershell
-        run: |
-          .\Check-BOM.ps1
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+        run: .\Check-BOM.ps1
 
-      - name: 语法检查
+      - name: Syntax check
         shell: powershell
-        run: |
-          $files = @('MuMuGuardApp.ps1') + (Get-ChildItem lib\*.ps1 | ForEach-Object { $_.FullName })
-          $bad = 0
-          foreach ($f in $files) {
-            $err = $null
-            [void][System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$null, [ref]$err)
-            if ($err -and $err.Count -gt 0) {
-              Write-Host ("语法错误  {0}:{1}  {2}" -f $f, $err[0].Extent.StartLineNumber, $err[0].Message)
-              $bad++
-            }
-          }
-          if ($bad -gt 0) { exit 1 }
-          Write-Host "语法检查通过"
+        run: .\tests\Check-Syntax.ps1
 
-      - name: 单元测试
+      - name: Unit tests
         shell: powershell
-        run: |
-          .\tests\Run-Tests.ps1
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+        run: .\tests\Run-Tests.ps1
 
-      - name: 打包冒烟（只构建，不发布）
+      - name: Bundle smoke test
         shell: powershell
         run: |
           .\build\bundle.ps1
           if (-not (Test-Path _build\MuMuGuard.bundle.ps1)) { exit 1 }
-          Write-Host "打包检查通过"
+          Write-Host "bundle ok"

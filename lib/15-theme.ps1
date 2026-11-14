@@ -174,16 +174,22 @@ function Set-Theme([string]$mode) {
     Save-Config
     $theme = Get-ActiveTheme
     Set-ThemeResources $win $theme
+    # 设置对话框开着的时候也要同步换色，否则会出现「浅色面板 + 黑色对话框」
+    if ($script:settingsWin) {
+        try { Set-ThemeResources $script:settingsWin $theme } catch { }
+    }
 
-    # 之前创建的控件用的是旧画刷，清掉重建
-    try { $script:cmpMap = @{}; [void]$cmpRings.Children.Clear() } catch { }
-    try { $script:cardMap = @{}; [void]$cardsPanel.Children.Clear() } catch { }
-    try { $script:cellMap = @(); [void]$cmpCells.Children.Clear() } catch { }
-    try { $script:listRows = @{}; [void]$cmpList.Children.Clear() } catch { }
+    # 之前创建的控件用的是旧画刷，清掉重建（注意变量名必须和主程序一致）
+    try { $script:cmpMap = @{}; if ($cmpRings) { [void]$cmpRings.Children.Clear() } } catch { }
+    try { $script:cardMap = @{}; if ($pnlCards) { [void]$pnlCards.Children.Clear() } } catch { }
+    try { $script:cellMap = @(); if ($cmpCells) { [void]$cmpCells.Children.Clear() } } catch { }
+    try { $script:listRows = @{}; if ($cmpList) { [void]$cmpList.Children.Clear() } } catch { }
+    try { $script:healthRows = @(); if ($pnlHealth) { [void]$pnlHealth.Children.Clear() } } catch { }
+    try { if ($script:cmpEmpty -and $cmpRingsHost) { [void]$cmpRingsHost.Children.Remove($script:cmpEmpty) }; $script:cmpEmpty = $null } catch { }
     try { $script:lastGuardState = $null } catch { }
     try { $script:lastFilled = -1 } catch { }
+    try { $script:lastFilled = -1 } catch { }
     try { Update-Ui } catch { }
-    Write-Diag "主题切换: $mode (实际 $theme)"
 }
 
 # 主题显示名
@@ -193,4 +199,22 @@ function Get-ThemeLabel([string]$mode) {
         'light' { return '浅色' }
         default { return '跟随系统' }
     }
+}
+
+# 把控件颜色绑定到主题资源（切换主题时自动更新）
+function Bind-ThemeBrush {
+    param($Control, [string]$Hex, [string]$Which = 'Foreground')
+    if (-not $Control) { return }
+    $token = 'T_' + ($Hex -replace '#', '').ToUpper()
+    $dp = $null
+    switch ($Which) {
+        'Foreground' {
+            if ($Control -is [System.Windows.Controls.TextBlock]) { $dp = [System.Windows.Controls.TextBlock]::ForegroundProperty }
+            else { $dp = [System.Windows.Controls.Control]::ForegroundProperty }
+        }
+        'Background'  { $dp = [System.Windows.Controls.Control]::BackgroundProperty }
+        'BorderBrush' { $dp = [System.Windows.Controls.Control]::BorderBrushProperty }
+    }
+    if ($null -eq $dp) { return }
+    try { $Control.SetResourceReference($dp, $token) } catch { }
 }

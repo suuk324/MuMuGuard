@@ -1133,7 +1133,10 @@ function Update-Ui {
         try { $hbTime = $script:adbSync.Heartbeat } catch { }
         $staleSec = 0
         if ($hbTime) { $staleSec = [int]((Get-Date) - $hbTime).TotalSeconds }
-        $isStale = ($data.Count -gt 0) -and ((-not $hbTime) -or ($staleSec -gt 90))
+        # 窗口收进托盘时轮询是刻意暂停的，不算「数据停滞」
+        $winHidden = $false
+        try { $winHidden = ($win.WindowState -eq 'Minimized') -or (-not $win.IsVisible) } catch { }
+        $isStale = (-not $winHidden) -and ($data.Count -gt 0) -and ((-not $hbTime) -or ($staleSec -gt 90))
 
         switch ($worst) {
             0 { $txtStatus.Text = '一切正常'; $txtStatus.Foreground = Brush '#3DDC84'; $statusDot.Fill = Brush '#3DDC84'; $statusPill.Background = Brush '#0F2A1C' }
@@ -1201,6 +1204,7 @@ function Show-Settings {
     $sw = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $settingsXaml))
     $sw.Owner = $win
     Set-ThemeResources $sw (Get-ActiveTheme)
+    $script:settingsWin = $sw
     $pnl = $sw.FindName('PnlFields')
 
     # ---- 主题选择（改了立刻生效）----
@@ -1209,7 +1213,7 @@ function Show-Settings {
 
     $themeLbl = New-Object System.Windows.Controls.TextBlock
     $themeLbl.Text = '界面主题'
-    $themeLbl.Foreground = Brush '#8A94A6'
+    Bind-ThemeBrush $themeLbl '#8A94A6' 'Foreground'
     $themeLbl.FontSize = 11.5
     $themeLbl.Width = 190
     $themeLbl.VerticalAlignment = 'Center'
@@ -1226,14 +1230,14 @@ function Show-Settings {
         $rb.Content = $opt.T
         $rb.GroupName = 'ThemeGroup'
         $rb.Tag = $opt.K
-        $rb.Foreground = Brush '#E6EAF2'
+    Bind-ThemeBrush $rb '#E6EAF2' 'Foreground'
         $rb.Margin = [System.Windows.Thickness]::new(0,0,16,0)
         $rb.VerticalAlignment = 'Center'
         $rb.IsChecked = ("$($script:cfg.Theme)" -eq $opt.K)
         $rb.Add_Checked({
             param($s, $e)
             if ($script:themeApplying) { return }
-            try { Set-Theme "$($s.Tag)" } catch { }
+            try { Set-Theme "$($s.Tag)"; Set-ThemeResources $sw (Get-ActiveTheme) } catch { }
         })
         [void]$themePanel.Children.Add($rb)
     }
@@ -1278,14 +1282,14 @@ function Show-Settings {
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $t.Label
-        $lbl.Foreground = Brush '#8A94A6'
+    Bind-ThemeBrush $lbl '#8A94A6' 'Foreground'
         $lbl.FontSize = 11.5
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
 
         $cb = New-Object System.Windows.Controls.CheckBox
         $cb.IsChecked = ([bool]$script:cfg[$t.Key])
-        $cb.Foreground = Brush '#E6EAF2'
+    Bind-ThemeBrush $cb '#E6EAF2' 'Foreground'
         $cb.VerticalAlignment = 'Center'
 
         [void]$row.Children.Add($lbl)
@@ -1301,7 +1305,7 @@ function Show-Settings {
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $f.Label
-        $lbl.Foreground = Brush '#8A94A6'
+    Bind-ThemeBrush $lbl '#8A94A6' 'Foreground'
         $lbl.FontSize = 11.5
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
@@ -1312,9 +1316,9 @@ function Show-Settings {
         $tb.Height = 26
         $tb.FontSize = 12
         $tb.FontFamily = New-Object System.Windows.Media.FontFamily('Consolas')
-        $tb.Background = Brush '#0F141C'
-        $tb.Foreground = Brush '#E6EAF2'
-        $tb.BorderBrush = Brush '#161C26'
+    Bind-ThemeBrush $tb '#0F141C' 'Background'
+    Bind-ThemeBrush $tb '#E6EAF2' 'Foreground'
+    Bind-ThemeBrush $tb '#161C26' 'BorderBrush'
         $tb.Padding = [System.Windows.Thickness]::new(6,3,6,3)
 
         [void]$row.Children.Add($lbl)
@@ -1330,7 +1334,7 @@ function Show-Settings {
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $f.Label
-        $lbl.Foreground = Brush '#8A94A6'
+    Bind-ThemeBrush $lbl '#8A94A6' 'Foreground'
         $lbl.FontSize = 11.5
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
@@ -1340,9 +1344,9 @@ function Show-Settings {
         $tb.Width = 320
         $tb.Height = 26
         $tb.FontSize = 11
-        $tb.Background = Brush '#0F141C'
-        $tb.Foreground = Brush '#E6EAF2'
-        $tb.BorderBrush = Brush '#161C26'
+    Bind-ThemeBrush $tb '#0F141C' 'Background'
+    Bind-ThemeBrush $tb '#E6EAF2' 'Foreground'
+    Bind-ThemeBrush $tb '#161C26' 'BorderBrush'
         $tb.Padding = [System.Windows.Thickness]::new(6,3,6,3)
 
         [void]$row.Children.Add($lbl)
@@ -1375,6 +1379,7 @@ function Show-Settings {
     $sw.Add_MouseLeftButtonDown({ try { $sw.DragMove() } catch { } })
 
     [void]$sw.ShowDialog()
+    $script:settingsWin = $null
 }
 
 

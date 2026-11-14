@@ -1261,7 +1261,7 @@ $settingsXaml = @'
 
       <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
         <Button x:Name="BtnCancel" Content="取消" Width="88" Height="34" Style="{StaticResource MiniBtn}" Background="#161C26"/>
-        <Button x:Name="BtnSave" Content="保存" Width="96" Height="34" Margin="8,0,0,0"
+        <Button x:Name="BtnSave" Content="保存" Width="96" Height="34" Margin="8,0,0,0" Foreground="#0A0D14"
                 Style="{StaticResource MiniBtn}" Background="#E8EDF5"/>
       </StackPanel>
     </Grid>

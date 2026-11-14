@@ -545,15 +545,15 @@ $workerScript = {
                     $gamePart   = ''
                     $psPart     = ''
                     if ($res -match '(?s)SCRIPT\s*(.*?)\s*GAME') { $scriptPart = $Matches[1] }
-                    if ($res -match '(?s)GAME\s*(.*?)\s*SEP')   { $gamePart   = $Matches[1] }
+                    if ($res -match '(?s)GAME\s*(.*?)(?:\s*INST|\s*SEP)')  { $gamePart   = $Matches[1] }
                     if ($res -match '(?s)SEP\s*(.*)$')          { $psPart     = $Matches[1] }
                     # INST 段：紫孔雀是否已安装（没装就不能当成「掉线」去恢复）
                     $instPart = ''
                     if ($res -match '(?s)INST\s*(.*?)\s*SEP') { $instPart = $Matches[1] }
                     $installed = ($instPart -match 'package:')
 
-                    $scriptOn = ($scriptPart -match '\d{2,}')
-                    $gameOn   = ($gamePart   -match '\d{2,}')
+                    $scriptOn = ($scriptPart -match '(?m)^\s*\d+\s*$')
+                    $gameOn   = ($gamePart   -match '(?m)^\s*\d+\s*$')
 
                     # nemuinit 时间在 SEP 段，升级信息在 MEM 段
                     if ($res -match '(?s)SEP\s*(.*?)(?:MEM|$)') { $psPart = $Matches[1] }

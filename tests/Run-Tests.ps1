@@ -57,6 +57,42 @@ function Assert-Equal($expected, $actual) {
     return $true
 }
 
+# ---------------- 采集输出解析（防标记互相吞并）----------------
+# 背景：INST 段插在 GAME 和 SEP 之间，早期解析把 APK 路径当成游戏输出，导致误报「游戏运行中」
+$probe1 = "READY`nSCRIPT`n2089`nGAME`nINST`npackage:/data/app/~~3MgQ4jU/base.apk`nSEP`n   0:01.09 nemuinit"
+Test-Case '解析：脚本运行中、游戏未运行、已安装' {
+    $sp = ''
+    $gp = ''
+    $ip = ''
+    if ($probe1 -match '(?s)SCRIPT\s*(.*?)\s*GAME') { $sp = $Matches[1] }
+    if ($probe1 -match '(?s)GAME\s*(.*?)(?:\s*INST|\s*SEP)') { $gp = $Matches[1] }
+    if ($probe1 -match '(?s)INST\s*(.*?)\s*SEP') { $ip = $Matches[1] }
+    Assert-Equal $true  ($sp -match '(?m)^\s*\d+\s*$')
+    Assert-Equal $false ($gp -match '(?m)^\s*\d+\s*$')
+    Assert-Equal $true  ($ip -match 'package:')
+}
+
+Test-Case '解析：游戏确实在运行' {
+    $probe2 = "READY`nSCRIPT`n2089`nGAME`n12345`n12346`nINST`n`nSEP`n   0:01.09 nemuinit"
+    $gp2 = ''
+    if ($probe2 -match '(?s)GAME\s*(.*?)(?:\s*INST|\s*SEP)') { $gp2 = $Matches[1] }
+    Assert-Equal $true ($gp2 -match '(?m)^\s*\d+\s*$')
+}
+
+Test-Case '解析：未安装时判定为未安装（不当作掉线）' {
+    $probe3 = "READY`nSCRIPT`n`nGAME`n`nINST`n`nSEP`n   0:01.09 nemuinit"
+    $ip3 = ''
+    if ($probe3 -match '(?s)INST\s*(.*?)\s*SEP') { $ip3 = $Matches[1] }
+    Assert-Equal $false ($ip3 -match 'package:')
+}
+
+Test-Case '解析：脚本没在跑时不能误判' {
+    $probe4 = "READY`nSCRIPT`n`nGAME`n`nINST`npackage:/x/base.apk`nSEP`n   0:01.09 nemuinit"
+    $sp4 = ''
+    if ($probe4 -match '(?s)SCRIPT\s*(.*?)\s*GAME') { $sp4 = $Matches[1] }
+    Assert-Equal $false ($sp4 -match '(?m)^\s*\d+\s*$')
+}
+
 Write-Host ''
 Write-Host '=== Get-RemainingLabel（剩余时间格式化）===' -ForegroundColor Cyan
 
@@ -385,6 +421,7 @@ Test-Case '1.1.0 -> v1.0.9 无新版' {
 Test-Case '远程为空 无新版' {
     Assert-Equal $false (Test-NewerVersion -Local '1.0.0' -Remote '')
 }
+
 Write-Host ''
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {

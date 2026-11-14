@@ -8,17 +8,23 @@ function Show-Panel {
         $win.ShowInTaskbar = $true
         $win.Show()
         $win.WindowState = 'Normal'
+        # 无边框窗口从最小化还原时高度会塌成一条（实测 1050 -> 302），
+        # 这里按当前视图重新套一次尺寸，保证恢复成正常窗口
+        try { Set-View $script:viewMode } catch { }
+        if ($win.Height -lt 300) { try { Set-View 'detail' } catch { } }
         $win.Activate()
         $win.Topmost = $true
         $win.Topmost = $false
+        try { Update-Ui } catch { }
     } catch { Write-Diag "显示面板失败: $($_.Exception.Message)" }
 }
 
 
 function Hide-Panel {
     try {
-        $win.WindowState  = 'Minimized'
         $win.ShowInTaskbar = $false
+        # 用 Hide 而不是 Minimized：最小化后再还原会让无边框窗口高度塌陷
+        $win.Hide()
     } catch { Write-Diag "隐藏面板失败: $($_.Exception.Message)" }
 }
 

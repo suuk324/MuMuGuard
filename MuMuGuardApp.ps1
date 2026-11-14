@@ -807,7 +807,9 @@ $xaml = @'
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
 
-          <StackPanel x:Name="PnlInstances" Grid.Row="0"/>
+          <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+            <StackPanel x:Name="PnlInstances"/>
+          </ScrollViewer>
 
           <Border Grid.Row="1" CornerRadius="12" Background="#0F141C" BorderBrush="#161C26"
                   BorderThickness="1" Padding="16,14" Margin="0,4,0,0">

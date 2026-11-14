@@ -358,7 +358,11 @@ function Export-Report {
     $lines += ''
     $lines += '== 当前实例 =='
     foreach ($r in @($script:lastInstances)) {
-        $gameText = if ($r.Online -eq $true) { '游戏运行中' } elseif ($r.Online -eq $false) { '未运行' } else { '未知' }
+        # Online 只代表 adb 通了，游戏是否在跑要用 Game 字段（之前写错，报告一律显示"游戏运行中"）
+        $gameText = if ($r.Online -eq $false) { 'adb 未连接' }
+                    elseif ($r.Game -eq $true) { '游戏运行中' }
+                    elseif ($r.Game -eq $false) { '游戏未运行' }
+                    else { '未知' }
         $lines += ('{0}  PID={1}  CPU={2:N2}核  私有={3}MB  CEF={4}  {5}  {6}' -f $r.Name, $r.PID, $r.Cores, $r.Private, $r.CEF, $gameText, $r.Judge)
     }
     $hm = Get-HostMemory

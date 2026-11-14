@@ -734,7 +734,13 @@ function Sync-Cards($data) {
         if ($rv.Mode -eq 'on') { Set-CardArc $c $rv.Pct $rv.ArcColor }
 
         if ($r.Sleeping) {
-            $c.Game.Text = $(if ($r.SleepUpgrade) { "休眠中 · $($r.SleepUpgrade)" } else { '休眠中' })
+            # 升级项目名按本实例的编号去休眠列表里取，避免多条休眠记录互相串字
+            $sleepUp = "$($r.SleepUpgrade)"
+            try {
+                $ent = @(Get-SleepList | Where-Object { "$($_.Index)" -eq "$($r.Index)" }) | Select-Object -First 1
+                if ($ent -and "$($ent.Upgrade)".Trim()) { $sleepUp = "$($ent.Upgrade)".Trim() }
+            } catch { }
+            $c.Game.Text = $(if ($sleepUp) { "休眠中 · $sleepUp" } else { '休眠中' })
             $c.Game.Foreground = Brush '#7C8BA8'
         } elseif ($r.Online -eq $null) {
             $c.Game.Text = 'adb 未连接'

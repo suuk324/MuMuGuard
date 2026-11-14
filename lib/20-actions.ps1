@@ -49,7 +49,15 @@ function Get-SleepList {
         if (-not (Test-Path $SleepFile)) { return @() }
         $raw = Get-Content $SleepFile -Raw -Encoding UTF8
         if (-not $raw -or $raw.Trim() -eq '') { return @() }
-        return @(@($raw | ConvertFrom-Json) | Where-Object { $_ -ne $null })
+        $j = $raw | ConvertFrom-Json
+        if ($null -eq $j) { return @() }
+        # ConvertFrom-Json 把数组当成一个对象返回，必须手动逐个输出，
+        # 否则调用方拿到的"一条记录"其实是整条数组（编号会变成 "2 3"，升级名会串成两串）
+        if ($j -is [System.Array]) {
+            foreach ($x in $j) { if ($null -ne $x) { $x } }
+        } else {
+            $j
+        }
     } catch { return @() }
 }
 

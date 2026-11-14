@@ -216,6 +216,15 @@ Check 'diag 日志存在' (Test-Path (Join-Path $dir 'logs\diag.log')) ''
 Write-Host ''
 Write-Host '=== 8. 配置完整性 ===' -ForegroundColor Cyan
 $c = Get-Content $cfgPath -Raw | ConvertFrom-Json
+# 前面来回切换看护可能没恢复成功；这条断言只关心「能保持运行」，先确保开启
+if ($c.GuardRunning -ne $true) {
+    [void](Click-Like $win '启动看护')
+    for ($t3 = 0; $t3 -lt 10; $t3++) {
+        Start-Sleep -Seconds 1
+        $c = Get-Content $cfgPath -Raw | ConvertFrom-Json
+        if ($c.GuardRunning -eq $true) { break }
+    }
+}
 $need = @('CefKeep','CefStaleMin','CefAlert','CpuAlert','LowMemMB','GuardMinute','GuardRunning',
     'NemuSpinPct','MemAlertMB','LogKeepDays','AutoRecover','RecoverCheckSec','RecoverFailCount',
     'RecoverCooldown','DetectOff','AutoSleep','SleepLeadMin','SleepMaxHours','MuMuRoot',

@@ -177,8 +177,20 @@ while ($true) {
             if ($ok) {
                 Write-Event 'WAKE_OK' "实例$idx" '已唤醒并启动脚本'
             } else {
-                Write-Log "实例 $idx 唤醒失败，移除任务（请手动处理）"
-                Write-Event 'WAKE_FAIL' "实例$idx" '唤醒失败，请手动处理'
+                # 失败重试：最多 3 次，间隔 3 分钟
+                $tries = 1
+                if ($item.PSObject.Properties.Name -contains 'Retry') { $tries = [int]$item.Retry + 1 }
+                if ($tries -lt 3) {
+                    if ($item.PSObject.Properties.Name -contains 'Retry') { $item.Retry = $tries }
+                    else { $item | Add-Member -NotePropertyName Retry -NotePropertyValue $tries -Force }
+                    $item.WakeAt = (Get-Date).AddMinutes(3).ToString('yyyy-MM-ddTHH:mm:ss')
+                    $remain += $item
+                    Write-Log ("实例 {0} 唤醒失败（第 {1}/3 次），3 分钟后重试" -f $idx, $tries)
+                    Write-Event 'WAKE_RETRY' "实例$idx" ("第 {0}/3 次失败，3 分钟后重试" -f $tries)
+                } else {
+                    Write-Log "实例 $idx 连续 3 次唤醒失败，移除任务（请手动处理）"
+                    Write-Event 'WAKE_FAIL' "实例$idx" '连续 3 次唤醒失败，请手动处理'
+                }
             }
             continue
         }

@@ -653,6 +653,8 @@ function Sync-Cards($data) {
                         Save-SleepList $list2
                         Start-Waker
                         Write-GuardLog 'WAKE_MANUAL' "实例$i" '手动唤醒'
+                        # 手动接管：清掉该实例已抓取的升级数据，下轮重新抓取
+                        Reset-InstanceMemory $i
                         $txtInfo.Text = "正在唤醒实例 $i"
                     } catch {
                         Write-Diag "手动唤醒失败: $($_.Exception.Message)"
@@ -672,6 +674,7 @@ function Sync-Cards($data) {
                                       '-File', (Get-HelperScript 'Restart-Instance.ps1'),
                                       '-Index', "$i", '-LogFile', $log `
                         -WindowStyle Hidden | Out-Null
+                    Reset-InstanceMemory $i
                     $txtInfo.Text = "已开始重启实例 $i，完成后会自动启动紫孔雀"
                 } catch {
                     Write-Diag "重启实例失败: $($_.Exception.Message)"
@@ -1375,6 +1378,76 @@ function Show-Settings {
         $textBoxes[$f.Key] = $tb
     }
 
+    # 清除记忆（彻底档）：先弹自定义对话框，带「同时停止看护」勾选
+    $memBtn = New-Object System.Windows.Controls.Button
+    $memBtn.Content = '清除记忆…'
+    $memBtn.Style = $win.Resources['Mini']
+    $memBtn.HorizontalAlignment = 'Left'
+    $memBtn.Margin = [System.Windows.Thickness]::new(0, 16, 0, 0)
+    $memBtn.ToolTip = '彻底删除休眠任务、趋势、日志与统计（设置会保留）'
+    $memBtn.Add_Click({
+        $dlg = New-Object System.Windows.Window
+        $dlg.Title = 'MuMuGuard 清除记忆'
+        $dlg.Width = 460
+        $dlg.SizeToContent = 'Height'
+        $dlg.WindowStartupLocation = 'CenterOwner'
+        $dlg.WindowStyle = 'ToolWindow'
+        $dlg.ResizeMode = 'NoResize'
+        $dlg.Background = Brush '#0F141C'
+
+        $outer = New-Object System.Windows.Controls.StackPanel
+        $outer.Margin = [System.Windows.Thickness]::new(22, 18, 22, 18)
+
+        $t1 = New-Object System.Windows.Controls.TextBlock
+        $t1.Text = "将彻底删除以下内容（不可恢复）：`r`n`r`n· 全部休眠任务（正在休眠的实例不会再自动唤醒）`r`n· 内存趋势、今日统计、事件记录`r`n· 所有日志与已导出的报告`r`n`r`n设置（别名、检测开关、窗口位置）会保留。"
+        $t1.TextWrapping = 'Wrap'
+        $t1.FontSize = 12
+        $t1.LineHeight = 20
+        $t1.Foreground = Brush '#C9D2E0'
+        [void]$outer.Children.Add($t1)
+
+        $chk = New-Object System.Windows.Controls.CheckBox
+        $chk.Content = '同时停止看护'
+        $chk.Foreground = Brush '#E6EAF2'
+        $chk.FontSize = 12
+        $chk.Margin = [System.Windows.Thickness]::new(0, 16, 0, 0)
+        [void]$outer.Children.Add($chk)
+
+        $row = New-Object System.Windows.Controls.StackPanel
+        $row.Orientation = 'Horizontal'
+        $row.HorizontalAlignment = 'Right'
+        $row.Margin = [System.Windows.Thickness]::new(0, 18, 0, 0)
+
+        $btnNo = New-Object System.Windows.Controls.Button
+        $btnNo.Content = '取消'
+        $btnNo.Style = $win.Resources['Mini']
+        $btnNo.MinWidth = 80
+        $btnNo.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
+        $btnNo.Add_Click({ $dlg.Close() })
+        [void]$row.Children.Add($btnNo)
+
+        $btnYes = New-Object System.Windows.Controls.Button
+        $btnYes.Content = '彻底清除'
+        $btnYes.Style = $win.Resources['Mini']
+        $btnYes.MinWidth = 96
+        $btnYes.Foreground = Brush '#F26D6D'
+        $btnYes.Tag = $chk
+        $btnYes.Add_Click({
+            $stop = [bool]$s.Tag.IsChecked
+            $n = Invoke-ClearMemory $stop
+            $dlg.Close()
+            try { $txtInfo.Text = ("已清除 {0} 个文件，记忆已归零" -f $n) } catch { }
+            try { $script:lastInstances = @(); Update-Ui } catch { }
+            try { Update-Trend } catch { }
+            try { Sync-Events } catch { }
+        })
+        [void]$row.Children.Add($btnYes)
+        [void]$outer.Children.Add($row)
+
+        $dlg.Content = $outer
+        [void]$dlg.ShowDialog()
+    })
+    [void]$pnl.Children.Add($memBtn)
     $sw.FindName('BtnSave').Add_Click({
         foreach ($k in $boxes.Keys) {
             $v = 0.0

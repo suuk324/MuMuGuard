@@ -4,7 +4,7 @@
 
 给 MuMu 模拟器多开用的轻量监控与自动化工具。**打开就用，关掉即走**，不留后台服务。
 
-![版本](https://img.shields.io/badge/version-1.2.3-3DDC84)
+![版本](https://img.shields.io/badge/version-1.2.4-3DDC84)
 ![CI](https://github.com/suuk324/MuMuGuard/actions/workflows/ci.yml/badge.svg)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)

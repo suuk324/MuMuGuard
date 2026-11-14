@@ -292,7 +292,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.2.3'
+$script:appVersion = '1.2.4'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -378,7 +378,7 @@ $script:lastRecover = @{}
 $script:recovering  = @{}
 
 $script:adbData = [hashtable]::Synchronized(@{})
-$script:adbSync = [hashtable]::Synchronized(@{ Stop = $false; Data = @{}; Idle = $false; RootOk = $true; Devices = @() })
+$script:adbSync = [hashtable]::Synchronized(@{ Stop = $false; Data = @{}; Idle = $false; RootOk = $true; Devices = @(); Force = @{} })
 
 try {
     $osInfo = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
@@ -468,6 +468,9 @@ $workerScript = {
 
             # 升级信息变化慢，每 3 轮（约 90 秒）读一次
             $readMem = ($cycle % 3 -eq 1)
+            # 手动唤醒后强制重读该实例（清缓存、立即重新抓取）
+            $forceSet = @{}
+            try { foreach ($fk in @($sync.Force.Keys)) { $forceSet["$fk"] = $true } } catch { }
 
             # 错峰轮询：每轮只查一批实例，避免多开时采集开销过大
             $all = @($sync.Devices)
@@ -495,7 +498,7 @@ $workerScript = {
 
                 # 一次 shell 调用同时取「紫孔雀进程」「游戏进程」「nemuinit 时间」
                 $cmd = "echo READY; echo SCRIPT; pidof $pkgScript; echo GAME; pidof $pkgGame; echo INST; pm path $pkgScript 2>/dev/null; echo SEP; ps -A -o TIME+,NAME 2>/dev/null | grep nemuinit"
-                if ($readMem) {
+                if ($readMem -or $forceSet.ContainsKey($i)) {
                     $cmd += "; echo ROOT; su -c 'id' 2>/dev/null; echo MEM; su -c 'base64 /storage/emulated/0/zkqFiles/memory.json 2>/dev/null'"
                     $cmd += "; echo LOG; su -c 'tail -20 /data/data/$pkgScript/files/logs/info.log 2>/dev/null | base64'"
                     $cmd += "; echo SCH; su -c 'grep -o `"upgrade_time_scheduling[^,]*`" /storage/emulated/0/zkqFiles/zkq_config.json 2>/dev/null'"
@@ -564,7 +567,10 @@ $workerScript = {
                     if ($res -match '(?s)SEP\s*(.*?)(?:MEM|$)') { $psPart = $Matches[1] }
                     if ($psPart -match '(\d+(?::\d+){1,2})') { $cur = Convert-TimePlus $Matches[1] }
 
-                    if ($readMem) {
+                    $readThis = $readMem -or $forceSet.ContainsKey($i)
+                    if ($readThis) {
+                        # 被强制重读的实例：先丢掉旧缓存
+                        if ($forceSet.ContainsKey($i)) { $memCache.Remove($i); $waitCache.Remove($i); $schedCache.Remove($i) }
                         $b64 = ''
                         if ($res -match '(?s)MEM\s*(.*?)(?:LOG|$)') { $b64 = $Matches[1] }
                         # 先看 root 是否可用，再判断升级信息缺失的原因
@@ -611,6 +617,8 @@ $workerScript = {
                     Waiting = $(if ($waitCache.ContainsKey($i)) { $waitCache[$i] } else { $null })
                     Sched   = $(if ($schedCache.ContainsKey($i)) { $schedCache[$i] } else { $null })
                 }
+                # 强制重读完成，撤掉标记，恢复常态轮询
+                if ($forceSet.ContainsKey($i)) { try { $sync.Force.Remove($i) } catch { } }
             }
 
             $prevTime = $now

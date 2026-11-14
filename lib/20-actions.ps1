@@ -549,3 +549,57 @@ function Invoke-BatchWake {
     Write-GuardLog 'WAKE_MANUAL' '-' '批量唤醒'
     return $n
 }
+
+# 手动接管某台实例：清掉它的"记忆"，下一轮重新抓取
+function Reset-InstanceMemory([string]$index) {
+    $i = "$index"
+    try { $script:failCount[$i] = 0 } catch { }
+    try { $script:lastRecover.Remove($i) } catch { }
+    try { $script:recovering[$i] = $false } catch { }
+    try { if ($script:adbSync.Force) { $script:adbSync.Force[$i] = $true } } catch { }
+    Write-Diag ("实例{0} 手动接管：已清除升级数据，等待重新抓取" -f $i)
+}
+
+# 彻底清除程序记忆：删除休眠任务、趋势、日志、统计，只保留 config.json
+function Invoke-ClearMemory([bool]$StopGuard) {
+    $removed = 0
+
+    # 先停掉唤醒器，否则它内存里还挂着旧任务
+    try { Stop-AllWakers } catch { }
+
+    foreach ($f in @((Join-Path $Root 'sleep.json'), (Join-Path $Root 'trend.json'), (Join-Path $Root 'state.json'))) {
+        if (Test-Path $f) { try { Remove-Item $f -Force -ErrorAction Stop; $removed++ } catch { } }
+    }
+
+    $logDir = Join-Path $Root 'logs'
+    if (Test-Path $logDir) {
+        Get-ChildItem $logDir -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Extension -in '.log', '.csv', '.txt'
+        } | ForEach-Object {
+            try { Remove-Item $_.FullName -Force -ErrorAction Stop; $removed++ } catch { }
+        }
+    }
+
+    # 运行时状态
+    $script:failCount = @{}
+    $script:lastRecover = @{}
+    $script:recovering = @{}
+    $script:sleepWarnAt = @{}
+    $script:rootWarned = $false
+    $script:lastInstances = @()
+    $script:cardMap = @{}
+    $script:cmpMap = @{}
+    try { $script:trend.Clear() } catch { }
+    try { $script:lastGuardState = $null } catch { }
+
+    # 界面上的缓存控件
+    try { if ($pnlCards) { [void]$pnlCards.Children.Clear() } } catch { }
+    try { if ($cmpRings) { [void]$cmpRings.Children.Clear() } } catch { }
+
+    if ($StopGuard -and $script:guardRunning) {
+        try { Set-GuardState $false } catch { }
+    }
+
+    Write-Diag ("已清除程序记忆：删除 {0} 个文件，休眠任务与统计已归零" -f $removed)
+    return $removed
+}

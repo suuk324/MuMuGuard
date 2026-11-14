@@ -231,6 +231,7 @@ $defaultCfg = [ordered]@{
     AutoSleep        = $false
     SleepLeadMin     = 10
     SleepMaxHours   = 168   # 最长休眠时长（小时）：CoC 升级经常几十小时，20 太小
+    SleepMinHours   = 1     # 最短休眠时长（小时）：升级很快做完就别睡了，省得反复开关机
     # 路径与包名（可在设置里改）
     MuMuRoot     = 'D:\Program Files\Netease\MuMu'
     PkgScript    = 'com.coc.zkqcode'
@@ -248,6 +249,7 @@ $defaultCfg = [ordered]@{
     LastUpdateCheck  = ''
     SkippedVersion   = ''
     WindowLeft   = $null
+    WindowTop    = $null
 }
 
 $script:cfg = @{}
@@ -290,7 +292,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.2.2'
+$script:appVersion = '1.2.3'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 

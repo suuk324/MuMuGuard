@@ -14,21 +14,26 @@ function Invoke-GuardCleanup {
     $ageLimit = (Get-Date).AddMinutes(-[int]$script:cfg.CefStaleMin)
     $killedTotal = 0
 
+    # 1) 孤儿 CEF（所属模拟器已关闭）才是真正的残留，这些才清
+    $liveIds = @($devs | ForEach-Object { $_.ProcessId })
+    $orphans = @($cefs | Where-Object {
+        $liveIds -notcontains $_.ParentProcessId -and
+        $_.CreationDate -and $_.CreationDate -lt $ageLimit
+    })
+    foreach ($c in $orphans) {
+        try { Stop-Process -Id $c.ProcessId -Force -ErrorAction Stop; $killedTotal++ } catch { }
+    }
+    if ($orphans.Count -gt 0) {
+        Write-GuardLog 'CLEAN_CEF' '孤儿' ("残留 {0} 个已回收" -f $orphans.Count)
+    }
+
+    # 2) 运行中实例的 CEF 是 MuMu 窗口正在用的渲染进程：
+    #    杀掉会立刻重生（实测 6 秒内补一个），造成无意义的杀进程风暴，所以只告警不动手。
+    $alertN = [int]$script:cfg.CefAlert
     foreach ($d in $devs) {
-        $mine = @($cefs | Where-Object { $_.ParentProcessId -eq $d.ProcessId } | Sort-Object CreationDate -Descending)
-        if ($mine.Count -le [int]$script:cfg.CefAlert) { continue }
-
-        $candidates = @($mine | Select-Object -Skip ([int]$script:cfg.CefKeep) |
-                        Where-Object { $_.CreationDate -and $_.CreationDate -lt $ageLimit })
-        if ($candidates.Count -eq 0) { continue }
-
-        $k = 0
-        foreach ($c in $candidates) {
-            try { Stop-Process -Id $c.ProcessId -Force -ErrorAction Stop; $k++ } catch { }
-        }
-        if ($k -gt 0) {
-            $killedTotal += $k
-            Write-GuardLog 'CLEAN_CEF' ("PID={0}" -f $d.ProcessId) ("total={0} stale={1} killed={2}" -f $mine.Count, $candidates.Count, $k)
+        $mine = @($cefs | Where-Object { $_.ParentProcessId -eq $d.ProcessId })
+        if ($mine.Count -gt $alertN) {
+            Write-GuardLog 'CEF_HIGH' ("PID={0}" -f $d.ProcessId) ("total={0} 运行中，不改动" -f $mine.Count)
         }
     }
 
@@ -130,6 +135,7 @@ function Invoke-AutoSleep {
 
     $leadMin  = [double]$script:cfg.SleepLeadMin
     $maxHours = [double]$script:cfg.SleepMaxHours
+    $minHours = [double]$script:cfg.SleepMinHours
     $now = Get-Date
     $list = @(Get-SleepList)
     $changed = $false
@@ -156,7 +162,7 @@ function Invoke-AutoSleep {
         $decision = Get-SleepDecision -Row $r `
             -AutoSleep ([bool]$script:cfg.AutoSleep) `
             -GuardRunning ([bool]$script:guardRunning) `
-            -LeadMin $leadMin -MaxHours $maxHours -Now $now `
+            -LeadMin $leadMin -MaxHours $maxHours -MinHours $minHours -Now $now `
             -DetectOff @($script:cfg.DetectOff) `
             -SleepingIndexes @($list | ForEach-Object { "$($_.Index)" })
 

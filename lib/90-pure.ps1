@@ -70,6 +70,7 @@ function Get-SleepDecision {
         [bool]$GuardRunning,
         [double]$LeadMin,
         [double]$MaxHours,
+        [double]$MinHours = 0,
         [datetime]$Now,
         [string[]]$DetectOff,
         [string[]]$SleepingIndexes
@@ -89,6 +90,7 @@ function Get-SleepDecision {
     $wakeAt = $doneAt.AddMinutes(-$LeadMin)
     if ($wakeAt -le $Now.AddMinutes(2)) { return 'too-late' }
     if (($doneAt - $Now).TotalHours -gt $MaxHours) { return 'too-far' }
+    if ($MinHours -gt 0 -and ($doneAt - $Now).TotalHours -lt $MinHours) { return 'too-short' }
     return ''
 }
 # 求多个字符串的最长公共前缀（用于压缩实例名，如 "MuMu安卓设备-1" / "MuMu安卓设备-1-1"）

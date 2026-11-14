@@ -32,6 +32,9 @@ if ($cfgExists) {
     }
     foreach ($m in [regex]::Matches((Get-Content (Join-Path $root 'MuMuGuardApp.ps1') -Raw -Encoding UTF8), '\$script:cfg\.([A-Za-z_][A-Za-z0-9_]*)')) { $usedKeys[$m.Groups[1].Value] = $true }
     $methodNames = @('ContainsKey', 'Keys', 'Values', 'Count', 'PSObject', 'Remove', 'Add', 'Clear', 'Clone')
+# 默认值里定义的键也算合法（config.json 可能还没写过这些键）
+    $appTxt = Get-Content (Join-Path $root 'MuMuGuardApp.ps1') -Raw -Encoding UTF8
+    foreach ($m in [regex]::Matches($appTxt, '(?m)^\s{4}([A-Za-z_][A-Za-z0-9_]*)\s*=')) { $keys += $m.Groups[1].Value }
     $missing = @($usedKeys.Keys | Where-Object { $keys -notcontains $_ -and $methodNames -notcontains $_ } | Sort-Object)
     Ok ('代码引用的配置键都存在（{0} 个）' -f $usedKeys.Count) ($missing.Count -eq 0) ($missing -join ', ')
     $sameness = @('AutoSleep', 'GuardRunning', 'SleepLeadMin', 'SleepMaxHours', 'RecoverCheckSec', 'RecoverFailCount', 'CefKeep', 'CefStaleMin')

@@ -1277,6 +1277,7 @@ function Show-Settings {
         @{ Key = 'RecoverFailCount'; Label = '连续几次判定掉线';  Step = 1 },
         @{ Key = 'RecoverCooldown';  Label = '恢复冷却(分钟)';    Step = 1 },
         @{ Key = 'SleepLeadMin';    Label = '提前唤醒(分钟)';     Step = 1 },
+        @{ Key = 'SleepMinHours';   Label = '最短休眠(小时)';     Step = 1 },
         @{ Key = 'SleepMaxHours';   Label = '最长休眠(小时)';     Step = 1 }
     )
 

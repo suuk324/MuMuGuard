@@ -93,6 +93,51 @@ Test-Case '解析：脚本没在跑时不能误判' {
     Assert-Equal $false ($sp4 -match '(?m)^\s*\d+\s*$')
 }
 
+# ---------------- 休眠判定：最短/最长/提前 -----------------
+$sleepNow = [datetime]'2026-11-14 18:00:00'
+
+Test-Case '休眠判定：剩余 22 小时，最长 168 小时 → 应休眠' {
+    $row = [pscustomobject]@{ Index = '3'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddHours(22) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 -Now $sleepNow
+    Assert-Equal '' $d
+}
+
+Test-Case '休眠判定：剩余 22 小时，最长 20 小时 → too-far' {
+    $row = [pscustomobject]@{ Index = '3'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddHours(22) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 20 -MinHours 1 -Now $sleepNow
+    Assert-Equal 'too-far' $d
+}
+
+Test-Case '休眠判定：剩余 20 分钟，最短 1 小时 → too-short（不折磨机器）' {
+    $row = [pscustomobject]@{ Index = '1'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddMinutes(20) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 -Now $sleepNow
+    Assert-Equal 'too-short' $d
+}
+
+Test-Case '休眠判定：最短设 0 时短升级仍会睡（保持旧行为可选）' {
+    $row = [pscustomobject]@{ Index = '1'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddMinutes(40) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 0 -Now $sleepNow
+    Assert-Equal '' $d
+}
+
+Test-Case '休眠判定：升级只剩 5 分钟 → too-late' {
+    $row = [pscustomobject]@{ Index = '1'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddMinutes(5) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 0 -Now $sleepNow
+    Assert-Equal 'too-late' $d
+}
+
+Test-Case '休眠判定：脚本没在跑就不睡' {
+    $row = [pscustomobject]@{ Index = '1'; Script = $false; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddHours(5) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 -Now $sleepNow
+    Assert-Equal 'script-not-running' $d
+}
+
+Test-Case '休眠判定：上号开关没开就不睡' {
+    $row = [pscustomobject]@{ Index = '1'; Script = $true; Waiting = $true; Sched = $false; UpDone = $sleepNow.AddHours(5) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 -Now $sleepNow
+    Assert-Equal 'scheduling-off' $d
+}
+
 Write-Host ''
 Write-Host '=== Get-RemainingLabel（剩余时间格式化）===' -ForegroundColor Cyan
 

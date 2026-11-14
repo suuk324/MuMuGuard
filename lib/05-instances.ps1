@@ -269,3 +269,37 @@ function Merge-InstanceInfo {
     }
     return $Configs
 }
+
+# 重新扫描实例列表（面板运行期间新开/关闭模拟器无需重启）
+# 返回 $true 表示实例数量或编号有变化
+function Update-InstanceList {
+    param([string]$VmsDir, [string]$ManagerExe)
+
+    $list = @(Get-InstanceConfigs -VmsDir $VmsDir)
+    $info = Get-MuMuInfoAll -ManagerExe $ManagerExe
+    if ($info.Count -gt 0) { $list = Merge-InstanceInfo -Configs $list -InfoMap $info }
+
+    $oldIdx = (@($script:instances | ForEach-Object { "$($_.Index)" }) -join ',')
+    $newIdx = (@($list | ForEach-Object { "$($_.Index)" }) -join ',')
+
+    $script:instances = $list
+    $script:instanceMap = @{}
+    foreach ($ic in $script:instances) { $script:instanceMap["$($ic.Index)"] = $ic }
+
+    # 采集线程的清单跟着更新（新开或关掉的实例都能自动生效）
+    try {
+        $script:adbSync.Devices = @($list | Where-Object {
+            $r = $true
+            if ($_.PSObject.Properties.Name -contains 'Running') { $r = ($_.Running -eq $true) }
+            $r
+        } | ForEach-Object { [pscustomobject]@{ Index = $_.Index; Port = $_.AdbPort } })
+    } catch { }
+
+    if ($oldIdx -ne $newIdx) {
+        Write-Diag ("实例列表已更新：{0}" -f $newIdx)
+        try { $script:cardMap = @{}; if ($pnlCards) { [void]$pnlCards.Children.Clear() } } catch { }
+        try { $script:cmpMap = @{}; if ($cmpRings) { [void]$cmpRings.Children.Clear() } } catch { }
+        return $true
+    }
+    return $false
+}

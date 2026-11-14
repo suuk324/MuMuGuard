@@ -25,9 +25,9 @@ if (Test-Path $cfgPath) {
 }
 
 $MuMuRoot = if ($cfg.MuMuRoot) { [string]$cfg.MuMuRoot } else { 'D:\Program Files\Netease\MuMu' }
-$AdbExe   = Join-Path $MuMuRoot 'nx_device\15.0\shell\adb.exe'
-$MuMuMgr  = Join-Path $MuMuRoot 'nx_main\MuMuManager.exe'
-$PkgScript = if ($cfg.PkgScript) { [string]$cfg.PkgScript } else { 'com.coc.zkqcode' }
+$vmsDir   = Join-Path $MuMuRoot 'vms'
+$AdbExe   = Get-ChildItem (Join-Path $MuMuRoot 'nx_device') -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName 'shell\adb.exe' } | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $AdbExe) { $AdbExe = Join-Path $MuMuRoot 'nx_device\15.0\shell\adb.exe' }
 
 $CsvDir = Join-Path $PSScriptRoot 'logs'
 
@@ -82,8 +82,9 @@ function Save-SleepList($list) {
 
 function Get-AdbPort([string]$index) {
     try {
-        $c = Join-Path $MuMuRoot ("vms\MuMuPlayer-15.0-{0}\configs\vm_config.json" -f $index)
-        if (-not (Test-Path $c)) { return $null }
+        $hit = Get-ChildItem $vmsDir -Directory -Filter ("MuMuPlayer-*-{0}" -f $index) -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $hit) { return $null }
+        $c = Join-Path $hit.FullName 'configs\vm_config.json'
         $j = Get-Content $c -Raw -Encoding UTF8 | ConvertFrom-Json
         return $j.vm.nat.port_forward.adb.host_port
     } catch { return $null }

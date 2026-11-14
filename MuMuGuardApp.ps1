@@ -373,7 +373,7 @@ $script:lastRecover = @{}
 $script:recovering  = @{}
 
 $script:adbData = [hashtable]::Synchronized(@{})
-$script:adbSync = [hashtable]::Synchronized(@{ Stop = $false; Data = @{}; Idle = $false; RootOk = $true })
+$script:adbSync = [hashtable]::Synchronized(@{ Stop = $false; Data = @{}; Idle = $false; RootOk = $true; Devices = @() })
 
 try {
     $osInfo = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
@@ -465,7 +465,7 @@ $workerScript = {
             $readMem = ($cycle % 3 -eq 1)
 
             # 错峰轮询：每轮只查一批实例，避免多开时采集开销过大
-            $all = @($deviceList)
+            $all = @($sync.Devices)
             $batch = [int]$batchSize
             if ($batch -lt 1) { $batch = 2 }
             if ($all.Count -eq 0) {
@@ -623,6 +623,9 @@ $devList = @($script:instances | Where-Object {
     $running
 } | ForEach-Object { [pscustomobject]@{ Index = $_.Index; Port = $_.AdbPort } })
 # 每批查几个：3 个以内全查，超过就分批（每批约 15 秒，一轮覆盖全部）
+
+# 采集线程每轮读取这个列表，实例增减后无需重启面板
+$script:adbSync.Devices = $devList
 $batchSize = if ($devList.Count -le 3) { $devList.Count } else { [math]::Max(2, [int][math]::Ceiling($devList.Count / 5)) }
 
 [void]$workerPs.AddScript($workerScript).AddArgument($script:adbSync).AddArgument($MuMuRoot).AddArgument($AdbExe).AddArgument($PkgScript).AddArgument($PkgGame).AddArgument((Join-Path $Root 'lib\90-pure.ps1')).AddArgument($devList).AddArgument($batchSize).AddArgument($MuMuMgr)
@@ -1423,6 +1426,14 @@ $recoverTimer.Add_Tick({
 })
 
 # 启动 20 秒后检查一次更新（不阻塞启动）
+# 每 2 分钟重扫一次实例：群友新开模拟器不需要重启面板
+$rescanTimer = New-Object System.Windows.Threading.DispatcherTimer
+$rescanTimer.Interval = [TimeSpan]::FromSeconds(120)
+$rescanTimer.Add_Tick({
+    try { [void](Update-InstanceList -VmsDir $script:muInfo.VmsDir -ManagerExe $MuMuMgr) } catch { }
+})
+$rescanTimer.Start()
+
 $updateTimer = New-Object System.Windows.Threading.DispatcherTimer
 $updateTimer.Interval = [TimeSpan]::FromSeconds(20)
 $updateTimer.Add_Tick({

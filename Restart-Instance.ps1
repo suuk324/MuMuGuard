@@ -32,10 +32,31 @@ if (Test-Path $cfgPath) {
 }
 
 $MuMuRoot = if ($cfg.MuMuRoot) { [string]$cfg.MuMuRoot } else { 'D:\Program Files\Netease\MuMu' }
-$AdbExe   = Join-Path $MuMuRoot 'nx_device\15.0\shell\adb.exe'
 $MuMuMgr  = Join-Path $MuMuRoot 'nx_main\MuMuManager.exe'
 $PkgScript = if ($cfg.PkgScript) { [string]$cfg.PkgScript } else { 'com.coc.zkqcode' }
-$CfgPath  = Join-Path $MuMuRoot ("vms\MuMuPlayer-15.0-{0}\configs\vm_config.json" -f $Index)
+
+# 实例目录里的版本号不一定等于配置里的根（可能同时装了安卓 12 / 15），按编号实际查找
+function Find-VmSeries([string]$VmsDir, [string]$Idx) {
+    try {
+        $hit = Get-ChildItem $VmsDir -Directory -Filter ("MuMuPlayer-*-{0}" -f $Idx) -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($hit -and $hit.Name -match 'MuMuPlayer-([\d\.]+)-') { return $Matches[1] }
+    } catch { }
+    return '15.0'
+}
+
+$vmsDir = Join-Path $MuMuRoot 'vms'
+$series = Find-VmSeries $vmsDir $Index
+$CfgPath = Join-Path $MuMuRoot ("vms\MuMuPlayer-{0}-{1}\configs\vm_config.json" -f $series, $Index)
+
+# adb 按实际存在的引擎目录取（优先与实例同版本）
+$AdbExe = Join-Path $MuMuRoot ("nx_device\{0}\shell\adb.exe" -f $series)
+if (-not (Test-Path $AdbExe)) {
+    $cand = Get-ChildItem (Join-Path $MuMuRoot 'nx_device') -Directory -ErrorAction SilentlyContinue |
+            Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName 'shell\adb.exe' } |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($cand) { $AdbExe = $cand }
+}
+# 版本识别结果在 Write-Log 定义之后再记录（见下方）
 
 # ---- 诊断日志 ----
 $diagFile = Join-Path $Root 'logs\diag.log'
@@ -56,6 +77,9 @@ function Write-Log([string]$msg) {
     } catch { }
     Write-Diag $msg
 }
+
+# 记录版本识别结果（此时 Write-Diag 已定义）
+Write-Diag ("实例{0} 使用版本 {1}，配置 {2}" -f $Index, $series, $CfgPath)
 
 function Get-AdbPort {
     try {

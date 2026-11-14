@@ -272,7 +272,14 @@ function Invoke-AutoRecover {
             # 复查
             $adbPort = $null
             try {
-                $cfgPath = Join-Path $MuMuRoot ("vms\MuMuPlayer-15.0-{0}\configs\vm_config.json" -f $idx)
+                # 版本号按编号实际查找（可能同时装了安卓 12 / 15）
+                $series = $null
+                if ($script:instanceMap -and $script:instanceMap.ContainsKey("$idx") -and $script:instanceMap["$idx"].Series) { $series = "$($script:instanceMap["$idx"].Series)" }
+                if (-not $series) {
+                    $hit = Get-ChildItem (Join-Path $MuMuRoot 'vms') -Directory -Filter ("MuMuPlayer-*-{0}" -f $idx) -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($hit -and $hit.Name -match 'MuMuPlayer-([\d\.]+)-') { $series = $Matches[1] } else { $series = '15.0' }
+                }
+                $cfgPath = Join-Path $MuMuRoot ("vms\MuMuPlayer-{0}-{1}\configs\vm_config.json" -f $series, $idx)
                 if (Test-Path $cfgPath) {
                     $adbPort = (Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json).vm.nat.port_forward.adb.host_port
                 }

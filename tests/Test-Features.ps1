@@ -150,7 +150,12 @@ foreach ($d in $devs) {
     $base = if ($memGB -gt 0) { $memGB * 1024 + 2500 } else { [int]$cfg.MemAlertMB }
     $mb = [int]($pr.PrivateMemorySize64 / 1MB)
     $expect = [math]::Min(100, [int][math]::Round($mb / $base * 100, 0))
-    if ($pctShown -contains "$expect%") { $verified++; $script:ringChecked++ }
+    # 界面刷新与采样之间有 1~3 秒差，允许 ±1% 误差
+    $okRing = $false
+    foreach ($pc in $pctShown) {
+        if ($pc -match '^(\d+)%$') { if ([math]::Abs([int]$Matches[1] - $expect) -le 1) { $okRing = $true; break } }
+    }
+    if ($okRing) { $verified++ }
     elseif ($pctShown.Count -eq 0) { $script:ringChecked++ }   # 停止状态显示「—」属正常
 }
 Check '环百分比与内存吻合' ($verified -ge 1 -or $devs.Count -eq 0) "核对 $verified / $($devs.Count) 个实例（停止状态显示「—」不计）"
@@ -179,12 +184,21 @@ Write-Host '=== 6. 交互 ===' -ForegroundColor Cyan
 $cfgPath = Join-Path $dir 'config.json'
 $before = (Get-Content $cfgPath -Raw | ConvertFrom-Json).GuardRunning
 if ($before) { [void](Click-Like $win '停止看护') } else { [void](Click-Like $win '启动看护') }
-Start-Sleep -Seconds 3
-$after = (Get-Content $cfgPath -Raw | ConvertFrom-Json).GuardRunning
+$after = $null
+for ($t = 0; $t -lt 10; $t++) {
+    Start-Sleep -Seconds 1
+    $after = (Get-Content $cfgPath -Raw | ConvertFrom-Json).GuardRunning
+    if ($after -ne $before) { break }
+}
 Check '看护开关生效' ($before -ne $after) "$before -> $after"
 if ($after) { [void](Click-Like $win '停止看护') } else { [void](Click-Like $win '启动看护') }
-Start-Sleep -Seconds 3
-$restored = (Get-Content $cfgPath -Raw | ConvertFrom-Json).GuardRunning
+# 面板保存配置有延迟，轮询最多 10 秒，避免读得太早误判
+$restored = $null
+for ($t2 = 0; $t2 -lt 10; $t2++) {
+    Start-Sleep -Seconds 1
+    $restored = (Get-Content $cfgPath -Raw | ConvertFrom-Json).GuardRunning
+    if ($restored -eq $before) { break }
+}
 Check '看护已恢复原值' ($restored -eq $before) "当前 $restored（原 $before）"
 
 # ---------- 7. 后台 ----------

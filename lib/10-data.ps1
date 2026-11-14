@@ -42,6 +42,8 @@ function Get-InstanceData {
         if ($index -ne '-' -and $script:instanceMap -and $script:instanceMap.ContainsKey("$index")) {
             $ic = $script:instanceMap["$index"]
         }
+        # 配置没读到但实例在跑：用编号兜底，别显示成「实例 ?」
+        if (-not $ic -and $index -ne '-') { $ic = [pscustomobject]@{ Index = "$index"; Name = "实例 $index" } }
         $displayName = Get-InstanceDisplayName -Config $ic -Aliases $script:cfg.Aliases
 
         $cefCount = 0
@@ -62,10 +64,19 @@ function Get-InstanceData {
         # adb 数据（按实例编号匹配）
         $online = $null; $game = $null; $spin = $null; $scriptOn = $null
         $upgrade = $null; $waiting = $null; $sched = $null
+        $adbErr = ''
         if ($index -ne '-' -and $adbFresh -and $adb -and $adb.ContainsKey($index)) {
             $a = $adb[$index]
             $online   = $a.Online
+            if ($a.PSObject.Properties.Name -contains 'AdbErr') { $adbErr = "$($a.AdbErr)" }
             $scriptOn = $a.Script
+            if ($a.PSObject.Properties.Name -contains 'Chan' -and $a.Chan) {
+                if (-not $script:chanAt) { $script:chanAt = @{} }
+                if ($script:chanAt["$index"] -ne $a.Chan) {
+                    $script:chanAt["$index"] = $a.Chan
+                    Write-Diag ("实例{0} adb 通道: {1}" -f $index, $a.Chan)
+                }
+            }
             $game     = $a.Game
             $spin     = $a.Spin
             $props = $a.PSObject.Properties.Name
@@ -114,6 +125,16 @@ function Get-InstanceData {
         elseif ($cores -gt [double]$script:cfg.CpuAlert) { $level = 1; $judge = 'CPU 偏高' }
         elseif ($privateMB -gt $memBase) { $level = 1; $judge = '内存偏高' }
 
+
+        if ($online -eq $false -and $adbErr) {
+            $lastAt = $null
+            if ($script:adbErrAt -and $script:adbErrAt.ContainsKey("$index")) { $lastAt = $script:adbErrAt["$index"] }
+            if (-not $lastAt -or ((Get-Date) - $lastAt).TotalMinutes -ge 2) {
+                if (-not $script:adbErrAt) { $script:adbErrAt = @{} }
+                $script:adbErrAt["$index"] = Get-Date
+                Write-Diag ("实例{0} adb 失败：{1}" -f $index, $adbErr)
+            }
+        }
         $rows += [pscustomobject]@{
             Index   = $index
             Detect  = (-not $detectOff)
@@ -210,6 +231,20 @@ function Get-Health($hm) {
         if ($r.CEF -gt [int]$script:cfg.CefAlert) { $cefOk = $false }
     }
     $items += [pscustomobject]@{ Name = 'CEF 泄漏'; Ok = $cefOk; Text = $(if ($cefOk) { '无' } else { '有' }) }
+
+    # 权限一致性：MuMu 以管理员运行时，非管理员的面板无法控制它（重启/休眠会失败）
+    if (-not $script:privCache -or ((Get-Date) - $script:privCache.Time).TotalSeconds -ge 60) {
+        $script:privCache = @{ Time = (Get-Date); Value = (Get-PrivilegeState) }
+    }
+    $pv = $script:privCache.Value
+    if ($pv -and $pv.Known) {
+        $mismatch = ((-not $pv.Elevated) -and $pv.MuMuElevated)
+        $items += [pscustomobject]@{ Name = '权限'; Ok = (-not $mismatch); Text = $(if ($mismatch) { '需管理员' } else { '一致' }) }
+        if ($mismatch -and -not $script:privWarned) {
+            $script:privWarned = $true
+            Write-Diag '检测到 MuMu 以管理员身份运行，而面板不是管理员：重启/休眠/启动脚本可能失败，请右键面板「以管理员身份运行」'
+        }
+    }
 
     return $items
 }

@@ -46,7 +46,7 @@ function Exit-App {
 
 
 function New-Tray {
-    $iconPath = Join-Path $Root 'MuMuGuard.ico'
+    $iconPath = $script:IconIco
     $ni = New-Object System.Windows.Forms.NotifyIcon
     try {
         $ni.Icon = New-Object System.Drawing.Icon($iconPath)

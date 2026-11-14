@@ -6,7 +6,39 @@
 function Write-Diag([string]$msg) {
     try {
         if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
-        Add-Content -Path $script:diagFile -Value ('[{0:yyyy-MM-dd HH:mm:ss}] {1}' -f (Get-Date), $msg) -Encoding UTF8
+        $f = $script:diagFile
+        # 轮转：超过 5MB 切成 .1/.2/.3，避免长期挂着把盘写满
+        if ($f -and (Test-Path $f)) {
+            try {
+                if ((Get-Item $f -ErrorAction Stop).Length -gt 5MB) {
+                    foreach ($i in 2..1) {
+                        $old = "$f.$i"
+                        if (Test-Path $old) { Move-Item $old "$f.$($i + 1)" -Force -ErrorAction SilentlyContinue }
+                    }
+                    Move-Item $f "$f.1" -Force -ErrorAction SilentlyContinue
+                }
+            } catch { }
+        }
+        Add-Content -Path $f -Value ('[{0:yyyy-MM-dd HH:mm:ss}] {1}' -f (Get-Date), $msg) -Encoding UTF8
+    } catch { }
+}
+
+# 记录未捕获异常（崩溃日志，供用户反馈时附带）
+function Write-Crash([object]$ex, [string]$where = '') {
+    try {
+        if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
+        $path = Join-Path $LogDir 'crash.log'
+        $sb = New-Object System.Text.StringBuilder
+        [void]$sb.AppendLine(('===== {0:yyyy-MM-dd HH:mm:ss} {1} =====' -f (Get-Date), $where))
+        if ($ex) {
+            [void]$sb.AppendLine(('类型: {0}' -f $ex.GetType().FullName))
+            [void]$sb.AppendLine(('消息: {0}' -f $ex.Message))
+            if ($ex.StackTrace) { [void]$sb.AppendLine($ex.StackTrace) }
+            if ($ex.InnerException) { [void]$sb.AppendLine(('内部: {0}' -f $ex.InnerException.Message)) }
+        }
+        [void]$sb.AppendLine(('版本: {0}' -f $script:appVersion))
+        Add-Content -Path $path -Value $sb.ToString() -Encoding UTF8
+        Write-Diag ('未捕获异常（{0}）：{1}' -f $where, $(if ($ex) { $ex.Message } else { '未知' }))
     } catch { }
 }
 
@@ -138,4 +170,91 @@ function Get-HelperScript([string]$Name) {
         catch { Write-Diag "释放辅助脚本失败: $Name $($_.Exception.Message)" }
     }
     return $target
+}
+# 用 UTF-8 显式解码捕获控制台程序输出（PS2EXE 打包后没有控制台，靠 Console 编码不可靠）
+function Invoke-CaptureUtf8 {
+    param(
+        [Parameter(Mandatory = $true)][string]$Exe,
+        [string[]]$ArgList = @(),
+        [int]$TimeoutMs = 20000
+    )
+
+    if (-not (Test-Path $Exe)) { return '' }
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $Exe
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($a in $ArgList) {
+        if ($sb.Length -gt 0) { [void]$sb.Append(' ') }
+        if ("$a" -match '[\s"]') { [void]$sb.Append('"').Append(("$a" -replace '"', '\"')).Append('"') }
+        else { [void]$sb.Append("$a") }
+    }
+    $psi.Arguments = $sb.ToString()
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+
+    try {
+        $p = [System.Diagnostics.Process]::Start($psi)
+    } catch {
+        return ''
+    }
+
+    try {
+        $outMs = New-Object System.IO.MemoryStream
+        $p.StandardOutput.BaseStream.CopyTo($outMs)
+        $errMs = New-Object System.IO.MemoryStream
+        $p.StandardError.BaseStream.CopyTo($errMs)
+        if (-not $p.WaitForExit($TimeoutMs)) { try { $p.Kill() } catch { } }
+        $out = [System.Text.Encoding]::UTF8.GetString($outMs.ToArray())
+        $err = [System.Text.Encoding]::UTF8.GetString($errMs.ToArray())
+        return ($out + $err)
+    } catch {
+        return ''
+    } finally {
+        try { $p.Dispose() } catch { }
+    }
+}
+# 判断本程序与 MuMu 的权限是否一致
+# 返回 @{ Known; Elevated; MuMuElevated }
+# 原理：非管理员进程无法以 PROCESS_QUERY_INFORMATION 打开管理员进程
+function Get-PrivilegeState {
+    $res = [pscustomobject]@{ Known = $false; Elevated = $false; MuMuElevated = $false }
+
+    try {
+        $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        $pr = New-Object System.Security.Principal.WindowsPrincipal($id)
+        $res.Elevated = $pr.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch { }
+
+    $procs = @(Get-Process -Name 'MuMuNxMain', 'MuMuNxDevice' -ErrorAction SilentlyContinue)
+    if ($procs.Count -eq 0) { return $res }
+
+    if (-not ('PrivProbe' -as [type])) {
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class PrivProbe {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool CloseHandle(IntPtr h);
+    public static bool CanQuery(int pid) {
+        IntPtr h = OpenProcess(0x0400, false, pid);
+        if (h == IntPtr.Zero) { return false; }
+        CloseHandle(h);
+        return true;
+    }
+}
+"@
+    }
+
+    $res.Known = $true
+    $blocked = 0
+    foreach ($p in $procs) {
+        try { if (-not [PrivProbe]::CanQuery($p.Id)) { $blocked++ } } catch { }
+    }
+    $res.MuMuElevated = ($blocked -gt 0)
+    return $res
 }

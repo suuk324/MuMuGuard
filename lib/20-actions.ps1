@@ -333,6 +333,35 @@ function Export-Report {
     $lines += '== 今日统计 =='
     $lines += ('清理 {0} 次，回收 {1} 个进程，告警 {2} 条' -f $script:logClean, $script:logKilled, $script:logAlert)
     $lines += ''
+    $lines += '== 环境诊断 =='
+    $lines += ('MuMu 路径: {0}' -f $MuMuRoot)
+    $lines += ('MuMuManager: {0}  存在={1}' -f $MuMuMgr, (Test-Path $MuMuMgr))
+    $lines += ('adb 路径: {0}  存在={1}' -f $AdbExe, (Test-Path $AdbExe))
+    try { $lines += ('adb 版本: {0}' -f (((& $AdbExe version 2>&1) -join ' '))) } catch { $lines += 'adb 版本: 读取失败' }
+    try {
+        $devOut = ((& $AdbExe devices 2>&1) -join "`n")
+        $lines += 'adb devices:'
+        foreach ($ln in ($devOut -split "`n")) { if ($ln.Trim()) { $lines += ('  ' + $ln.Trim()) } }
+    } catch { $lines += 'adb devices: 执行失败' }
+    try {
+        $srv = Get-NetTCPConnection -LocalPort 5037 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($srv) { $lines += ('5037 端口被 PID={0} 占用: {1}' -f $srv.OwningProcess, (Get-Process -Id $srv.OwningProcess -ErrorAction SilentlyContinue).Path) }
+        else { $lines += '5037 端口无监听' }
+    } catch { }
+    $lines += ''
+    $lines += '== MuMu 实例（MuMuManager）=='
+    try {
+        $infoRaw = Invoke-CaptureUtf8 -Exe $MuMuMgr -ArgList @('info', '-v', 'all')
+        foreach ($ln in ($infoRaw -split "`n")) { if ($ln.Trim()) { $lines += $ln.TrimEnd() } }
+    } catch { $lines += '读取失败' }
+    $lines += ''
+    $lines += '== adb 连接状态 =='
+    foreach ($r in @($script:lastInstances)) {
+        $errText = ''
+        if ($r.PSObject.Properties.Name -contains 'AdbErr') { $errText = "$($r.AdbErr)" }
+        $lines += ('{0}  在线={1}  {2}' -f $r.Name, $r.Online, $(if ($errText) { '错误: ' + $errText } else { 'ok' }))
+    }
+    $lines += ''
     $lines += '== 事件明细 =='
     foreach ($r in $rows) { $lines += ('{0}  {1}  {2}  {3}' -f $r.Time, $r.Action, $r.Instance, $r.Detail) }
 

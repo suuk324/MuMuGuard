@@ -126,7 +126,17 @@ function Get-ShortLabels {
     param([string[]]$Names)
     $list = @($Names)
     if ($list.Count -eq 0) { return @() }
-    if ($list.Count -eq 1) { return @($list[0]) }
+    if ($list.Count -eq 1) {
+        # 单个实例：取最后一段标识（如「MuMu安卓设备-1-1」→「1-1」），避免长名字压到环上
+        $n = [string]$list[0]
+        $parts = @($n -split '-')
+        if ($parts.Count -ge 2) {
+            $tail = ($parts | Select-Object -Last 2) -join '-'
+            if ($tail.Length -le 8) { return @($tail) }
+        }
+        if ($n.Length -le 6) { return @($n) }
+        return @(($n).Substring(0, 5) + '…')
+    }
 
     $prefix = Get-CommonPrefix -Strings $list
     for ($len = $prefix.Length; $len -ge 0; $len--) {

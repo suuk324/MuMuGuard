@@ -108,6 +108,9 @@ function New-RingCell {
     $num.HorizontalAlignment = 'Center'
     $num.Margin = [System.Windows.Thickness]::new(0,2,0,0)
 
+    $num.MaxWidth = $RingSize - 10
+    $num.TextTrimming = 'CharacterEllipsis'
+    $num.TextAlignment = 'Center'
     [void]$inner.Children.Add($pct)
     [void]$inner.Children.Add($num)
     [void]$grid.Children.Add($inner)
@@ -168,6 +171,28 @@ function Sync-Compact($data, $hm) {
     # 实例数决定布局：≤5 个用环，>5 个切列表
     $count = @($data).Count
     $mode  = Get-CompactMode -Count $count
+
+    # 没有实例时给出明确提示，避免面板空白让人以为坏了
+    if ($count -eq 0) {
+        if (-not $script:cmpEmpty) {
+            $tb = New-Object System.Windows.Controls.TextBlock
+            $tb.Text = "没有检测到 MuMu 实例`n请先确认模拟器已安装并启动过一次"
+            $tb.TextAlignment = "Center"
+            $tb.HorizontalAlignment = "Center"
+            $tb.VerticalAlignment = "Center"
+            $tb.FontSize = 11.5
+            $tb.LineHeight = 22
+            $tb.Foreground = Brush "#8A94A6"
+            [void]$cmpRingsHost.Children.Add($tb)
+            $script:cmpEmpty = $tb
+        }
+        $script:cmpEmpty.Visibility = "Visible"
+        if ($cmpRings.Visibility -ne "Collapsed") { $cmpRings.Visibility = "Collapsed" }
+        if ($cmpList.Visibility  -ne "Collapsed") { $cmpList.Visibility  = "Collapsed" }
+        Sync-CompactFoot $data $hm
+        return
+    }
+    if ($script:cmpEmpty) { $script:cmpEmpty.Visibility = "Collapsed" }
 
     if ($mode -eq 'list') {
         if ($cmpRings.Visibility -ne 'Collapsed') { $cmpRings.Visibility = 'Collapsed' }
@@ -385,8 +410,12 @@ function Set-View([string]$mode) {
         $script:viewMode = 'compact'
     } else {
         $win.Content = $script:detailContent
-        $win.Width = 1000
-        $win.Height = 700
+        # 按屏幕工作区自适应：小屏 / 高缩放时不能超出可用区域，否则底部按钮点不到
+        $waD  = [System.Windows.SystemParameters]::WorkArea
+        $maxW = [math]::Max(680, $waD.Width  - 60)
+        $maxH = [math]::Max(440, $waD.Height - 60)
+        $win.Width  = [math]::Min(1000, $maxW)
+        $win.Height = [math]::Min(700,  $maxH)
         $script:viewMode = 'detail'
     }
     try {
@@ -668,6 +697,8 @@ function Sync-Cards($data) {
 
         $c.Name.Text = $r.Name
         $c.Judge.Text = $r.Judge
+                if ($r.PSObject.Properties.Name -contains 'AdbErr' -and $r.AdbErr) { $c.Judge.ToolTip = "adb: $($r.AdbErr)"; if ($r.PSObject.Properties.Name -contains 'Chan' -and $r.Chan) { $c.Judge.ToolTip += "
+通道: $($r.Chan)" } }
 
         # 休眠中：把「重启」换成「唤醒」
         if ($r.Sleeping) {
@@ -1097,12 +1128,27 @@ function Update-Ui {
         if ($hm.AvailableMB -lt 300) { $worst = 2 }
         elseif ($hm.AvailableMB -lt [int]$script:cfg.LowMemMB -and $worst -lt 1) { $worst = 1 }
 
+        # 采集线程停滞检测：心跳超过 90 秒没更新，说明 adb 采集已经卡住
+        $hbTime = $null
+        try { $hbTime = $script:adbSync.Heartbeat } catch { }
+        $staleSec = 0
+        if ($hbTime) { $staleSec = [int]((Get-Date) - $hbTime).TotalSeconds }
+        $isStale = ($data.Count -gt 0) -and ((-not $hbTime) -or ($staleSec -gt 90))
+
         switch ($worst) {
             0 { $txtStatus.Text = '一切正常'; $txtStatus.Foreground = Brush '#3DDC84'; $statusDot.Fill = Brush '#3DDC84'; $statusPill.Background = Brush '#0F2A1C' }
             1 { $txtStatus.Text = '需要注意'; $txtStatus.Foreground = Brush '#F5A524'; $statusDot.Fill = Brush '#F5A524'; $statusPill.Background = Brush '#2A2110' }
             2 { $txtStatus.Text = '存在问题'; $txtStatus.Foreground = Brush '#F26D6D'; $statusDot.Fill = Brush '#F26D6D'; $statusPill.Background = Brush '#2A1214' }
         }
 
+        # 采集停滞的提示优先级最高：数据不可信的时候，说什么都白搭
+        if ($isStale) {
+            $txtStatus.Text = '数据停滞'
+            $txtStatus.Foreground = Brush '#F5A524'
+            $statusDot.Fill = Brush '#F5A524'
+            $statusPill.Background = Brush '#2A2110'
+            if ($statusPill) { $statusPill.ToolTip = $(if ($staleSec -gt 0) { "采集已 $staleSec 秒没有更新，正在重连 adb" } else { '采集线程尚未就绪' }) }
+        } elseif ($statusPill) { $statusPill.ToolTip = $null }
         if ($script:guardRunning) {
             $btnGuard.Content = '■ 停止看护'
             $btnGuard.Background = Brush '#1B2A22'

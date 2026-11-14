@@ -86,6 +86,17 @@ foreach ($h in @('Waker.ps1', 'Restart-Instance.ps1', 'Update-Helper.ps1')) {
     $embedLines.Add(("`$script:EmbeddedHelpers['{0}'] = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{1}'))" -f $h, $b64))
 }
 
+# 内嵌图标资源（单文件分发时也能显示 logo / 托盘图标）
+$embedLines.Add('')
+$embedLines.Add('# ---------------- 内嵌图标（编译版用）----------------')
+$embedLines.Add('$script:EmbeddedAssets = @{}')
+foreach ($a in @('MuMuGuard.ico', 'icon.png')) {
+    $ap = Join-Path $root $a
+    if (-not (Test-Path $ap)) { throw "缺少图标文件: $ap" }
+    $b64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($ap))
+    $embedLines.Add(("`$script:EmbeddedAssets['{0}'] = [Convert]::FromBase64String('{1}')" -f $a, $b64))
+}
+
 $anchor = "`$ErrorActionPreference = 'Continue'"
 $ai = $merged.IndexOf($anchor)
 if ($ai -ge 0) {

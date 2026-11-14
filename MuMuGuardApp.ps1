@@ -123,6 +123,19 @@ public class MemInfo {
 
 $ErrorActionPreference = 'Continue'
 
+# 启动阶段的兜底：万一在窗口出现前就出错，至少留下痕迹（此时模块函数还没加载）
+trap {
+    try {
+        $__dir = Join-Path $env:LOCALAPPDATA 'MuMuGuard'
+        if (-not (Test-Path $__dir)) { New-Item -ItemType Directory -Path $__dir -Force | Out-Null }
+        Add-Content -Path (Join-Path $__dir 'startup-crash.log') -Encoding UTF8 -Value ('[{0:yyyy-MM-dd HH:mm:ss}] {1}' -f (Get-Date), $_)
+    } catch { }
+    continue
+}
+
+# 子进程（MuMuManager / adb）输出 UTF-8，隐藏窗口默认 GBK，不设会中文乱码
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
 $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
@@ -133,7 +146,7 @@ foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', 
     else { throw "缺少模块: $p" }
 }
 
-# 数据目录：程序目录可写就放旁边，否则（如放在 Program Files）退回 LOCALAPPDATA
+ # 数据目录：程序目录可写就放旁边，否则（如放在 Program Files）退回 LOCALAPPDATA
 $DataDir = $Root
 try {
     $probe = Join-Path $Root '.write_test'
@@ -143,6 +156,22 @@ try {
     $DataDir = Join-Path $env:LOCALAPPDATA 'MuMuGuard'
     if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir -Force | Out-Null }
 }
+
+# ---------------- 图标资源 ----------------
+# 单文件 exe 分发时目录里没有图标文件，从内嵌资源释放到数据目录
+function Resolve-Asset {
+    param([string]$Name)
+    $p = Join-Path $Root $Name
+    if (Test-Path $p) { return $p }
+    $p2 = Join-Path $DataDir $Name
+    if (Test-Path $p2) { return $p2 }
+    if ($script:EmbeddedAssets -and $script:EmbeddedAssets.ContainsKey($Name)) {
+        try { [System.IO.File]::WriteAllBytes($p2, $script:EmbeddedAssets[$Name]); return $p2 } catch { }
+    }
+    return $null
+}
+$script:IconIco = Resolve-Asset 'MuMuGuard.ico'
+$script:IconPng = Resolve-Asset 'icon.png'
 
 $LogDir   = Join-Path $DataDir 'logs'
 $CfgPath  = Join-Path $DataDir 'config.json'
@@ -159,9 +188,29 @@ if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Forc
 
 # 诊断日志（必须早于任何 Write-Diag 调用）
 $script:diagFile = Join-Path $LogDir 'diag.log'
+
+# ---------------- 换目录后沿用旧配置 ----------------
+# 用户把 exe 挪到别的文件夹时，配置不该丢
+if (-not (Test-Path $CfgPath)) {
+    $cands = @(
+        (Join-Path $env:LOCALAPPDATA 'MuMuGuard\config.json'),
+        (Join-Path $Root 'config.json')
+    ) | Select-Object -Unique
+    foreach ($c in $cands) {
+        if ($c -eq $CfgPath -or -not (Test-Path $c)) { continue }
+        try {
+            Copy-Item $c $CfgPath -Force
+            $sf = Join-Path (Split-Path $c -Parent) 'sleep.json'
+            if (Test-Path $sf) { Copy-Item $sf (Join-Path $DataDir 'sleep.json') -Force }
+            Write-Diag ("沿用已有配置：{0}" -f $c)
+        } catch { }
+        break
+    }
+}
 # ---------------- 配置 ----------------
 
 $defaultCfg = [ordered]@{
+    ConfigVersion = 2
     CefKeep      = 3
     CefStaleMin  = 10
     CefAlert     = 20
@@ -205,13 +254,27 @@ $defaultCfg = [ordered]@{
 $script:cfg = @{}
 foreach ($k in $defaultCfg.Keys) { $script:cfg[$k] = $defaultCfg[$k] }
 
+$script:cfgFileVer = 0
 if (Test-Path $CfgPath) {
     try {
         $saved = Get-Content $CfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($saved.PSObject.Properties.Name -contains 'ConfigVersion') { try { $script:cfgFileVer = [int]$saved.ConfigVersion } catch { $script:cfgFileVer = 0 } }
         foreach ($p in $saved.PSObject.Properties) {
             if ($script:cfg.ContainsKey($p.Name)) { $script:cfg[$p.Name] = $p.Value }
         }
     } catch { }
+}
+
+# ---------------- 配置版本与迁移 ----------------
+$script:cfgVersion = 2
+$savedVer = [int]$script:cfgFileVer
+if ($savedVer -lt $script:cfgVersion) {
+    if (Test-Path $CfgPath) {
+        try { Copy-Item $CfgPath ("{0}.v{1}.bak" -f $CfgPath, $savedVer) -Force } catch { }
+    }
+    $script:cfg['ConfigVersion'] = $script:cfgVersion
+    Save-Config
+    Write-Diag ("配置已从 v{0} 迁移到 v{1}（旧文件已备份）" -f $savedVer, $script:cfgVersion)
 }
 
 # 用配置覆盖路径与包名
@@ -224,7 +287,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.1.1'
+$script:appVersion = '1.2.0'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -243,6 +306,18 @@ $script:instances = @(Get-InstanceConfigs -VmsDir $script:muInfo.VmsDir)
 $script:instanceMap = @{}
 foreach ($ic in $script:instances) { $script:instanceMap["$($ic.Index)"] = $ic }
 Write-Diag ("发现 {0} 个实例：{1}" -f $script:instances.Count, (($script:instances | ForEach-Object { "$($_.Index)[$($_.Name)]" }) -join ', '))
+# 用 MuMuManager 校准名称 / adb 端口 / 安卓版本（不依赖目录结构，安卓 12 同样适用）
+$script:infoAll = Get-MuMuInfoAll -ManagerExe $MuMuMgr
+if ($script:infoAll.Count -gt 0) {
+    $script:instances = Merge-InstanceInfo -Configs $script:instances -InfoMap $script:infoAll
+    $script:instanceMap = @{}
+    foreach ($ic in $script:instances) { $script:instanceMap["$($ic.Index)"] = $ic }
+    Write-Diag ("MuMuManager 信息已合并：{0} 个实例" -f $script:infoAll.Count)
+} else {
+    Write-Diag "MuMuManager info 无返回，改用目录扫描结果"
+}
+Write-Diag ("adb 路径: {0}" -f $AdbExe)
+Write-Diag ("MuMuManager: {0}" -f $MuMuMgr)
 
 # ---------------- 诊断日志 ----------------
 
@@ -281,6 +356,7 @@ $script:healthRows   = @()
 $script:logCache     = $null
 $script:rootWarned   = $false
 $script:listRows     = @{}
+$script:adbErrAt     = @{}
 $script:shortLabels  = @{}
 $script:compactMode  = 'rings'
 $script:alertCache   = $null
@@ -324,8 +400,9 @@ $script:lastInstances = @()
 # ---------------- 后台 adb 采集 ----------------
 
 $workerScript = {
-    param($sync, $mumuRoot, $adbExe, $pkgScript, $pkgGame, $purePath, $deviceList, $batchSize)
+    param($sync, $mumuRoot, $adbExe, $pkgScript, $pkgGame, $purePath, $deviceList, $batchSize, $mumuMgr)
 
+    try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
     # 载入纯函数，保证与主程序逻辑一致
     if ($purePath -and (Test-Path $purePath)) { . $purePath }
 
@@ -370,7 +447,9 @@ $workerScript = {
     $schedCache = @{}
     $lastData = @{}
     $cursor = 0
-
+    $mgrAdbFail = 0
+    $mgrAdbSkip = $false
+    $mgrAdbSkip = $false
     while (-not $sync.Stop) {
         try {
             $cycle++
@@ -403,13 +482,6 @@ $workerScript = {
             foreach ($dev in $slice) {
                 $i = "$($dev.Index)"
                 $port = $dev.Port
-                if (-not $port) { continue }
-
-                $serial = "127.0.0.1:$port"
-                if (-not $connected.ContainsKey($serial)) {
-                    try { & $adbExe connect $serial *> $null } catch { }
-                    $connected[$serial] = $true
-                }
 
                 $online = $null
                 $game   = $null
@@ -422,14 +494,48 @@ $workerScript = {
                     $cmd += "; echo LOG; su -c 'tail -20 /data/data/$pkgScript/files/logs/info.log 2>/dev/null | base64'"
                     $cmd += "; echo SCH; su -c 'grep -o `"upgrade_time_scheduling[^,]*`" /storage/emulated/0/zkqFiles/zkq_config.json 2>/dev/null'"
                 }
-                $res = ''
-                try { $res = ((& $adbExe -s $serial shell $cmd 2>$null) -join "`n") } catch { }
 
-                if ($res -notmatch 'READY') {
-                    try { & $adbExe connect $serial *> $null } catch { }
-                    Start-Sleep -Milliseconds 400
-                    try { $res = ((& $adbExe -s $serial shell $cmd 2>$null) -join "`n") } catch { }
+                $res = ''
+                $errText = ''
+                $chan = ''
+
+                # 通道一：MuMuManager adb（不依赖 adb 路径与端口，安卓 12/15 通吃）
+                if ($mumuMgr -and -not $mgrAdbSkip -and (Test-Path $mumuMgr)) {
+                    try {
+                        $out1 = (& $mumuMgr adb -v $i -c "shell $cmd" 2>&1 | Out-String)
+                        if ($null -eq $out1) { $out1 = '' }
+                        if ($out1 -match 'READY') {
+                            $res = $out1; $chan = 'mumu'; $mgrAdbFail = 0
+                        } else {
+                            $errText = ($out1 -replace '\s+', ' ').Trim()
+                            $mgrAdbFail++
+                        }
+                    } catch { $errText = $_.Exception.Message; $mgrAdbFail++ }
                 }
+
+
+                # 通道二：MuMuManager sh（直接跑 shell，不经过 adb，部分版本只有这个）
+                if ($res -notmatch 'READY' -and $mumuMgr -and (Test-Path $mumuMgr)) {
+                    try {
+                        $outSh = (& $mumuMgr sh -v $i -c $cmd 2>&1 | Out-String)
+                        if ($null -eq $outSh) { $outSh = '' }
+                        if ($outSh -match 'READY') { $res = $outSh; $chan = 'mumush' }
+                        elseif (-not $errText) { $errText = ($outSh -replace '\s+', ' ').Trim() }
+                    } catch { if (-not $errText) { $errText = $_.Exception.Message } }
+                }
+
+                # 通道三：直连 adb（兜底）
+                if ($res -notmatch 'READY' -and $port) {
+                    $serial = "127.0.0.1:$port"
+                    try { & $adbExe connect $serial *> $null } catch { }
+                    try {
+                        $out2 = ((& $adbExe -s $serial shell $cmd 2>&1) -join "`n")
+                        if ($out2 -match 'READY') { $res = $out2; $chan = 'adb'; if ($mgrAdbFail -ge 3) { $mgrAdbSkip = $true } }
+                        elseif (-not $errText) { $errText = ($out2 -replace '\s+', ' ').Trim() }
+                    } catch { if (-not $errText) { $errText = $_.Exception.Message } }
+                }
+
+                if (-not $errText) { $errText = '（无返回内容）' }
 
                 if ($res -match 'READY') {
                     $online = $true
@@ -478,6 +584,8 @@ $workerScript = {
 
                 $out["$i"] = [pscustomobject]@{
                     Online  = $online
+                    AdbErr  = $errText
+                    Chan    = $chan
                     Script  = $scriptOn
                     Game    = $gameOn
                     Spin    = $spin
@@ -507,16 +615,17 @@ $rs.ThreadOptions  = 'ReuseThread'
 $rs.Open()
 $workerPs = [powershell]::Create()
 $workerPs.Runspace = $rs
-# 传给采集线程的实例清单（编号 + 端口）
-$devList = @($script:instances | Where-Object { $_.AdbPort -gt 0 } | ForEach-Object {
-    [pscustomobject]@{ Index = $_.Index; Port = $_.AdbPort }
-})
-if ($devList.Count -eq 0) { $devList = @([pscustomobject]@{ Index = '1'; Port = 16416 }) }
 
+# 传给采集线程的实例清单（只查正在运行的，避免对已关机的实例白跑 adb）
+$devList = @($script:instances | Where-Object {
+    $running = $true
+    if ($_.PSObject.Properties.Name -contains 'Running') { $running = ($_.Running -eq $true) }
+    $running
+} | ForEach-Object { [pscustomobject]@{ Index = $_.Index; Port = $_.AdbPort } })
 # 每批查几个：3 个以内全查，超过就分批（每批约 15 秒，一轮覆盖全部）
 $batchSize = if ($devList.Count -le 3) { $devList.Count } else { [math]::Max(2, [int][math]::Ceiling($devList.Count / 5)) }
 
-[void]$workerPs.AddScript($workerScript).AddArgument($script:adbSync).AddArgument($MuMuRoot).AddArgument($AdbExe).AddArgument($PkgScript).AddArgument($PkgGame).AddArgument((Join-Path $Root 'lib\90-pure.ps1')).AddArgument($devList).AddArgument($batchSize)
+[void]$workerPs.AddScript($workerScript).AddArgument($script:adbSync).AddArgument($MuMuRoot).AddArgument($AdbExe).AddArgument($PkgScript).AddArgument($PkgGame).AddArgument((Join-Path $Root 'lib\90-pure.ps1')).AddArgument($devList).AddArgument($batchSize).AddArgument($MuMuMgr)
 $workerHandle = $workerPs.BeginInvoke()
 
 # ---------------- 主界面 XAML ----------------
@@ -814,6 +923,52 @@ $win = [Windows.Markup.XamlReader]::Parse($xaml)
 # 主题资源：必须在界面显示前设好，DynamicResource 才能取到
 Set-ThemeResources $win (Get-ActiveTheme)
 
+# ---------------- 全局异常兜底 ----------------
+# UI 线程上的未捕获异常：记日志并继续运行（看护工具不能因为一个界面异常就退出）
+try {
+    $win.Dispatcher.add_UnhandledException({
+        param($s, $e)
+        Write-Crash $e.Exception 'UI'
+        try { $e.Handled = $true } catch { }
+    })
+} catch { Write-Diag "注册 UI 异常处理失败: $($_.Exception.Message)" }
+
+# 任何线程上彻底没接住的异常（进程即将退出前）
+# 注意：这个回调可能在非 PowerShell 线程上执行，不能用脚本块（会报「没有 Runspace」）
+try {
+    if (-not ('CrashSink' -as [type])) {
+        Add-Type -TypeDefinition @"
+using System;
+using System.IO;
+using System.Text;
+public class CrashSink {
+    public static string Path;
+    public static string Version;
+    public static void OnUnhandled(object sender, UnhandledExceptionEventArgs e) {
+        try {
+            var ex = e.ExceptionObject as Exception;
+            var sb = new StringBuilder();
+            sb.AppendLine("===== " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " AppDomain =====");
+            sb.AppendLine("致命异常，进程即将退出");
+            if (ex != null) {
+                sb.AppendLine("类型: " + ex.GetType().FullName);
+                sb.AppendLine("消息: " + ex.Message);
+                if (ex.StackTrace != null) sb.AppendLine(ex.StackTrace);
+                if (ex.InnerException != null) sb.AppendLine("内部: " + ex.InnerException.Message);
+            }
+            sb.AppendLine("版本: " + (Version == null ? "" : Version));
+            File.AppendAllText(Path, sb.ToString(), Encoding.UTF8);
+        } catch { }
+    }
+    public static void Hook(string path, string ver) {
+        Path = path; Version = ver;
+        AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(OnUnhandled);
+    }
+}
+"@
+    }
+    [CrashSink]::Hook((Join-Path $LogDir 'crash.log'), $script:appVersion)
+} catch { Write-Diag "注册进程级异常处理失败: $($_.Exception.Message)" }
 # 独立的任务栏身份：否则会并入 powershell.exe 分组，显示 PowerShell 的图标
 if (-not ('AppId' -as [type])) {
     try {
@@ -832,14 +987,14 @@ try { [AppId]::Set('Titen.MuMuGuard.Panel') } catch { }
 
 # 窗口 / 任务栏图标
 try {
-    $icoPath = Join-Path $Root 'MuMuGuard.ico'
-    if (Test-Path $icoPath) {
+    $icoPath = $script:IconIco
+    if ($icoPath -and (Test-Path $icoPath)) {
         $win.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$icoPath)
     }
         $logoImg = $win.FindName('LogoImg')
         if ($logoImg) {
             # 优先用 256px PNG，缩小后更清晰
-            $pngPath = Join-Path $Root 'icon.png'
+            $pngPath = $script:IconPng
             $src = if (Test-Path $pngPath) { $pngPath } else { $icoPath }
             try { $logoImg.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$src) } catch { }
             try { [System.Windows.Media.RenderOptions]::SetBitmapScalingMode($logoImg, 'HighQuality') } catch { }

@@ -48,29 +48,59 @@ function Get-MuMuInstallInfo {
         } catch { Write-Diag "解析 install_config.json 失败: $($_.Exception.Message)" }
     }
 
-    # 回退：直接搜 nx_device\*\shell\adb.exe
+    # 回退：在安装目录里广泛搜索（MuMu 12 / 15 结构不同，逐个试）
     if (-not $info.AdbExe) {
-        $cand = Get-ChildItem (Join-Path $Root 'nx_device') -Directory -ErrorAction SilentlyContinue |
-                Sort-Object Name -Descending
-        foreach ($c in $cand) {
-            $p = Join-Path $c.FullName 'shell\adb.exe'
-            if (Test-Path $p) {
-                $info.AdbExe = $p
-                if (-not $info.AndroidVer) { $info.AndroidVer = $c.Name }
-                break
-            }
+        $probe = @()
+        $probe += (Get-ChildItem (Join-Path $Root 'nx_device') -Directory -ErrorAction SilentlyContinue |
+                   Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName 'shell\adb.exe' })
+        $probe += (Join-Path $Root 'shell\adb.exe')
+        $probe += (Join-Path $Root 'adb.exe')
+        $probe += (Get-ChildItem $Root -Directory -ErrorAction SilentlyContinue |
+                   ForEach-Object { Join-Path $_.FullName 'shell\adb.exe' })
+        foreach ($p in $probe) {
+            if ($p -and (Test-Path $p)) { $info.AdbExe = $p; break }
         }
     }
 
-    if (-not $info.VmsDir) {
-        $p = Join-Path $Root 'vms'
-        if (Test-Path $p) { $info.VmsDir = $p }
+    # 再不行就从 PATH 里找
+    if (-not $info.AdbExe) {
+        $cmd = Get-Command 'adb.exe' -ErrorAction SilentlyContinue
+        if ($cmd) { $info.AdbExe = $cmd.Source }
     }
 
-    $mgr = Join-Path $Root 'nx_main\MuMuManager.exe'
-    if (Test-Path $mgr) { $info.ManagerExe = $mgr }
+    if (-not $info.VmsDir) {
+        foreach ($p in @((Join-Path $Root 'vms'), (Join-Path $Root 'MuMuPlayer-12.0\vms'), (Join-Path $Root 'MuMuPlayer\vms'))) {
+            if (Test-Path $p) { $info.VmsDir = $p; break }
+        }
+    }
 
-    $info.Found = [bool]($info.AdbExe -and $info.ManagerExe)
+    # MuMuManager 位置也做多种尝试
+    foreach ($p in @(
+        (Join-Path $Root 'nx_main\MuMuManager.exe'),
+        (Join-Path $Root 'MuMuManager.exe'),
+        (Join-Path $Root 'shell\MuMuManager.exe'),
+        (Join-Path $Root 'nx_device\MuMuManager.exe')
+    )) {
+        if (Test-Path $p) { $info.ManagerExe = $p; break }
+    }
+
+    # 仍然没找到？从 adb 路径反推安装根（MuMu 装在别的盘时 $Root 可能是旧值）
+    if (-not $info.ManagerExe -and $info.AdbExe) {
+        try {
+            $p = $info.AdbExe
+            # ...\nx_device\<版本>\shell\adb.exe  → 往上三层就是安装根
+            $pRoot = Split-Path (Split-Path (Split-Path (Split-Path $p -Parent) -Parent) -Parent) -Parent
+            foreach ($cand in @(
+                (Join-Path $pRoot 'nx_main\MuMuManager.exe'),
+                (Join-Path $pRoot 'MuMuManager.exe')
+            )) {
+                if (Test-Path $cand) { $info.ManagerExe = $cand; $info.Root = $pRoot; break }
+            }
+        } catch { }
+    }
+
+    # 只要找到 MuMuManager 就可用（adb 只是兜底通道）
+    $info.Found = [bool]($info.ManagerExe -or $info.AdbExe)
     return $info
 }
 
@@ -141,10 +171,101 @@ function Get-InstanceDisplayName {
     param($Config, $Aliases)
 
     if ($Aliases -and $Config) {
+        # 优先用稳定键（MuMu 创建时间戳）：实例重新编号后别名不会串到别的实例上
+        $sid = $null
+        if ($Config.PSObject.Properties.Name -contains 'StableId') { $sid = "$($Config.StableId)" }
+        if ($sid) {
+            $a = $Aliases."$sid"
+            if ($a -and "$a".Trim()) { return "$a".Trim() }
+        }
         $a = $Aliases."$($Config.Index)"
         if ($a -and "$a".Trim()) { return "$a".Trim() }
     }
     if ($Config -and $Config.Name) { return [string]$Config.Name }
     if ($Config) { return "实例 $($Config.Index)" }
     return '实例 ?'
+}
+
+# 用 MuMuManager 查询所有实例（最可靠的来源：不依赖目录结构，安卓 12/15 通用）
+# 返回 编号 -> 信息对象
+function Get-MuMuInfoAll {
+    param([string]$ManagerExe)
+
+    $map = @{}
+    if (-not $ManagerExe -or -not (Test-Path $ManagerExe)) { return $map }
+
+    $raw = Invoke-CaptureUtf8 -Exe $ManagerExe -ArgList @('info', '-v', 'all')
+    if (-not $raw -or -not $raw.Trim()) {
+        Write-Diag 'MuMuManager info 无输出'
+        return $map
+    }
+    try { $j = $raw | ConvertFrom-Json } catch {
+        Write-Diag "MuMuManager info 返回无法解析: $($raw.Substring(0, [Math]::Min(200, $raw.Length)))"
+        return $map
+    }
+
+    foreach ($p in $j.PSObject.Properties) {
+        $v = $p.Value
+        if (-not $v) { continue }
+        $idx = "$($v.index)"
+        if (-not $idx) { $idx = "$($p.Name)" }
+        $map[$idx] = $v
+    }
+    return $map
+}
+
+# 用 MuMuManager 执行 adb 命令（不依赖 adb.exe 路径与端口映射）
+# 返回 @{ Ok; Output; Error }
+function Invoke-MuMuAdb {
+    param(
+        [string]$ManagerExe,
+        [string]$Index,
+        [string]$ShellCmd,
+        [int]$TimeoutSec = 20
+    )
+
+    if (-not $ManagerExe -or -not (Test-Path $ManagerExe)) {
+        return [pscustomobject]@{ Ok = $false; Output = ''; Error = '缺少 MuMuManager.exe' }
+    }
+
+    try {
+        $out = (& $ManagerExe adb -v $Index -c "shell $ShellCmd" 2>&1 | Out-String)
+        if ($null -eq $out) { $out = '' }
+        return [pscustomobject]@{ Ok = $true; Output = $out; Error = '' }
+    } catch {
+        return [pscustomobject]@{ Ok = $false; Output = ''; Error = $_.Exception.Message }
+    }
+}
+
+# 合并 MuMuManager 的信息到实例配置（名称/端口/安卓版本以 manager 为准）
+function Merge-InstanceInfo {
+    param($Configs, $InfoMap)
+
+    if (-not $InfoMap -or $InfoMap.Count -eq 0) { return $Configs }
+
+    foreach ($c in $Configs) {
+        $k = "$($c.Index)"
+        if (-not $InfoMap.ContainsKey($k)) { continue }
+        $info = $InfoMap[$k]
+        if ($info.name) { $c.Name = [string]$info.name }
+        if ($info.adb_port) { $c.AdbPort = [int]$info.adb_port }
+        if ($info.android_version) { $c.Series = [string]$info.android_version }
+        if ($info.created_timestamp) {
+            # MuMu 的创建时间戳，用于别名稳定绑定（实例重新编号也不串）
+            $sid = [string]$info.created_timestamp
+            if ($c.PSObject.Properties.Name -contains 'StableId') { $c.StableId = $sid }
+            else { $c | Add-Member -NotePropertyName StableId -NotePropertyValue $sid -Force }
+        }
+
+        # 配置对象里没有这些字段，动态补上（避免属性不存在报错）
+        foreach ($pair in @(
+            @{ K = 'Running';        V = [bool]$info.is_process_started },
+            @{ K = 'AndroidStarted'; V = [bool]$info.is_android_started },
+            @{ K = 'State';          V = "$($info.player_state)" }
+        )) {
+            if ($c.PSObject.Properties.Name -contains $pair.K) { $c.($pair.K) = $pair.V }
+            else { $c | Add-Member -NotePropertyName $pair.K -NotePropertyValue $pair.V -Force }
+        }
+    }
+    return $Configs
 }

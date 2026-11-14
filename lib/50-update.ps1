@@ -143,6 +143,7 @@ function Invoke-UpdateCheckUI([bool]$Silent) {
 
     $r = Test-UpdateAvailable
     if ($r.Error) {
+        Write-Diag ("检查更新失败: {0}" -f $r.Error)
         if (-not $Silent) {
             $res = [System.Windows.MessageBox]::Show(
                 "检查更新失败：`n`n$($r.Error)`n`n可能是网络无法访问 GitHub。要继续打开下载页面吗？",

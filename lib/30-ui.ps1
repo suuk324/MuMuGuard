@@ -1469,6 +1469,18 @@ function Show-Settings {
         $sw.Close()
     })
     $sw.FindName('BtnCancel').Add_Click({ $sw.Close() })
+    # 设置内容较长，打开时回到顶部，避免一进来就停在最底部
+    try {
+        $sw.Add_ContentRendered({
+            try {
+                $node = $sw.FindName('PnlFields')
+                while ($node -and -not ($node -is [System.Windows.Controls.ScrollViewer])) {
+                    $node = [System.Windows.Media.VisualTreeHelper]::GetParent($node)
+                }
+                if ($node) { $node.ScrollToTop() }
+            } catch { }
+        })
+    } catch { }
     $sw.Add_MouseLeftButtonDown({ try { $sw.DragMove() } catch { } })
 
     [void]$sw.ShowDialog()

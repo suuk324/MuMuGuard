@@ -803,7 +803,7 @@ $xaml = @'
         <!-- 左：实例 + 事件 -->
         <Grid Grid.Column="0">
           <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="1.35*"/>
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
 
@@ -1288,7 +1288,9 @@ $settingsXaml = @'
 
       <TextBlock Grid.Row="0" Text="阈值设置" Foreground="#E6EAF2" FontSize="16" FontWeight="Bold" Margin="0,0,0,16"/>
 
-      <StackPanel Grid.Row="1" x:Name="PnlFields"/>
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+        <StackPanel x:Name="PnlFields"/>
+      </ScrollViewer>
 
       <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
         <Button x:Name="BtnCancel" Content="取消" Width="88" Height="34" Style="{StaticResource MiniBtn}" Background="#161C26"/>

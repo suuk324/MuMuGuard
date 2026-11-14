@@ -232,6 +232,12 @@ function Invoke-AutoRecover {
             continue
         }
 
+        # 脚本根本没安装：不是掉线，绝对不要去恢复（否则会反复重启用户的模拟器）
+        if ($r.PSObject.Properties.Name -contains 'Installed' -and $r.Installed -eq $false) {
+            $script:failCount[$idx] = 0
+            continue
+        }
+
         # adb 不通时不判定（避免把网络问题当成脚本掉了）
         if ($r.Online -ne $true) {
             $script:failCount[$idx] = 0

@@ -28,7 +28,9 @@ $MuMuRoot = if ($cfg.MuMuRoot) { [string]$cfg.MuMuRoot } else { 'D:\Program File
 $vmsDir   = Join-Path $MuMuRoot 'vms'
 $AdbExe   = Get-ChildItem (Join-Path $MuMuRoot 'nx_device') -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName 'shell\adb.exe' } | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $AdbExe) { $AdbExe = Join-Path $MuMuRoot 'nx_device\15.0\shell\adb.exe' }
-
+$MuMuMgr  = Join-Path $MuMuRoot 'nx_main\MuMuManager.exe'
+$PkgScript = if ($cfg.PkgScript) { [string]$cfg.PkgScript } else { 'com.coc.zkqcode' }
+$PkgGame   = if ($cfg.PkgGame)   { [string]$cfg.PkgGame }   else { 'com.tencent.tmgp.supercell.clashofclans com.supercell.clashofclans' }
 $CsvDir = Join-Path $PSScriptRoot 'logs'
 
 function Write-Log([string]$msg) {

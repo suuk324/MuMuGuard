@@ -287,7 +287,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.2.1'
+$script:appVersion = '1.2.2'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -484,13 +484,14 @@ $workerScript = {
                 $port = $dev.Port
 
                 $online = $null
+                $installed = $null
                 $game   = $null
                 $cur    = $null
 
                 # 一次 shell 调用同时取「紫孔雀进程」「游戏进程」「nemuinit 时间」
-                $cmd = "echo READY; echo SCRIPT; pidof $pkgScript; echo GAME; pidof $pkgGame; echo SEP; ps -A -o TIME+,NAME 2>/dev/null | grep nemuinit"
+                $cmd = "echo READY; echo SCRIPT; pidof $pkgScript; echo GAME; pidof $pkgGame; echo INST; pm path $pkgScript 2>/dev/null; echo SEP; ps -A -o TIME+,NAME 2>/dev/null | grep nemuinit"
                 if ($readMem) {
-                    $cmd += "; echo MEM; su -c 'base64 /storage/emulated/0/zkqFiles/memory.json 2>/dev/null'"
+                    $cmd += "; echo ROOT; su -c 'id' 2>/dev/null; echo MEM; su -c 'base64 /storage/emulated/0/zkqFiles/memory.json 2>/dev/null'"
                     $cmd += "; echo LOG; su -c 'tail -20 /data/data/$pkgScript/files/logs/info.log 2>/dev/null | base64'"
                     $cmd += "; echo SCH; su -c 'grep -o `"upgrade_time_scheduling[^,]*`" /storage/emulated/0/zkqFiles/zkq_config.json 2>/dev/null'"
                 }
@@ -546,6 +547,10 @@ $workerScript = {
                     if ($res -match '(?s)SCRIPT\s*(.*?)\s*GAME') { $scriptPart = $Matches[1] }
                     if ($res -match '(?s)GAME\s*(.*?)\s*SEP')   { $gamePart   = $Matches[1] }
                     if ($res -match '(?s)SEP\s*(.*)$')          { $psPart     = $Matches[1] }
+                    # INST 段：紫孔雀是否已安装（没装就不能当成「掉线」去恢复）
+                    $instPart = ''
+                    if ($res -match '(?s)INST\s*(.*?)\s*SEP') { $instPart = $Matches[1] }
+                    $installed = ($instPart -match 'package:')
 
                     $scriptOn = ($scriptPart -match '\d{2,}')
                     $gameOn   = ($gamePart   -match '\d{2,}')
@@ -557,9 +562,12 @@ $workerScript = {
                     if ($readMem) {
                         $b64 = ''
                         if ($res -match '(?s)MEM\s*(.*?)(?:LOG|$)') { $b64 = $Matches[1] }
-                        $memCache[$i] = Get-UpgradeInfo $b64
+                        # 先看 root 是否可用，再判断升级信息缺失的原因
+                        $rootPart = ''
+                        if ($res -match '(?s)ROOT\s*(.*?)\s*MEM') { $rootPart = $Matches[1] }
+                        $hasRoot = ($rootPart -match 'uid=0')
                         if ($b64 -and $b64.Trim().Length -gt 20) { $sync.RootOk = $true }
-                        elseif ($online -eq $true -and $scriptOn -eq $true) { $sync.RootOk = $false }
+                        elseif ($online -eq $true -and $scriptOn -eq $true) { $sync.RootOk = $hasRoot }
 
                         # 判断脚本是否只是在等升级（日志里只剩升级倒计时）
                         $logB64 = ''
@@ -587,6 +595,7 @@ $workerScript = {
                     AdbErr  = $errText
                     Chan    = $chan
                     Script  = $scriptOn
+                    Installed = $installed
                     Game    = $gameOn
                     Spin    = $spin
                     Upgrade = $(if ($memCache.ContainsKey($i)) { $memCache[$i] } else { $null })
@@ -1430,7 +1439,7 @@ $recoverTimer.Add_Tick({
 $rescanTimer = New-Object System.Windows.Threading.DispatcherTimer
 $rescanTimer.Interval = [TimeSpan]::FromSeconds(120)
 $rescanTimer.Add_Tick({
-    try { [void](Update-InstanceList -VmsDir $script:muInfo.VmsDir -ManagerExe $MuMuMgr) } catch { }
+    try { if ($win -and $win.IsVisible -and $win.WindowState -ne 'Minimized') { [void](Update-InstanceList -VmsDir $script:muInfo.VmsDir -ManagerExe $MuMuMgr) } } catch { }
 })
 $rescanTimer.Start()
 

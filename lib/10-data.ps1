@@ -70,6 +70,8 @@ function Get-InstanceData {
             $online   = $a.Online
             if ($a.PSObject.Properties.Name -contains 'AdbErr') { $adbErr = "$($a.AdbErr)" }
             $scriptOn = $a.Script
+            $installed = $null
+            if ($a.PSObject.Properties.Name -contains 'Installed') { $installed = $a.Installed }
             if ($a.PSObject.Properties.Name -contains 'Chan' -and $a.Chan) {
                 if (-not $script:chanAt) { $script:chanAt = @{} }
                 if ($script:chanAt["$index"] -ne $a.Chan) {
@@ -118,6 +120,7 @@ function Get-InstanceData {
         $detectOff = (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains "$index")
         # 只以脚本是否在跑作为"在线"判据；游戏未运行属正常（脚本占用中）
         if ($detectOff)              { $level = 0; $judge = '已暂停' }
+        elseif ($scriptOn -eq $false -and $installed -eq $false) { $level = 0; $judge = '未安装' }
         elseif ($scriptOn -eq $false)    { $level = 2; $judge = '脚本停止' }
         elseif ($online -eq $false -and $uptimeSec -lt 90)  { $level = 0; $judge = '启动中' }
         elseif ($online -eq $false)  { $level = 1; $judge = 'adb 未连接' }
@@ -150,6 +153,7 @@ function Get-InstanceData {
             Online  = $online
             Script  = $scriptOn
             Game    = $game
+            Installed = $installed
             Spin    = $spin
             UpName  = $upName
             UpLvl   = $upLvl

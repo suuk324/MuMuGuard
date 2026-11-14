@@ -9,12 +9,11 @@ param(
     [Parameter(Mandatory = $true)][string]$TargetPath,
     [Parameter(Mandatory = $true)][string]$NewPath,
     [Parameter(Mandatory = $true)][int]$ProcessId,
-    [switch]$Restart
+    [switch]$Restart,
+    [string]$NewVersion = ''
 )
 
-$ErrorActionPreference = 'Continue'
-
-$root = $PSScriptRoot
+$root = Split-Path $TargetPath -Parent
 $logFile = Join-Path $root 'logs\update.log'
 if (-not (Test-Path (Join-Path $root 'logs'))) {
     New-Item -ItemType Directory -Path (Join-Path $root 'logs') -Force | Out-Null
@@ -30,7 +29,8 @@ Write-Log "更新助手启动：目标=$TargetPath 新文件=$NewPath 等待PID=
 
 # 1) 等待主程序退出；超过 20 秒仍未退出就强制结束（用户已确认更新，避免卡住）
 $waited = 0
-while ($waited -lt 40) {
+# 没有有效 PID（比如手动调用）就跳过等待
+while ($ProcessId -gt 0 -and $waited -lt 40) {
     $p = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
     if (-not $p) { break }
     Start-Sleep -Milliseconds 500
@@ -87,6 +87,14 @@ if (-not $replaced) {
     exit 1
 }
 Write-Log '替换完成'
+
+# 写入新版本号，否则界面会一直显示旧版本、反复提示更新
+if ($NewVersion) {
+    try {
+        Set-Content -Path (Join-Path $root 'VERSION') -Value $NewVersion -Encoding UTF8
+        Write-Log ('已写入版本号 ' + $NewVersion)
+    } catch { Write-Log ('写版本号失败：' + $_.Exception.Message) }
+}
 
 # 4) 重启
 if ($Restart) {

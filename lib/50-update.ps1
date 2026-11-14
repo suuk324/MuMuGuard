@@ -109,7 +109,7 @@ function Save-UpdatePackage($ReleaseInfo) {
 }
 
 # 启动独立的更新助手：等主程序退出 → 替换 → 重启
-function Start-UpdateInstall([string]$NewFile) {
+function Start-UpdateInstall([string]$NewFile, [string]$NewVersion = '') {
     $target = Get-CurrentExecutable
     if ($target -notmatch '\.exe$') { throw '当前不是以 exe 运行，无法自动替换' }
 
@@ -122,7 +122,8 @@ function Start-UpdateInstall([string]$NewFile) {
         '-TargetPath', $target,
         '-NewPath', $NewFile,
         '-ProcessId', "$PID",
-        '-Restart'
+        '-Restart',
+        '-NewVersion', "$NewVersion"
     )
     Start-Process -FilePath 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' `
         -ArgumentList $argList -WindowStyle Hidden | Out-Null
@@ -180,7 +181,7 @@ function Invoke-UpdateCheckUI([bool]$Silent) {
     try {
         $txtInfo.Text = '正在下载更新…'
         $file = Save-UpdatePackage $r.Info
-        Start-UpdateInstall $file
+        Start-UpdateInstall $file $r.Remote
     } catch {
         [System.Windows.MessageBox]::Show("更新失败：`n`n$($_.Exception.Message)`n`n可手动到 GitHub 下载。", 'MuMuGuard', 'OK', 'Error') | Out-Null
         Write-Diag "更新失败: $($_.Exception.Message)"

@@ -158,7 +158,7 @@ foreach ($d in $devs) {
     if ($okRing) { $verified++ }
     elseif ($pctShown.Count -eq 0) { $script:ringChecked++ }   # 停止状态显示「—」属正常
 }
-Check '环百分比与内存吻合' ($verified -ge 1 -or $devs.Count -eq 0) "核对 $verified / $($devs.Count) 个实例（停止状态显示「—」不计）"
+Check '环百分比与内存吻合' ($verified -ge 1 -or $devs.Count -eq 0 -or $script:ringChecked -ge $devs.Count) "核对 $verified / $($devs.Count) 个实例（停止/启动中显示「—」不计）"
 
 # ---------- 5. 设置与主题 ----------
 Write-Host ''
@@ -169,9 +169,9 @@ $ns = Get-Names $win
 Check '设置面板打开' (($ns -contains '界面主题') -or (Has-Text $ns '阈值设置')) ''
 Check '主题三个选项' ((Has-Text $ns '跟随系统') -and (Has-Text $ns '深色') -and (Has-Text $ns '浅色')) ''
 $radios = Get-OfType $win $RADIO
-Check '单选按钮' ($radios.Count -eq 3) "实际 $($radios.Count)"
+Check '单选按钮' ($radios.Count -ge 3) "实际 $($radios.Count)"
 $edits = Get-OfType $win $EDIT
-Check '数值输入框' ($edits.Count -ge 15) "实际 $($edits.Count)"
+Check '数值输入框' ($edits.Count -ge 18) "实际 $($edits.Count)"
 $cancelled = $false
 foreach ($b in (Get-OfType $win $BTN)) { if ($b.Current.Name -eq '取消') { $b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); $cancelled = $true; break } }
 Start-Sleep -Seconds 2

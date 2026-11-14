@@ -152,7 +152,17 @@ function Invoke-AutoSleep {
             -DetectOff @($script:cfg.DetectOff) `
             -SleepingIndexes @($list | ForEach-Object { "$($_.Index)" })
 
-        if ($decision -ne '') { continue }
+        if ($decision -ne '') {
+            # 诊断：每个实例每 10 分钟最多记一条，说明为什么没休眠
+            $key = "sleep-$idx-$decision"
+            if (-not $script:sleepWarnAt) { $script:sleepWarnAt = @{} }
+            $lastAt = $script:sleepWarnAt[$key]
+            if (-not $lastAt -or ((Get-Date) - $lastAt).TotalMinutes -ge 10) {
+                $script:sleepWarnAt[$key] = Get-Date
+                Write-Diag ("实例{0} 未休眠[{1}] Script={2} Waiting={3} Sched={4} UpDone={5}" -f $idx, $decision, $r.Script, $r.Waiting, $r.Sched, $r.UpDone)
+            }
+            continue
+        }
 
         $doneAt = [datetime]$r.UpDone
         $wakeAt = $doneAt.AddMinutes(-$leadMin)

@@ -230,7 +230,7 @@ $defaultCfg = [ordered]@{
     # 升级休眠
     AutoSleep        = $false
     SleepLeadMin     = 10
-    SleepMaxHours    = 20
+    SleepMaxHours   = 168   # 最长休眠时长（小时）：CoC 升级经常几十小时，20 太小
     # 路径与包名（可在设置里改）
     MuMuRoot     = 'D:\Program Files\Netease\MuMu'
     PkgScript    = 'com.coc.zkqcode'
@@ -248,7 +248,6 @@ $defaultCfg = [ordered]@{
     LastUpdateCheck  = ''
     SkippedVersion   = ''
     WindowLeft   = $null
-    WindowTop    = $null
 }
 
 $script:cfg = @{}
@@ -266,11 +265,15 @@ if (Test-Path $CfgPath) {
 }
 
 # ---------------- 配置版本与迁移 ----------------
-$script:cfgVersion = 2
+$script:cfgVersion = 3
 $savedVer = [int]$script:cfgFileVer
 if ($savedVer -lt $script:cfgVersion) {
     if (Test-Path $CfgPath) {
         try { Copy-Item $CfgPath ("{0}.v{1}.bak" -f $CfgPath, $savedVer) -Force } catch { }
+    }
+    # v2 -> v3：最长休眠 20 小时太短（CoC 升级动辄几十小时），默认放宽到 168
+    if ($savedVer -lt 3) {
+        try { if ([double]$script:cfg.SleepMaxHours -eq 20) { $script:cfg.SleepMaxHours = 168 } } catch { }
     }
     $script:cfg['ConfigVersion'] = $script:cfgVersion
     Save-Config
@@ -566,7 +569,11 @@ $workerScript = {
                         $rootPart = ''
                         if ($res -match '(?s)ROOT\s*(.*?)\s*MEM') { $rootPart = $Matches[1] }
                         $hasRoot = ($rootPart -match 'uid=0')
-                        if ($b64 -and $b64.Trim().Length -gt 20) { $sync.RootOk = $true }
+                        if ($b64 -and $b64.Trim().Length -gt 20) {
+                            $sync.RootOk = $true
+                            # 解析升级信息（之前这里漏了赋值，导致休眠判定永远拿不到完成时间）
+                            $memCache[$i] = Get-UpgradeInfo $b64
+                        }
                         elseif ($online -eq $true -and $scriptOn -eq $true) { $sync.RootOk = $hasRoot }
 
                         # 判断脚本是否只是在等升级（日志里只剩升级倒计时）
@@ -1428,7 +1435,7 @@ $recoverTimer.Add_Tick({
     } catch { }
     try {
         Invoke-AutoSleep
-    } catch { }
+    } catch { Write-Diag ('自动休眠异常: ' + $_.Exception.Message) }
     try {
         Invoke-AlertScan
     } catch { }

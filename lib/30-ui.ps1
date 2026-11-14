@@ -500,6 +500,18 @@ function New-InstanceCard {
     [void][System.Windows.Controls.DockPanel]::SetDock($judge, 'Right')
 
     [void]$head.Children.Add($judge)
+
+    # 升级时间上号标记（紫孔雀里开启该功能时点亮）
+    $sched = New-Object System.Windows.Controls.TextBlock
+    $sched.Text = '上号'
+    $sched.Foreground = Brush '#F5A524'
+    $sched.FontSize = 9
+    $sched.FontWeight = 'Bold'
+    $sched.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
+    $sched.ToolTip = '紫孔雀已开启「升级时间上号」'
+    $sched.Visibility = 'Collapsed'
+    [void][System.Windows.Controls.DockPanel]::SetDock($sched, 'Right')
+    [void]$head.Children.Add($sched)
     [void]$head.Children.Add($name)
     [void]$stack.Children.Add($head)
 
@@ -550,7 +562,7 @@ function New-InstanceCard {
         Border = $border; Name = $name; Judge = $judge; Game = $game
         Upgrade = $upgrade
         Metrics = $metrics; Restart = $restart; Detect = $detectBtn
-        Track = $track; Arc = $arc; Pct = $pct
+        Track = $track; Arc = $arc; Pct = $pct; Sched = $sched
     }
 }
 
@@ -697,6 +709,7 @@ function Sync-Cards($data) {
 
         $c.Name.Text = $r.Name
         $c.Judge.Text = $r.Judge
+        $c.Sched.Visibility = $(if ($r.Sched -eq $true) { 'Visible' } else { 'Collapsed' })
                 if ($r.PSObject.Properties.Name -contains 'AdbErr' -and $r.AdbErr) { $c.Judge.ToolTip = "adb: $($r.AdbErr)"; if ($r.PSObject.Properties.Name -contains 'Chan' -and $r.Chan) { $c.Judge.ToolTip += "
 通道: $($r.Chan)" } }
 

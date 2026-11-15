@@ -136,11 +136,15 @@ function Invoke-AutoSleep {
     $leadMin  = [double]$script:cfg.SleepLeadMin
     $maxHours = [double]$script:cfg.SleepMaxHours
     $minHours = [double]$script:cfg.SleepMinHours
+    $bootWait = 20   # 上号后先等 20 分钟，让脚本把活干完
+    $goneMin  = 3    # 游戏关闭后再确认 3 分钟，防止脚本只是重开游戏
     $now = Get-Date
     $list = @(Get-SleepList)
     $changed = $false
 
-    # 已在休眠列表里的实例：如果已经被手动启动，就撤销记录
+    if (-not $script:sleepStage) { $script:sleepStage = @{} }
+
+    # 已在休眠列表里的实例：如果已经恢复运行，撤销记录并清记忆
     $runningIdx = @{}
     foreach ($r in @($script:lastInstances)) { $runningIdx["$($r.Index)"] = $true }
     $keep = @()
@@ -148,7 +152,6 @@ function Invoke-AutoSleep {
         $idx = "$($s.Index)"
         if ($runningIdx.ContainsKey($idx)) {
             Write-GuardLog 'WAKE_MANUAL' "实例$idx" '已恢复运行，撤销休眠记录'
-            # 统一处理：任何来源的唤醒（手动/定时/重启）都清掉该实例的升级数据，重新抓取
             try { Reset-InstanceMemory $idx } catch { }
             try { Set-WakeMark $idx 'auto' } catch { }
             $changed = $true
@@ -158,34 +161,49 @@ function Invoke-AutoSleep {
     }
     $list = $keep
 
-    # 判断是否该休眠
     foreach ($r in @($script:lastInstances)) {
         $idx = "$($r.Index)"
 
-        $decision = Get-SleepDecision -Row $r `
-            -AutoSleep ([bool]$script:cfg.AutoSleep) `
-            -GuardRunning ([bool]$script:guardRunning) `
-            -LeadMin $leadMin -MaxHours $maxHours -MinHours $minHours -Now $now `
-            -LastSleepTs (Get-SleepMark $idx) `
+        if (-not $script:sleepStage.ContainsKey($idx)) {
+            $script:sleepStage[$idx] = @{ Since = $null; GameGone = $null }
+        }
+        $st = $script:sleepStage[$idx]
+        # 刚出现（新开机/被我们关过之后）→ 从现在开始计时 20 分钟
+        if (-not $st['Since']) { $st['Since'] = $now }
+
+        $dec = Get-SleepStage -Row $r -Since $st['Since'] -GameGone $st['GameGone'] -Now $now `
+            -BootWaitMin $bootWait -GameGoneMin $goneMin `
+            -LeadMin $leadMin -MinHours $minHours -MaxHours $maxHours `
+            -AutoSleep ([bool]$script:cfg.AutoSleep) -GuardRunning ([bool]$script:guardRunning) `
             -DetectOff @($script:cfg.DetectOff) `
             -SleepingIndexes @($list | ForEach-Object { "$($_.Index)" })
 
-        if ($decision -ne '') {
-            # 诊断：每个实例每 10 分钟最多记一条，说明为什么没休眠
-            $key = "sleep-$idx-$decision"
+        $action = "$($dec.Action)"
+        $reason = "$($dec.Reason)"
+
+        if ($action -eq 'gamegone') {
+            $st['GameGone'] = $now
+            Write-Diag ("实例{0} 游戏已退出，开始 {1} 分钟确认" -f $idx, $goneMin)
+            continue
+        }
+
+        if ($action -eq 'wait') {
+            # 游戏又起来了 → 取消确认计时
+            if ($r.Game -eq $true -and $st['GameGone']) { $st['GameGone'] = $null }
+            $key = "sleep-$idx-$reason"
             if (-not $script:sleepWarnAt) { $script:sleepWarnAt = @{} }
             $lastAt = $script:sleepWarnAt[$key]
-            if (-not $lastAt -or ((Get-Date) - $lastAt).TotalMinutes -ge 10) {
-                $script:sleepWarnAt[$key] = Get-Date
-                Write-Diag ("实例{0} 未休眠[{1}] Script={2} Waiting={3} Sched={4} UpDone={5}" -f $idx, $decision, $r.Script, $r.Waiting, $r.Sched, $r.UpDone)
+            if (-not $lastAt -or ($now - $lastAt).TotalMinutes -ge 10) {
+                $script:sleepWarnAt[$key] = $now
+                Write-Diag ("实例{0} 未休眠[{1}] Script={2} Game={3} Sched={4} UpDone={5}" -f $idx, $reason, $r.Script, $r.Game, $r.Sched, $r.UpDone)
             }
             continue
         }
 
+        if ($action -ne 'sleep') { continue }
+
         $doneAt = [datetime]$r.UpDone
         $wakeAt = $doneAt.AddMinutes(-$leadMin)
-
-        # 记录并关机
         $entry = [pscustomobject]@{
             Index   = $idx
             WakeAt  = $wakeAt.ToString('yyyy-MM-ddTHH:mm:ss')
@@ -195,22 +213,20 @@ function Invoke-AutoSleep {
         }
         $list += $entry
         $changed = $true
-
         try {
             Start-Process -FilePath $MuMuMgr -ArgumentList 'control', '-v', $idx, 'shutdown' -WindowStyle Hidden | Out-Null
-            # 记住这次休眠对应的升级任务，唤醒后不会再对同一个任务重复休眠
-            try { Set-SleepMark $idx $doneAt.ToString('s') } catch { }
             Write-GuardLog 'SLEEP' "实例$idx" ("关机休眠，{0} 唤醒（{1}）" -f $wakeAt.ToString('HH:mm'), $entry.Upgrade)
+            # 我们自己关的：清空该实例记忆，下次开机像新实例一样重新抓取
+            try { Reset-InstanceMemory $idx } catch { }
+            $st['Since'] = $null
+            $st['GameGone'] = $null
         } catch {
             Write-GuardLog 'SLEEP_FAIL' "实例$idx" $_.Exception.Message
             $list = @($list | Where-Object { -not ("$($_.Index)" -eq $idx) })
         }
     }
 
-    if ($changed) {
-        Save-SleepList $list
-    }
-    if (@($list).Count -gt 0) { Start-Waker }
+    if ($changed) { Save-SleepList $list }
 }
 
 
@@ -565,6 +581,8 @@ function Reset-InstanceMemory([string]$index) {
     try { $script:lastRecover.Remove($i) } catch { }
     try { $script:recovering[$i] = $false } catch { }
     try { if ($script:adbSync.Force) { $script:adbSync.Force[$i] = $true } } catch { }
+    # 重新计时：像新实例一样，先等 20 分钟再判断
+    try { if (-not $script:sleepStage) { $script:sleepStage = @{} }; $script:sleepStage[$i] = @{ Since = Get-Date; GameGone = $null } } catch { }
     Write-Diag ("实例{0} 手动接管：已清除升级数据，等待重新抓取" -f $i)
 }
 
@@ -599,6 +617,15 @@ function Invoke-ClearMemory([bool]$StopGuard) {
     $script:cmpMap = @{}
     try { $script:trend.Clear() } catch { }
     try { $script:lastGuardState = $null } catch { }
+
+    # 运行中的实例也必须立即清空并重新抓取，否则采集线程会用内存缓存把旧数据填回来
+    try {
+        $script:sleepStage = @{}
+        $script:sleepWarnAt = @{}
+        $allIdx = @()
+        if ($script:instanceMap) { $allIdx = @($script:instanceMap.Keys) }
+        foreach ($k in $allIdx) { Reset-InstanceMemory "$k" }
+    } catch { }
 
     # 界面上的缓存控件
     try { if ($pnlCards) { [void]$pnlCards.Children.Clear() } } catch { }

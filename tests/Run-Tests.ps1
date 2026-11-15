@@ -494,6 +494,66 @@ Test-Case '远程为空 无新版' {
     Assert-Equal $false (Test-NewerVersion -Local '1.0.0' -Remote '')
 }
 
+# ---------------- 休眠状态机（以游戏是否在跑为准）----------------
+$stNow = [datetime]'2026-11-15 17:00:00'
+
+Test-Case '状态机：游戏在跑 → 不睡' {
+    $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $true; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-60) -Now $stNow
+    Assert-Equal 'wait' "$($r.Action)"
+    Assert-Equal 'game-running' "$($r.Reason)"
+}
+
+Test-Case '状态机：刚开机 5 分钟 → 等待' {
+    $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-5) -Now $stNow
+    Assert-Equal 'wait' "$($r.Action)"
+}
+
+Test-Case '状态机：开机 20 分钟后游戏已关 → 开始确认' {
+    $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -Now $stNow
+    Assert-Equal 'gamegone' "$($r.Action)"
+}
+
+Test-Case '状态机：游戏关了 1 分钟 → 继续确认' {
+    $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-1) -Now $stNow
+    Assert-Equal 'wait' "$($r.Action)"
+}
+
+Test-Case '状态机：游戏关了 5 分钟 → 休眠' {
+    $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-5) -Now $stNow
+    Assert-Equal 'sleep' "$($r.Action)"
+}
+
+Test-Case '状态机：上号开关没开 → 完全停用' {
+    $row = @{ Index = '3'; Script = $true; Sched = $false; Game = $false; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-5) -Now $stNow
+    Assert-Equal 'idle' "$($r.Action)"
+}
+
+Test-Case '状态机：紫孔雀没跑 → 交给存活线' {
+    $row = @{ Index = '3'; Script = $false; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-5) -Now $stNow
+    Assert-Equal 'idle' "$($r.Action)"
+}
+
+Test-Case '状态机：没有升级信息 → 不睡' {
+    $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $false; UpDone = $null }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-5) -Now $stNow
+    Assert-Equal 'wait' "$($r.Action)"
+    Assert-Equal 'no-upgrade' "$($r.Reason)"
+}
+
+Test-Case '状态机：升级只有 50 分钟 → 不睡' {
+    $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddMinutes(50) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-5) -Now $stNow
+    Assert-Equal 'wait' "$($r.Action)"
+    Assert-Equal 'too-short' "$($r.Reason)"
+}
+
 Write-Host ''
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {

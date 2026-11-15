@@ -292,7 +292,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.2.5'
+$script:appVersion = '1.2.6'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -500,7 +500,6 @@ $workerScript = {
                 $cmd = "echo READY; echo SCRIPT; pidof $pkgScript; echo GAME; pidof $pkgGame; echo INST; pm path $pkgScript 2>/dev/null; echo SEP; ps -A -o TIME+,NAME 2>/dev/null | grep nemuinit"
                 if ($readMem -or $forceSet.ContainsKey($i)) {
                     $cmd += "; echo ROOT; su -c 'id' 2>/dev/null; echo MEM; su -c 'base64 /storage/emulated/0/zkqFiles/memory.json 2>/dev/null'"
-                    $cmd += "; echo LOG; su -c 'tail -20 /data/data/$pkgScript/files/logs/info.log 2>/dev/null | base64'"
                     $cmd += "; echo SCH; su -c 'grep -o `"upgrade_time_scheduling[^,]*`" /storage/emulated/0/zkqFiles/zkq_config.json 2>/dev/null'"
                 }
 
@@ -584,10 +583,7 @@ $workerScript = {
                         }
                         elseif ($online -eq $true -and $scriptOn -eq $true) { $sync.RootOk = $hasRoot }
 
-                        # 判断脚本是否只是在等升级（日志里只剩升级倒计时）
-                        $logB64 = ''
-                        if ($res -match '(?s)LOG\s*(.*?)(?:SCH|$)') { $logB64 = $Matches[1] }
-                        $waitCache[$i] = Test-Waiting $logB64
+                        # 是否在等升级不再看日志：改由「游戏进程是否退出」判定
 
                         # 升级时间上号是否开启
                         $schedCache[$i] = ($res -match 'upgrade_time_scheduling"\s*:\s*"1"')

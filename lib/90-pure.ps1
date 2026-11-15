@@ -228,3 +228,57 @@ function Get-InstanceMemBase {
     if ($MemoryGB -le 0) { return 9216 }
     return ($MemoryGB * 1024 + 2500)
 }
+# 升级休眠状态机（纯逻辑，便于单测）
+# 返回 @{ Action = 'wait'|'gamegone'|'sleep'|'idle'; Reason = '...' }
+function Get-SleepStage {
+    param(
+        $Row,
+        [object]$Since = $null,
+        [object]$GameGone = $null,
+        [datetime]$Now,
+        [double]$BootWaitMin = 20,
+        [double]$GameGoneMin = 3,
+        [double]$LeadMin = 10,
+        [double]$MinHours = 1,
+        [double]$MaxHours = 168,
+        [bool]$AutoSleep = $true,
+        [bool]$GuardRunning = $true,
+        [string[]]$DetectOff = @(),
+        [string[]]$SleepingIndexes = @()
+    )
+    if (-not $AutoSleep) { return @{ Action = 'idle'; Reason = 'auto-sleep-off' } }
+    if (-not $GuardRunning) { return @{ Action = 'idle'; Reason = 'guard-off' } }
+    $idx = "$($Row.Index)"
+    if ($idx -eq '-' -or $idx -eq '') { return @{ Action = 'idle'; Reason = 'no-index' } }
+    if (@($DetectOff | Where-Object { $_ }) -contains $idx) { return @{ Action = 'idle'; Reason = 'detect-off' } }
+    if (@($SleepingIndexes | Where-Object { $_ }) -contains $idx) { return @{ Action = 'idle'; Reason = 'already-sleeping' } }
+
+    # 线二只在「升级时间上号」开启时工作
+    if ($Row.Sched -ne $true) { return @{ Action = 'idle'; Reason = 'scheduling-off' } }
+    if ($Row.Script -ne $true) { return @{ Action = 'idle'; Reason = 'script-not-running' } }
+
+    # 游戏在跑 = 脚本在干活，绝不休眠
+    if ($Row.Game -eq $true) { return @{ Action = 'wait'; Reason = 'game-running' } }
+
+    # 开机/清记忆后的等待期
+    if ($Since) {
+        $elapsed = ($Now - [datetime]$Since).TotalMinutes
+        if ($elapsed -lt $BootWaitMin) {
+            return @{ Action = 'wait'; Reason = ('boot-wait {0}/{1}min' -f [int]$elapsed, [int]$BootWaitMin) }
+        }
+    }
+
+    # 游戏已退出：先开始计确认时间
+    if (-not $GameGone) { return @{ Action = 'gamegone'; Reason = 'start-confirm' } }
+    if (($Now - [datetime]$GameGone).TotalMinutes -lt $GameGoneMin) {
+        return @{ Action = 'wait'; Reason = ('confirming {0}/{1}min' -f [int]($Now - [datetime]$GameGone).TotalMinutes, [int]$GameGoneMin) }
+    }
+
+    if (-not $Row.UpDone) { return @{ Action = 'wait'; Reason = 'no-upgrade' } }
+    $doneAt = [datetime]$Row.UpDone
+    $wakeAt = $doneAt.AddMinutes(-$LeadMin)
+    if ($wakeAt -le $Now.AddMinutes(2)) { return @{ Action = 'wait'; Reason = 'too-late' } }
+    if (($doneAt - $Now).TotalHours -gt $MaxHours) { return @{ Action = 'wait'; Reason = 'too-far' } }
+    if ($MinHours -gt 0 -and ($doneAt - $Now).TotalHours -lt $MinHours) { return @{ Action = 'wait'; Reason = 'too-short' } }
+    return @{ Action = 'sleep'; Reason = 'ok' }
+}

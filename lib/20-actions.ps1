@@ -662,7 +662,6 @@ function Load-OpState {
         if ($j -and ($j.PSObject.Properties.Name -contains 'instances')) {
             foreach ($pp in $j.instances.PSObject.Properties) {
                 $script:opState["$($pp.Name)"] = @{
-                    SleepForTs = "$($pp.Value.SleepForTs)"
                     LastWakeAt = "$($pp.Value.LastWakeAt)"
                     LastWakeBy = "$($pp.Value.LastWakeBy)"
                 }
@@ -680,18 +679,7 @@ function Save-OpState {
     } catch { }
 }
 
-function Set-SleepMark([string]$idx, [string]$ts) {
-    $k = "$idx"
-    if (-not $script:opState.ContainsKey($k)) { $script:opState[$k] = @{} }
-    $script:opState[$k]['SleepForTs'] = "$ts"
-    Save-OpState
-}
 
-function Get-SleepMark([string]$idx) {
-    $k = "$idx"
-    if (-not $script:opState.ContainsKey($k)) { return '' }
-    return "$($script:opState[$k]['SleepForTs'])"
-}
 
 function Set-WakeMark([string]$idx, [string]$by) {
     $k = "$idx"

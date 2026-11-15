@@ -96,74 +96,16 @@ Test-Case '解析：脚本没在跑时不能误判' {
 # ---------------- 休眠判定：最短/最长/提前 -----------------
 $sleepNow = [datetime]'2026-11-14 18:00:00'
 
-Test-Case '休眠判定：剩余 22 小时，最长 168 小时 → 应休眠' {
-    $row = [pscustomobject]@{ Index = '3'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddHours(22) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 -Now $sleepNow
-    Assert-Equal '' $d
-}
 
-Test-Case '休眠判定：剩余 22 小时，最长 20 小时 → too-far' {
-    $row = [pscustomobject]@{ Index = '3'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddHours(22) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 20 -MinHours 1 -Now $sleepNow
-    Assert-Equal 'too-far' $d
-}
 
-Test-Case '休眠判定：剩余 20 分钟，最短 1 小时 → too-short（不折磨机器）' {
-    $row = [pscustomobject]@{ Index = '1'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddMinutes(20) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 -Now $sleepNow
-    Assert-Equal 'too-short' $d
-}
 
-Test-Case '休眠判定：最短设 0 时短升级仍会睡（保持旧行为可选）' {
-    $row = [pscustomobject]@{ Index = '1'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddMinutes(40) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 0 -Now $sleepNow
-    Assert-Equal '' $d
-}
 
-Test-Case '休眠判定：升级只剩 5 分钟 → too-late' {
-    $row = [pscustomobject]@{ Index = '1'; Script = $true; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddMinutes(5) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 0 -Now $sleepNow
-    Assert-Equal 'too-late' $d
-}
 
-Test-Case '休眠判定：脚本没在跑就不睡' {
-    $row = [pscustomobject]@{ Index = '1'; Script = $false; Waiting = $true; Sched = $true; UpDone = $sleepNow.AddHours(5) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 -Now $sleepNow
-    Assert-Equal 'script-not-running' $d
-}
 
-Test-Case '休眠判定：上号开关没开就不睡' {
-    $row = [pscustomobject]@{ Index = '1'; Script = $true; Waiting = $true; Sched = $false; UpDone = $sleepNow.AddHours(5) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 -Now $sleepNow
-    Assert-Equal 'scheduling-off' $d
-}
 
 # ---------------- 同一升级只休眠一次 ----------------
-Test-Case '休眠判定：同一升级睡过一次后不再睡' {
-    $t0 = [datetime]'2026-11-15 16:00:00'
-    $done = $t0.AddHours(5)
-    $row = [pscustomobject]@{ Index = '5'; Script = $true; Waiting = $true; Sched = $true; UpDone = $done }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 `
-         -LastSleepTs $done.ToString('s') -Now $t0
-    Assert-Equal 'already-slept' $d
-}
 
-Test-Case '休眠判定：出现新升级后允许再次休眠' {
-    $t0 = [datetime]'2026-11-15 16:00:00'
-    $oldDone = $t0.AddHours(5)
-    $row = [pscustomobject]@{ Index = '5'; Script = $true; Waiting = $true; Sched = $true; UpDone = $t0.AddHours(9) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 `
-         -LastSleepTs $oldDone.ToString('s') -Now $t0
-    Assert-Equal '' $d
-}
 
-Test-Case '休眠判定：没有休眠记录时正常休眠' {
-    $t0 = [datetime]'2026-11-15 16:00:00'
-    $row = [pscustomobject]@{ Index = '5'; Script = $true; Waiting = $true; Sched = $true; UpDone = $t0.AddHours(5) }
-    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 `
-         -LastSleepTs '' -Now $t0
-    Assert-Equal '' $d
-}
 
 Write-Host ''
 Write-Host '=== Get-RemainingLabel（剩余时间格式化）===' -ForegroundColor Cyan
@@ -229,7 +171,6 @@ Test-Case '阈值非法 -> 0（不除以零）' {
 }
 
 Write-Host ''
-Write-Host '=== Test-IsWaitingLog（是否只是在等升级）===' -ForegroundColor Cyan
 
 $waitingLines = @(
     '2026-11-13 18:00:01 账号1，升级中：箭塔，剩余时间：1小时20分钟'
@@ -240,9 +181,6 @@ $waitingLines = @(
     '2026-11-13 18:00:16 账号1，升级中：箭塔，剩余时间：1小时17分钟'
 )
 
-Test-Case '全是升级倒计时 -> true' {
-    Assert-Equal $true (Test-IsWaitingLog -Lines $waitingLines)
-}
 
 $workingLines = @(
     '2026-11-13 18:00:01 账号1，主世界搜索中... 第1/15局'
@@ -253,23 +191,9 @@ $workingLines = @(
     '2026-11-13 18:00:16 账号1，进攻需等待冷却'
 )
 
-Test-Case '在打资源 -> false' {
-    Assert-Equal $false (Test-IsWaitingLog -Lines $workingLines)
-}
 
-Test-Case '混合（末尾出现干活）-> false' {
-    $mixed = @($waitingLines) + @('2026-11-13 18:00:19 账号1，主世界搜索中... 第3/15局')
-    Assert-Equal $false (Test-IsWaitingLog -Lines $mixed)
-}
 
-Test-Case '日志太少 -> false（不冒险）' {
-    $few = @($waitingLines[0], $waitingLines[1], $waitingLines[2])
-    Assert-Equal $false (Test-IsWaitingLog -Lines $few)
-}
 
-Test-Case '空数组 -> false' {
-    Assert-Equal $false (Test-IsWaitingLog -Lines @())
-}
 
 Write-Host ''
 Write-Host '=== Get-UpgradeFromMemoryJson（解析升级数据）===' -ForegroundColor Cyan
@@ -307,7 +231,6 @@ Test-Case '空串 -> null' {
 }
 
 Write-Host ''
-Write-Host '=== Get-SleepDecision（是否该休眠）===' -ForegroundColor Cyan
 
 function New-TestRow {
     param([hashtable]$Override = @{})
@@ -327,65 +250,18 @@ $common = @{
     DetectOff = @(); SleepingIndexes = @()
 }
 
-Test-Case '条件齐全 -> 可休眠（返回空串）' {
-    $d = Get-SleepDecision -Row (New-TestRow) @common
-    Assert-Equal '' $d
-}
 
-Test-Case '总开关关闭 -> auto-sleep-off' {
-    $p = $common.Clone(); $p.AutoSleep = $false
-    Assert-Equal 'auto-sleep-off' (Get-SleepDecision -Row (New-TestRow) @p)
-}
 
-Test-Case '看护未开 -> guard-off' {
-    $p = $common.Clone(); $p.GuardRunning = $false
-    Assert-Equal 'guard-off' (Get-SleepDecision -Row (New-TestRow) @p)
-}
 
-Test-Case '检测已暂停 -> detect-off' {
-    $p = $common.Clone(); $p.DetectOff = @('3')
-    Assert-Equal 'detect-off' (Get-SleepDecision -Row (New-TestRow) @p)
-}
 
-Test-Case '已在休眠列表 -> already-sleeping' {
-    $p = $common.Clone(); $p.SleepingIndexes = @('3')
-    Assert-Equal 'already-sleeping' (Get-SleepDecision -Row (New-TestRow) @p)
-}
 
-Test-Case '脚本没跑 -> script-not-running' {
-    Assert-Equal 'script-not-running' (Get-SleepDecision -Row (New-TestRow @{ Script = $false }) @common)
-}
 
-Test-Case '不在等待状态 -> not-waiting' {
-    Assert-Equal 'not-waiting' (Get-SleepDecision -Row (New-TestRow @{ Waiting = $false }) @common)
-}
 
-Test-Case '升级时间上号未开 -> scheduling-off' {
-    Assert-Equal 'scheduling-off' (Get-SleepDecision -Row (New-TestRow @{ Sched = $false }) @common)
-}
 
-Test-Case '没有升级数据 -> no-upgrade' {
-    Assert-Equal 'no-upgrade' (Get-SleepDecision -Row (New-TestRow @{ UpDone = $null }) @common)
-}
 
-Test-Case '离唤醒不到2分钟 -> too-late' {
-    $row = New-TestRow @{ UpDone = $tNow.AddMinutes(5) }
-    Assert-Equal 'too-late' (Get-SleepDecision -Row $row @common)
-}
 
-Test-Case '升级太远（超20小时）-> too-far' {
-    $row = New-TestRow @{ UpDone = $tNow.AddHours(30) }
-    Assert-Equal 'too-far' (Get-SleepDecision -Row $row @common)
-}
 
-Test-Case '索引缺失 -> no-index' {
-    Assert-Equal 'no-index' (Get-SleepDecision -Row (New-TestRow @{ Index = '-' }) @common)
-}
 
-Test-Case '总开关关了应优先于其他条件' {
-    $p = $common.Clone(); $p.AutoSleep = $false; $p.DetectOff = @('3')
-    Assert-Equal 'auto-sleep-off' (Get-SleepDecision -Row (New-TestRow) @p)
-}
 
 
 Write-Host ''

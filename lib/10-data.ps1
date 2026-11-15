@@ -63,7 +63,7 @@ function Get-InstanceData {
 
         # adb 数据（按实例编号匹配）
         $online = $null; $game = $null; $spin = $null; $scriptOn = $null
-        $upgrade = $null; $waiting = $null; $sched = $null
+        $upgrade = $null; $sched = $null
         $adbErr = ''
         if ($index -ne '-' -and $adbFresh -and $adb -and $adb.ContainsKey($index)) {
             $a = $adb[$index]
@@ -83,7 +83,6 @@ function Get-InstanceData {
             $spin     = $a.Spin
             $props = $a.PSObject.Properties.Name
             if ($props -contains 'Upgrade') { $upgrade = $a.Upgrade }
-            if ($props -contains 'Waiting') { $waiting = $a.Waiting }
             if ($props -contains 'Sched')   { $sched   = $a.Sched }
         }
 
@@ -159,7 +158,6 @@ function Get-InstanceData {
             UpLvl   = $upLvl
             UpDone  = $upDone
             UpLeft  = $upLeft
-            Waiting = $waiting
             Sched   = $sched
             Judge   = $judge
             Level   = $level

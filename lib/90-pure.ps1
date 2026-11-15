@@ -28,18 +28,6 @@ function Get-MemPercent {
     return [int]$p
 }
 
-# 判断脚本是否只是在等升级：最后 12 条业务日志全是"升级中…剩余时间"
-function Test-IsWaitingLog {
-    param([string[]]$Lines)
-    if (-not $Lines -or $Lines.Count -lt 5) { return $false }
-    $biz = @($Lines | Where-Object { $_ -match '账号\d+[，,]' })
-    if ($biz.Count -lt 5) { return $false }
-    $tail = @($biz | Select-Object -Last 12)
-    foreach ($l in $tail) {
-        if ($l -notmatch '升级中.*剩余时间') { return $false }
-    }
-    return $true
-}
 
 # 从 memory.json 文本取出机器人账号对应的下一次升级信息
 function Get-UpgradeFromMemoryJson {
@@ -62,40 +50,6 @@ function Get-UpgradeFromMemoryJson {
     }
 }
 
-# 该实例此刻是否应该休眠；返回空串表示"不该"，否则返回原因（便于日志）
-function Get-SleepDecision {
-    param(
-        $Row,
-        [bool]$AutoSleep,
-        [bool]$GuardRunning,
-        [double]$LeadMin,
-        [double]$MaxHours,
-        [double]$MinHours = 0,
-        [string]$LastSleepTs = '',
-        [datetime]$Now,
-        [string[]]$DetectOff,
-        [string[]]$SleepingIndexes
-    )
-    if (-not $AutoSleep) { return 'auto-sleep-off' }
-    if (-not $GuardRunning) { return 'guard-off' }
-    $idx = "$($Row.Index)"
-    if ($idx -eq '-' -or $idx -eq '') { return 'no-index' }
-    if (@($DetectOff | Where-Object { $_ -ne $null }) -contains $idx) { return 'detect-off' }
-    if (@($SleepingIndexes | Where-Object { $_ -ne $null }) -contains $idx) { return 'already-sleeping' }
-    if ($Row.Script -ne $true) { return 'script-not-running' }
-    if ($Row.Waiting -ne $true) { return 'not-waiting' }
-    if ($Row.Sched -ne $true) { return 'scheduling-off' }
-    if (-not $Row.UpDone) { return 'no-upgrade' }
-
-    $doneAt = [datetime]$Row.UpDone
-    # 同一个升级任务只休眠一次：唤醒后即使数据没变，也不再关它，等出现新升级才允许再睡
-    if ($LastSleepTs -and $doneAt.ToString('s') -eq $LastSleepTs) { return 'already-slept' }
-    $wakeAt = $doneAt.AddMinutes(-$LeadMin)
-    if ($wakeAt -le $Now.AddMinutes(2)) { return 'too-late' }
-    if (($doneAt - $Now).TotalHours -gt $MaxHours) { return 'too-far' }
-    if ($MinHours -gt 0 -and ($doneAt - $Now).TotalHours -lt $MinHours) { return 'too-short' }
-    return ''
-}
 # 求多个字符串的最长公共前缀（用于压缩实例名，如 "MuMu安卓设备-1" / "MuMu安卓设备-1-1"）
 function Get-CommonPrefix {
     param([string[]]$Strings)

@@ -292,7 +292,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.2.10'
+$script:appVersion = '1.3.0'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -427,28 +427,12 @@ $workerScript = {
         return Get-UpgradeFromMemoryJson -Text $memText
     }
 
-    # 判断脚本是否只是在等升级完成（日志里只剩升级倒计时）
-    function Test-Waiting([string]$b64) {
-        if (-not $b64) { return $null }
-        try {
-            $bytes = [Convert]::FromBase64String(($b64 -replace '\s', ''))
-            $text = [System.Text.Encoding]::UTF8.GetString($bytes)
-        } catch { return $null }
-        if (-not $text) { return $null }
-        $lines = @($text -split "`n")
-        $r = Test-IsWaitingLog -Lines $lines
-        # 保留原语义：不足 5 条业务日志视为"未知"
-        $biz = @($lines | Where-Object { $_ -match '账号\d+[，,]' })
-        if ($biz.Count -lt 5) { return $null }
-        return $r
-    }
 
     $prevNemu = @{}
     $prevTime = $null
     $connected = @{}
     $cycle = 0
     $memCache = @{}
-    $waitCache = @{}
     $schedCache = @{}
     $lastData = @{}
     $cursor = 0
@@ -569,7 +553,7 @@ $workerScript = {
                     $readThis = $readMem -or $forceSet.ContainsKey($i)
                     if ($readThis) {
                         # 被强制重读的实例：先丢掉旧缓存
-                        if ($forceSet.ContainsKey($i)) { $memCache.Remove($i); $waitCache.Remove($i); $schedCache.Remove($i) }
+                        if ($forceSet.ContainsKey($i)) { $memCache.Remove($i); $schedCache.Remove($i) }
                         $b64 = ''
                         if ($res -match '(?s)MEM\s*(.*?)(?:SCH|$)') { $b64 = $Matches[1] }
                         # 先看 root 是否可用，再判断升级信息缺失的原因
@@ -610,7 +594,6 @@ $workerScript = {
                     Game    = $gameOn
                     Spin    = $spin
                     Upgrade = $(if ($memCache.ContainsKey($i)) { $memCache[$i] } else { $null })
-                    Waiting = $(if ($waitCache.ContainsKey($i)) { $waitCache[$i] } else { $null })
                     Sched   = $(if ($schedCache.ContainsKey($i)) { $schedCache[$i] } else { $null })
                 }
                 # 强制重读完成，撤掉标记，恢复常态轮询

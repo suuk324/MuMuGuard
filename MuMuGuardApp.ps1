@@ -292,7 +292,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.2.9'
+$script:appVersion = '1.2.10'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -1535,4 +1535,15 @@ $win.Add_Closed({
     try { $script:mutex.ReleaseMutex(); $script:mutex.Dispose() } catch { }
 })
 
+# 界面线程兜底：任何未捕获异常都记录并继续运行，避免面板静默退出
+try {
+    $win.Dispatcher.Add_UnhandledException({
+        param($s, $e)
+        try {
+            Write-Crash "界面线程异常: $($e.Exception.GetType().Name) $($e.Exception.Message)`n$($e.Exception.StackTrace)"
+            Write-Diag "界面线程异常已拦截: $($e.Exception.Message)"
+        } catch { }
+        $e.Handled = $true
+    })
+} catch { }
 [void]$win.ShowDialog()

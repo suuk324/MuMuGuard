@@ -8,10 +8,17 @@ function Show-Panel {
         $win.ShowInTaskbar = $true
         $win.Show()
         $win.WindowState = 'Normal'
-        # 无边框窗口从最小化还原时高度会塌成一条（实测 1050 -> 302），
-        # 这里按当前视图重新套一次尺寸，保证恢复成正常窗口
-        try { Set-View $script:viewMode } catch { }
-        if ($win.Height -lt 300) { try { Set-View 'detail' } catch { } }
+        # 无边框窗口从最小化还原会丢高度（实测 1050 -> 302）：把隐藏前记下的尺寸设回去
+        try {
+            if ($script:restoreW -gt 300 -and $script:restoreH -gt 150) {
+                $win.Width  = $script:restoreW
+                $win.Height = $script:restoreH
+            }
+        } catch { }
+        # 兜底：尺寸仍异常就按当前视图重建
+        if ($win.Height -lt 300 -or $win.Width -lt 300) {
+            try { Set-View $script:viewMode } catch { }
+        }
         $win.Activate()
         $win.Topmost = $true
         $win.Topmost = $false
@@ -22,9 +29,13 @@ function Show-Panel {
 
 function Hide-Panel {
     try {
+        # 记录尺寸：最小化会把它改掉，还原时要显式设回去
+        $script:restoreW = $win.Width
+        $script:restoreH = $win.Height
         $win.ShowInTaskbar = $false
-        # 用 Hide 而不是 Minimized：最小化后再还原会让无边框窗口高度塌陷
-        $win.Hide()
+        # 只能用最小化，不能用 Hide：Hide 会让 ShowDialog 的消息循环结束，
+        # 进程直接退出、托盘图标跟着消失（这是 1.2.4 踩过的坑）
+        $win.WindowState = 'Minimized'
     } catch { Write-Diag "隐藏面板失败: $($_.Exception.Message)" }
 }
 

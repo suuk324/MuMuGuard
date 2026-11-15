@@ -71,6 +71,7 @@ function Get-SleepDecision {
         [double]$LeadMin,
         [double]$MaxHours,
         [double]$MinHours = 0,
+        [string]$LastSleepTs = '',
         [datetime]$Now,
         [string[]]$DetectOff,
         [string[]]$SleepingIndexes
@@ -87,6 +88,8 @@ function Get-SleepDecision {
     if (-not $Row.UpDone) { return 'no-upgrade' }
 
     $doneAt = [datetime]$Row.UpDone
+    # 同一个升级任务只休眠一次：唤醒后即使数据没变，也不再关它，等出现新升级才允许再睡
+    if ($LastSleepTs -and $doneAt.ToString('s') -eq $LastSleepTs) { return 'already-slept' }
     $wakeAt = $doneAt.AddMinutes(-$LeadMin)
     if ($wakeAt -le $Now.AddMinutes(2)) { return 'too-late' }
     if (($doneAt - $Now).TotalHours -gt $MaxHours) { return 'too-far' }

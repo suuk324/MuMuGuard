@@ -655,6 +655,7 @@ function Sync-Cards($data) {
                         Write-GuardLog 'WAKE_MANUAL' "实例$i" '手动唤醒'
                         # 手动接管：清掉该实例已抓取的升级数据，下轮重新抓取
                         Reset-InstanceMemory $i
+                        try { Set-WakeMark $i 'manual' } catch { }
                         $txtInfo.Text = "正在唤醒实例 $i"
                     } catch {
                         Write-Diag "手动唤醒失败: $($_.Exception.Message)"
@@ -675,6 +676,7 @@ function Sync-Cards($data) {
                                       '-Index', "$i", '-LogFile', $log `
                         -WindowStyle Hidden | Out-Null
                     Reset-InstanceMemory $i
+                    try { Set-WakeMark $i 'restart' } catch { }
                     $txtInfo.Text = "已开始重启实例 $i，完成后会自动启动紫孔雀"
                 } catch {
                     Write-Diag "重启实例失败: $($_.Exception.Message)"
@@ -1157,6 +1159,15 @@ function Update-Ui {
         if ($hbTime) { $staleSec = [int]((Get-Date) - $hbTime).TotalSeconds }
         # 窗口收进托盘时轮询是刻意暂停的，不算「数据停滞」
         $winHidden = $false
+        # 自愈：窗口处于正常状态但尺寸异常（无边框窗口还原时高度会塌），按当前视图重置
+        try {
+            if ($win -and $win.IsVisible -and $win.WindowState -eq 'Normal' -and $script:viewMode -eq 'detail') {
+                if ($win.Height -lt 300 -or $win.Width -lt 300) {
+                    Set-View $script:viewMode
+                    Write-Diag ("窗口尺寸异常（{0}x{1}），已按 {2} 视图重置" -f [int]$win.Width, [int]$win.Height, $script:viewMode)
+                }
+            }
+        } catch { }
         try { $winHidden = ($win.WindowState -eq 'Minimized') -or (-not $win.IsVisible) } catch { }
         $isStale = (-not $winHidden) -and ($data.Count -gt 0) -and ((-not $hbTime) -or ($staleSec -gt 90))
 

@@ -138,6 +138,33 @@ Test-Case '休眠判定：上号开关没开就不睡' {
     Assert-Equal 'scheduling-off' $d
 }
 
+# ---------------- 同一升级只休眠一次 ----------------
+Test-Case '休眠判定：同一升级睡过一次后不再睡' {
+    $t0 = [datetime]'2026-11-15 16:00:00'
+    $done = $t0.AddHours(5)
+    $row = [pscustomobject]@{ Index = '5'; Script = $true; Waiting = $true; Sched = $true; UpDone = $done }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 `
+         -LastSleepTs $done.ToString('s') -Now $t0
+    Assert-Equal 'already-slept' $d
+}
+
+Test-Case '休眠判定：出现新升级后允许再次休眠' {
+    $t0 = [datetime]'2026-11-15 16:00:00'
+    $oldDone = $t0.AddHours(5)
+    $row = [pscustomobject]@{ Index = '5'; Script = $true; Waiting = $true; Sched = $true; UpDone = $t0.AddHours(9) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 `
+         -LastSleepTs $oldDone.ToString('s') -Now $t0
+    Assert-Equal '' $d
+}
+
+Test-Case '休眠判定：没有休眠记录时正常休眠' {
+    $t0 = [datetime]'2026-11-15 16:00:00'
+    $row = [pscustomobject]@{ Index = '5'; Script = $true; Waiting = $true; Sched = $true; UpDone = $t0.AddHours(5) }
+    $d = Get-SleepDecision -Row $row -AutoSleep $true -GuardRunning $true -LeadMin 10 -MaxHours 168 -MinHours 1 `
+         -LastSleepTs '' -Now $t0
+    Assert-Equal '' $d
+}
+
 Write-Host ''
 Write-Host '=== Get-RemainingLabel（剩余时间格式化）===' -ForegroundColor Cyan
 

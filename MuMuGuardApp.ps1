@@ -292,7 +292,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.2.4'
+$script:appVersion = '1.2.5'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -1477,6 +1477,7 @@ $win.Add_Loaded({
     Invoke-LogRotation
     $updateTimer.Start()
     Load-Trend
+    try { Load-OpState } catch { }
     Set-View 'compact'
     if ($txtVersion) { $txtVersion.Text = 'v' + $script:appVersion }
     Update-SleepButton
@@ -1523,8 +1524,10 @@ $win.Add_Closed({
     $recoverTimer.Stop()
     $script:adbSync.Stop = $true
     try {
-        $script:cfg.WindowLeft = [math]::Round($win.Left)
-        $script:cfg.WindowTop  = [math]::Round($win.Top)
+        if ($win.WindowState -eq 'Normal') {
+            $script:cfg.WindowLeft = [math]::Round($win.Left)
+            $script:cfg.WindowTop  = [math]::Round($win.Top)
+        }
         $script:cfg.GuardRunning = $script:guardRunning
         Save-Config
     } catch { }

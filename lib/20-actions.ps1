@@ -148,6 +148,9 @@ function Invoke-AutoSleep {
         $idx = "$($s.Index)"
         if ($runningIdx.ContainsKey($idx)) {
             Write-GuardLog 'WAKE_MANUAL' "实例$idx" '已恢复运行，撤销休眠记录'
+            # 统一处理：任何来源的唤醒（手动/定时/重启）都清掉该实例的升级数据，重新抓取
+            try { Reset-InstanceMemory $idx } catch { }
+            try { Set-WakeMark $idx 'auto' } catch { }
             $changed = $true
             continue
         }
@@ -163,6 +166,7 @@ function Invoke-AutoSleep {
             -AutoSleep ([bool]$script:cfg.AutoSleep) `
             -GuardRunning ([bool]$script:guardRunning) `
             -LeadMin $leadMin -MaxHours $maxHours -MinHours $minHours -Now $now `
+            -LastSleepTs (Get-SleepMark $idx) `
             -DetectOff @($script:cfg.DetectOff) `
             -SleepingIndexes @($list | ForEach-Object { "$($_.Index)" })
 
@@ -194,6 +198,8 @@ function Invoke-AutoSleep {
 
         try {
             Start-Process -FilePath $MuMuMgr -ArgumentList 'control', '-v', $idx, 'shutdown' -WindowStyle Hidden | Out-Null
+            # 记住这次休眠对应的升级任务，唤醒后不会再对同一个任务重复休眠
+            try { Set-SleepMark $idx $doneAt.ToString('s') } catch { }
             Write-GuardLog 'SLEEP' "实例$idx" ("关机休眠，{0} 唤醒（{1}）" -f $wakeAt.ToString('HH:mm'), $entry.Upgrade)
         } catch {
             Write-GuardLog 'SLEEP_FAIL' "实例$idx" $_.Exception.Message
@@ -426,8 +432,10 @@ function Set-GuardState {
     }
     # 记住看护状态与窗口位置，下次打开自动恢复
     try {
-        $script:cfg.WindowLeft = [math]::Round($win.Left)
-        $script:cfg.WindowTop  = [math]::Round($win.Top)
+        if ($win.WindowState -eq 'Normal') {
+            $script:cfg.WindowLeft = [math]::Round($win.Left)
+            $script:cfg.WindowTop  = [math]::Round($win.Top)
+        }
         $script:cfg.GuardRunning = $script:guardRunning
         Save-Config
     } catch { }
@@ -602,4 +610,57 @@ function Invoke-ClearMemory([bool]$StopGuard) {
 
     Write-Diag ("已清除程序记忆：删除 {0} 个文件，休眠任务与统计已归零" -f $removed)
     return $removed
+}
+# ---------------- 每实例运行状态（state.json）----------------
+# 用途：记住"这个升级任务已经休眠过了"，避免唤醒后又被立刻关掉
+$script:opState = @{}
+
+function Load-OpState {
+    $script:opState = @{}
+    try {
+        $p = Join-Path $Root 'state.json'
+        if (-not (Test-Path $p)) { return }
+        $raw = Get-Content $p -Raw -Encoding UTF8
+        if (-not $raw -or -not $raw.Trim()) { return }
+        $j = $raw | ConvertFrom-Json
+        if ($j -and ($j.PSObject.Properties.Name -contains 'instances')) {
+            foreach ($pp in $j.instances.PSObject.Properties) {
+                $script:opState["$($pp.Name)"] = @{
+                    SleepForTs = "$($pp.Value.SleepForTs)"
+                    LastWakeAt = "$($pp.Value.LastWakeAt)"
+                    LastWakeBy = "$($pp.Value.LastWakeBy)"
+                }
+            }
+        }
+    } catch { }
+}
+
+function Save-OpState {
+    try {
+        $inst = [ordered]@{}
+        foreach ($k in @($script:opState.Keys)) { $inst["$k"] = $script:opState[$k] }
+        ConvertTo-Json -InputObject ([ordered]@{ instances = $inst }) -Depth 5 |
+            Set-Content -Path (Join-Path $Root 'state.json') -Encoding UTF8
+    } catch { }
+}
+
+function Set-SleepMark([string]$idx, [string]$ts) {
+    $k = "$idx"
+    if (-not $script:opState.ContainsKey($k)) { $script:opState[$k] = @{} }
+    $script:opState[$k]['SleepForTs'] = "$ts"
+    Save-OpState
+}
+
+function Get-SleepMark([string]$idx) {
+    $k = "$idx"
+    if (-not $script:opState.ContainsKey($k)) { return '' }
+    return "$($script:opState[$k]['SleepForTs'])"
+}
+
+function Set-WakeMark([string]$idx, [string]$by) {
+    $k = "$idx"
+    if (-not $script:opState.ContainsKey($k)) { $script:opState[$k] = @{} }
+    $script:opState[$k]['LastWakeAt'] = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
+    $script:opState[$k]['LastWakeBy'] = "$by"
+    Save-OpState
 }

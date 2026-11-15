@@ -1159,12 +1159,18 @@ function Update-Ui {
         if ($hbTime) { $staleSec = [int]((Get-Date) - $hbTime).TotalSeconds }
         # 窗口收进托盘时轮询是刻意暂停的，不算「数据停滞」
         $winHidden = $false
-        # 自愈：窗口处于正常状态但尺寸异常（无边框窗口还原时高度会塌），按当前视图重置
+        # 自愈：只在详情视图、且连续两次检测到尺寸异常时才重置（避免窗口切换瞬间误判）
         try {
             if ($win -and $win.IsVisible -and $win.WindowState -eq 'Normal' -and $script:viewMode -eq 'detail') {
                 if ($win.Height -lt 300 -or $win.Width -lt 300) {
-                    Set-View $script:viewMode
-                    Write-Diag ("窗口尺寸异常（{0}x{1}），已按 {2} 视图重置" -f [int]$win.Width, [int]$win.Height, $script:viewMode)
+                    $script:sizeBadTicks = [int]$script:sizeBadTicks + 1
+                    if ($script:sizeBadTicks -ge 2) {
+                        $script:sizeBadTicks = 0
+                        Set-View $script:viewMode
+                        Write-Diag ("窗口尺寸异常（{0}x{1}），已按 {2} 视图重置" -f [int]$win.Width, [int]$win.Height, $script:viewMode)
+                    }
+                } else {
+                    $script:sizeBadTicks = 0
                 }
             }
         } catch { }
@@ -1397,6 +1403,9 @@ function Show-Settings {
     $memBtn.Margin = [System.Windows.Thickness]::new(0, 16, 0, 0)
     $memBtn.ToolTip = '彻底删除休眠任务、趋势、日志与统计（设置会保留）'
     $memBtn.Add_Click({
+        # 防重入：对话框已打开时忽略重复点击
+        if ($script:memDlgOpen) { return }
+        $script:memDlgOpen = $true
         $dlg = New-Object System.Windows.Window
         $dlg.Title = 'MuMuGuard 清除记忆'
         $dlg.Width = 460
@@ -1456,7 +1465,7 @@ function Show-Settings {
         [void]$outer.Children.Add($row)
 
         $dlg.Content = $outer
-        [void]$dlg.ShowDialog()
+        try { [void]$dlg.ShowDialog() } finally { $script:memDlgOpen = $false }
     })
     [void]$pnl.Children.Add($memBtn)
     $sw.FindName('BtnSave').Add_Click({
@@ -1511,5 +1520,6 @@ function Update-SleepButton {
         $btnSleep.Background = Brush '#141A24'
     }
 }
+
 
 

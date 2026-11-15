@@ -168,8 +168,19 @@ function Invoke-AutoSleep {
             $script:sleepStage[$idx] = @{ Since = $null; GameGone = $null }
         }
         $st = $script:sleepStage[$idx]
-        # 刚出现（新开机/被我们关过之后）→ 从现在开始计时 20 分钟
-        if (-not $st['Since']) { $st['Since'] = $now }
+        # 20 分钟以「模拟器进程启动时间」为准，面板重启不会重置；清记忆/手动唤醒时用 ResetAt 覆盖
+        $procStart = $null
+        try {
+            if ($r.PID -and [int]$r.PID -gt 0) {
+                $procStart = (Get-Process -Id ([int]$r.PID) -ErrorAction Stop).StartTime
+            }
+        } catch { }
+        $resetAt = $null
+        if ($st['ResetAt']) { $resetAt = [datetime]$st['ResetAt'] }
+        if ($procStart -and $resetAt) { $st['Since'] = $(if ($procStart -gt $resetAt) { $procStart } else { $resetAt }) }
+        elseif ($procStart) { $st['Since'] = $procStart }
+        elseif ($resetAt) { $st['Since'] = $resetAt }
+        elseif (-not $st['Since']) { $st['Since'] = $now }
 
         $dec = Get-SleepStage -Row $r -Since $st['Since'] -GameGone $st['GameGone'] -Now $now `
             -BootWaitMin $bootWait -GameGoneMin $goneMin `
@@ -217,7 +228,7 @@ function Invoke-AutoSleep {
             Start-Process -FilePath $MuMuMgr -ArgumentList 'control', '-v', $idx, 'shutdown' -WindowStyle Hidden | Out-Null
             Write-GuardLog 'SLEEP' "实例$idx" ("关机休眠，{0} 唤醒（{1}）" -f $wakeAt.ToString('HH:mm'), $entry.Upgrade)
             # 我们自己关的：清空该实例记忆，下次开机像新实例一样重新抓取
-            try { Reset-InstanceMemory $idx } catch { }
+            try { Reset-InstanceMemory $idx 'sleep' } catch { }
             $st['Since'] = $null
             $st['GameGone'] = $null
         } catch {
@@ -575,15 +586,15 @@ function Invoke-BatchWake {
 }
 
 # 手动接管某台实例：清掉它的"记忆"，下一轮重新抓取
-function Reset-InstanceMemory([string]$index) {
+function Reset-InstanceMemory([string]$index, [string]$Reason = 'manual') {
     $i = "$index"
     try { $script:failCount[$i] = 0 } catch { }
     try { $script:lastRecover.Remove($i) } catch { }
     try { $script:recovering[$i] = $false } catch { }
     try { if ($script:adbSync.Force) { $script:adbSync.Force[$i] = $true } } catch { }
     # 重新计时：像新实例一样，先等 20 分钟再判断
-    try { if (-not $script:sleepStage) { $script:sleepStage = @{} }; $script:sleepStage[$i] = @{ Since = Get-Date; GameGone = $null } } catch { }
-    Write-Diag ("实例{0} 手动接管：已清除升级数据，等待重新抓取" -f $i)
+    try { if (-not $script:sleepStage) { $script:sleepStage = @{} }; $script:sleepStage[$i] = @{ Since = Get-Date; GameGone = $null; ResetAt = Get-Date } } catch { }
+    Write-Diag ("实例{0} 已清除升级数据，等待重新抓取（{1}）" -f $i, $Reason)
 }
 
 # 彻底清除程序记忆：删除休眠任务、趋势、日志、统计，只保留 config.json

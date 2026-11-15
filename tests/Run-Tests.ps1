@@ -554,6 +554,22 @@ Test-Case '状态机：升级只有 50 分钟 → 不睡' {
     Assert-Equal 'too-short' "$($r.Reason)"
 }
 
+Test-Case '解析：去掉 LOG 段后 MEM 不能吞掉 SCH' {
+    # 采集不再输出 LOG，如果 MEM 仍以 LOG 为结束标记，会把 SCH 一起吞进去导致 base64 解码失败
+    $probe = "READY`nSCRIPT`n1234`nGAME`n`nINST`npackage:/x`nSEP`n   0:01 nemuinit`nROOT`nuid=0`nMEM`nSGVsbG8=`nSCH`nupgrade_time_scheduling`": `"1`""
+    $b64 = ''
+    if ($probe -match '(?s)MEM\s*(.*?)(?:SCH|$)') { $b64 = $Matches[1].Trim() }
+    Assert-Equal 'SGVsbG8=' $b64
+    Assert-Equal 'Hello' ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)))
+}
+
+Test-Case '解析：SCH 段能单独取到上号开关' {
+    $probe = "MEM`nSGVsbG8=`nSCH`nupgrade_time_scheduling`": `"1`""
+    $sched = $false
+    if ($probe -match 'upgrade_time_scheduling"\s*:\s*"([01])"') { $sched = ($Matches[1] -eq '1') }
+    Assert-Equal $true $sched
+}
+
 Write-Host ''
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {

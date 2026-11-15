@@ -292,7 +292,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.2.6'
+$script:appVersion = '1.2.7'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -571,7 +571,7 @@ $workerScript = {
                         # 被强制重读的实例：先丢掉旧缓存
                         if ($forceSet.ContainsKey($i)) { $memCache.Remove($i); $waitCache.Remove($i); $schedCache.Remove($i) }
                         $b64 = ''
-                        if ($res -match '(?s)MEM\s*(.*?)(?:LOG|$)') { $b64 = $Matches[1] }
+                        if ($res -match '(?s)MEM\s*(.*?)(?:SCH|$)') { $b64 = $Matches[1] }
                         # 先看 root 是否可用，再判断升级信息缺失的原因
                         $rootPart = ''
                         if ($res -match '(?s)ROOT\s*(.*?)\s*MEM') { $rootPart = $Matches[1] }

@@ -257,15 +257,16 @@ function Get-SleepStage {
     if ($Row.Sched -ne $true) { return @{ Action = 'idle'; Reason = 'scheduling-off' } }
     if ($Row.Script -ne $true) { return @{ Action = 'idle'; Reason = 'script-not-running' } }
 
+    # 线二只对「我们唤醒登记过的实例」生效；手动双击开的模拟器不登记，完全不管
+    if (-not $Since) { return @{ Action = 'idle'; Reason = 'not-awakened' } }
+
     # 游戏在跑 = 脚本在干活，绝不休眠
     if ($Row.Game -eq $true) { return @{ Action = 'wait'; Reason = 'game-running' } }
 
-    # 开机/清记忆后的等待期
-    if ($Since) {
-        $elapsed = ($Now - [datetime]$Since).TotalMinutes
-        if ($elapsed -lt $BootWaitMin) {
-            return @{ Action = 'wait'; Reason = ('boot-wait {0}/{1}min' -f [int]$elapsed, [int]$BootWaitMin) }
-        }
+    # 唤醒后的等待期
+    $elapsed = ($Now - [datetime]$Since).TotalMinutes
+    if ($elapsed -lt $BootWaitMin) {
+        return @{ Action = 'wait'; Reason = ('boot-wait {0}/{1}min' -f [int]$elapsed, [int]$BootWaitMin) }
     }
 
     # 游戏已退出：先开始计确认时间

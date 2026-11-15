@@ -570,6 +570,19 @@ Test-Case '解析：SCH 段能单独取到上号开关' {
     Assert-Equal $true $sched
 }
 
+Test-Case '状态机：不是我们唤醒的实例 → 线二完全不参与' {
+    $row = @{ Index = '9'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $null -GameGone $null -Now $stNow
+    Assert-Equal 'idle' "$($r.Action)"
+    Assert-Equal 'not-awakened' "$($r.Reason)"
+}
+
+Test-Case '状态机：登记满 20 分钟且游戏已关 3 分钟 → 休眠' {
+    $row = @{ Index = '9'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-4) -Now $stNow
+    Assert-Equal 'sleep' "$($r.Action)"
+}
+
 Write-Host ''
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {

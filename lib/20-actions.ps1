@@ -168,19 +168,13 @@ function Invoke-AutoSleep {
             $script:sleepStage[$idx] = @{ Since = $null; GameGone = $null }
         }
         $st = $script:sleepStage[$idx]
-        # 20 分钟以「模拟器进程启动时间」为准，面板重启不会重置；清记忆/手动唤醒时用 ResetAt 覆盖
-        $procStart = $null
-        try {
-            if ($r.PID -and [int]$r.PID -gt 0) {
-                $procStart = (Get-Process -Id ([int]$r.PID) -ErrorAction Stop).StartTime
-            }
-        } catch { }
-        $resetAt = $null
-        if ($st['ResetAt']) { $resetAt = [datetime]$st['ResetAt'] }
-        if ($procStart -and $resetAt) { $st['Since'] = $(if ($procStart -gt $resetAt) { $procStart } else { $resetAt }) }
-        elseif ($procStart) { $st['Since'] = $procStart }
-        elseif ($resetAt) { $st['Since'] = $resetAt }
-        elseif (-not $st['Since']) { $st['Since'] = $now }
+        # 只认「我们唤醒登记过」的实例：唤醒时刻与游戏关闭时刻都存在 state.json，面板重启不丢
+        $wakeAt = $null
+        try { $wakeAt = Get-WakeAt $idx } catch { }
+        $st['Since'] = $wakeAt
+        if (-not $st['GameGone']) {
+            try { $st['GameGone'] = Get-GameGone $idx } catch { }
+        }
 
         $dec = Get-SleepStage -Row $r -Since $st['Since'] -GameGone $st['GameGone'] -Now $now `
             -BootWaitMin $bootWait -GameGoneMin $goneMin `
@@ -194,13 +188,14 @@ function Invoke-AutoSleep {
 
         if ($action -eq 'gamegone') {
             $st['GameGone'] = $now
+            try { Set-GameGone $idx $now } catch { }
             Write-Diag ("实例{0} 游戏已退出，开始 {1} 分钟确认" -f $idx, $goneMin)
             continue
         }
 
         if ($action -eq 'wait') {
             # 游戏又起来了 → 取消确认计时
-            if ($r.Game -eq $true -and $st['GameGone']) { $st['GameGone'] = $null }
+            if ($r.Game -eq $true -and $st['GameGone']) { $st['GameGone'] = $null; try { Clear-GameGone $idx } catch { } }
             $key = "sleep-$idx-$reason"
             if (-not $script:sleepWarnAt) { $script:sleepWarnAt = @{} }
             $lastAt = $script:sleepWarnAt[$key]
@@ -229,6 +224,9 @@ function Invoke-AutoSleep {
             Write-GuardLog 'SLEEP' "实例$idx" ("关机休眠，{0} 唤醒（{1}）" -f $wakeAt.ToString('HH:mm'), $entry.Upgrade)
             # 我们自己关的：清空该实例记忆，下次开机像新实例一样重新抓取
             try { Reset-InstanceMemory $idx 'sleep' } catch { }
+            # 休眠成功后清掉唤醒登记，下次唤醒再登记
+            try { Clear-WakeMark $idx } catch { }
+            try { Clear-GameGone $idx } catch { }
             $st['Since'] = $null
             $st['GameGone'] = $null
         } catch {
@@ -700,5 +698,43 @@ function Set-WakeMark([string]$idx, [string]$by) {
     if (-not $script:opState.ContainsKey($k)) { $script:opState[$k] = @{} }
     $script:opState[$k]['LastWakeAt'] = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
     $script:opState[$k]['LastWakeBy'] = "$by"
+    Save-OpState
+}
+
+function Get-WakeAt([string]$idx) {
+    $k = "$idx"
+    if (-not $script:opState.ContainsKey($k)) { return $null }
+    $v = "$($script:opState[$k]['LastWakeAt'])"
+    if (-not $v) { return $null }
+    try { return [datetime]::Parse($v) } catch { return $null }
+}
+
+function Clear-WakeMark([string]$idx) {
+    $k = "$idx"
+    if (-not $script:opState.ContainsKey($k)) { return }
+    try { $script:opState[$k].Remove('LastWakeAt') } catch { }
+    try { $script:opState[$k].Remove('LastWakeBy') } catch { }
+    Save-OpState
+}
+
+function Set-GameGone([string]$idx, $when) {
+    $k = "$idx"
+    if (-not $script:opState.ContainsKey($k)) { $script:opState[$k] = @{} }
+    $script:opState[$k]['GameGone'] = ([datetime]$when).ToString('yyyy-MM-ddTHH:mm:ss')
+    Save-OpState
+}
+
+function Get-GameGone([string]$idx) {
+    $k = "$idx"
+    if (-not $script:opState.ContainsKey($k)) { return $null }
+    $v = "$($script:opState[$k]['GameGone'])"
+    if (-not $v) { return $null }
+    try { return [datetime]::Parse($v) } catch { return $null }
+}
+
+function Clear-GameGone([string]$idx) {
+    $k = "$idx"
+    if (-not $script:opState.ContainsKey($k)) { return }
+    try { $script:opState[$k].Remove('GameGone') } catch { }
     Save-OpState
 }

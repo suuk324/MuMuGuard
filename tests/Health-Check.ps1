@@ -152,7 +152,7 @@ if (Test-Path $logDir) {
     Ok '无崩溃记录（crash.log 为空或不存在）' ($crashSize -eq 0) ("$crashSize 字节")
     $diag = Join-Path $logDir 'diag.log'
     if (Test-Path $diag) {
-        $errLines = @(Get-Content $diag -Tail 200 -Encoding UTF8 | Where-Object { $_ -match '异常|失败|错误' -and $_ -notmatch '唤醒失败|root 读取失败' })
+        $errLines = @(Get-Content $diag -Tail 200 -Encoding UTF8 | Where-Object { $_ -match '异常|失败|错误' -and $_ -notmatch '唤醒失败|root 读取失败|面板不是管理员' })
         Ok '近期无异常日志' ($errLines.Count -eq 0) (($errLines | Select-Object -First 3) -join ' | ')
     }
 }

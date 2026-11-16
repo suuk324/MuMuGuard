@@ -672,19 +672,19 @@ $xaml = @'
     </Style>
 
     <Style x:Key="Ghost" TargetType="Button">
-      <Setter Property="Foreground" Value="#8A94A6"/>
+      <Setter Property="Foreground" Value="#9BA5B4"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" CornerRadius="7" Background="#00000000" Padding="10,4">
+            <Border x:Name="bd" CornerRadius="8" Background="#00000000" Padding="10,4">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="bd" Property="Background" Value="#161C26"/>
-                <Setter Property="Foreground" Value="#E6EAF2"/>
+                <Setter TargetName="bd" Property="Background" Value="#232A36"/>
+                <Setter Property="Foreground" Value="#E8ECF2"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -693,19 +693,19 @@ $xaml = @'
     </Style>
 
     <Style x:Key="Mini" TargetType="Button">
-      <Setter Property="Foreground" Value="#8A94A6"/>
+      <Setter Property="Foreground" Value="#9BA5B4"/>
       <Setter Property="FontSize" Value="11"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" CornerRadius="6" Background="#161C26" Padding="10,4">
+            <Border x:Name="bd" CornerRadius="8" Background="#232A36" Padding="10,4">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="bd" Property="Background" Value="#1A2130"/>
-                <Setter Property="Foreground" Value="#E6EAF2"/>
+                <Setter TargetName="bd" Property="Background" Value="#1E242E"/>
+                <Setter Property="Foreground" Value="#E8ECF2"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -724,7 +724,7 @@ $xaml = @'
                   <Thumb>
                     <Thumb.Template>
                       <ControlTemplate TargetType="Thumb">
-                        <Border CornerRadius="4" Background="#1A2130"/>
+                        <Border CornerRadius="8" Background="#1E242E"/>
                       </ControlTemplate>
                     </Thumb.Template>
                   </Thumb>
@@ -737,8 +737,7 @@ $xaml = @'
     </Style>
   </Window.Resources>
 
-  <Border CornerRadius="16" Background="#0A0D14" BorderBrush="#161C26" BorderThickness="1">
-    <Border.Effect><DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.65" Color="Black"/></Border.Effect>
+  <Border CornerRadius="12" Background="#0B0E13" BorderBrush="#232A36" BorderThickness="1">
 
     <Grid>
       <Grid.RowDefinitions>
@@ -750,21 +749,21 @@ $xaml = @'
       <!-- 顶栏 -->
       <Grid x:Name="Header" Grid.Row="0" Background="Transparent">
         <StackPanel Orientation="Horizontal" Margin="24,0,0,0" VerticalAlignment="Center">
-          <Border x:Name="LogoBox" Width="40" Height="40" CornerRadius="11" Background="#00000000">
+          <Border x:Name="LogoBox" Width="40" Height="40" CornerRadius="12" Background="#00000000">
             <Image x:Name="LogoImg" Stretch="Uniform"/>
           </Border>
           <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-            <StackPanel Orientation="Horizontal"><TextBlock Text="MuMuGuard" Foreground="#E6EAF2" FontSize="17" FontWeight="Bold"/><TextBlock x:Name="TxtVersion" Text="" Foreground="#4B566B" FontSize="10" VerticalAlignment="Bottom" Margin="6,0,0,3"/></StackPanel>
-            <TextBlock Text="模拟器看护面板" Foreground="#8A94A6" FontSize="10.5" Margin="0,2,0,0"/>
+            <StackPanel Orientation="Horizontal"><TextBlock Text="MuMuGuard" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold"/><TextBlock x:Name="TxtVersion" Text="" Foreground="#6B7485" FontSize="11" VerticalAlignment="Bottom" Margin="6,0,0,3"/></StackPanel>
+            <TextBlock Text="模拟器看护面板" Foreground="#9BA5B4" FontSize="11" Margin="0,2,0,0"/>
           </StackPanel>
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0">
           <Button x:Name="BtnCompact" Content="概要" Style="{StaticResource Mini}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-          <Border x:Name="StatusPill" CornerRadius="12" Padding="14,7" Background="#161C26" VerticalAlignment="Center">
+          <Border x:Name="StatusPill" CornerRadius="12" Padding="14,7" Background="#232A36" VerticalAlignment="Center">
             <StackPanel Orientation="Horizontal">
-              <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#8A94A6" VerticalAlignment="Center"/>
-              <TextBlock x:Name="TxtStatus" Text="初始化" Foreground="#8A94A6" FontSize="12"
+              <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#9BA5B4" VerticalAlignment="Center"/>
+              <TextBlock x:Name="TxtStatus" Text="初始化" Foreground="#9BA5B4" FontSize="12"
                          FontWeight="Bold" Margin="8,0,0,0"/>
             </StackPanel>
           </Border>
@@ -789,11 +788,11 @@ $xaml = @'
           </Grid.RowDefinitions>
 
           <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                        MaxHeight="360" Padding="0,0,6,0">
+                        MaxHeight="480" Padding="0,0,6,0">
             <StackPanel x:Name="PnlInstances"/>
           </ScrollViewer>
 
-          <Border Grid.Row="1" CornerRadius="12" Background="#0F141C" BorderBrush="#161C26"
+          <Border Grid.Row="1" CornerRadius="12" Background="#12161D" BorderBrush="#232A36"
                   BorderThickness="1" Padding="16,14" Margin="0,4,0,0">
             <Grid>
               <Grid.RowDefinitions>
@@ -802,7 +801,7 @@ $xaml = @'
               </Grid.RowDefinitions>
 
               <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                <TextBlock Text="事件" Foreground="#8A94A6" FontSize="10.5" VerticalAlignment="Center"/>
+                <TextBlock Text="事件" Foreground="#9BA5B4" FontSize="11" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                   <Button x:Name="BtnAll" Content="全部" Style="{StaticResource Mini}" Margin="0,0,6,0"/>
                   <Button x:Name="BtnWarn" Content="仅告警" Style="{StaticResource Mini}"/>
@@ -824,28 +823,28 @@ $xaml = @'
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
 
-          <Border Grid.Row="0" CornerRadius="12" Background="#0F141C" BorderBrush="#161C26"
+          <Border Grid.Row="0" CornerRadius="12" Background="#12161D" BorderBrush="#232A36"
                   BorderThickness="1" Padding="18,16" Margin="0,0,0,12">
             <StackPanel>
-              <TextBlock Text="主机内存" Foreground="#8A94A6" FontSize="10.5"/>
+              <TextBlock Text="主机内存" Foreground="#9BA5B4" FontSize="11"/>
               <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                <TextBlock x:Name="TxtAvail" Text="--" Foreground="#E6EAF2" FontSize="25" FontWeight="Bold"
-                           FontFamily="Consolas"/>
-                <TextBlock x:Name="TxtTotal" Text="" Foreground="#8A94A6" FontSize="11"
+                <TextBlock x:Name="TxtAvail" Text="--" Foreground="#E8ECF2" FontSize="20" FontWeight="Bold"
+                           FontFamily="Consolas" Typography.NumeralAlignment="Tabular"/>
+                <TextBlock x:Name="TxtTotal" Text="" Foreground="#9BA5B4" FontSize="11"
                            VerticalAlignment="Bottom" Margin="8,0,0,5"/>
               </StackPanel>
 
               <Grid x:Name="MemBarHost" Height="8" Margin="0,11,0,0">
-                <Border CornerRadius="4" Background="#161C26"/>
-                <Border x:Name="MemBarFill" CornerRadius="4" Background="#3DDC84" HorizontalAlignment="Left" Width="0"/>
+                <Border CornerRadius="8" Background="#232A36"/>
+                <Border x:Name="MemBarFill" CornerRadius="8" Background="#3FB950" HorizontalAlignment="Left" Width="0"/>
               </Grid>
               <Grid Margin="0,4,0,0">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="0" Foreground="#414B5E" FontSize="9.5"/>
-                <TextBlock Grid.Column="1" Text="16 GB" Foreground="#414B5E" FontSize="9.5" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="0" Text="0" Foreground="#565F6E" FontSize="11"/>
+                <TextBlock Grid.Column="1" Text="16 GB" Foreground="#565F6E" FontSize="11" HorizontalAlignment="Right"/>
               </Grid>
 
               <Grid Margin="0,12,0,0">
@@ -854,28 +853,28 @@ $xaml = @'
                   <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                  <TextBlock Text="提交内存" Foreground="#8A94A6" FontSize="10"/>
-                  <TextBlock x:Name="TxtCommit" Text="--" Foreground="#E6EAF2" FontSize="14"
-                             FontWeight="SemiBold" FontFamily="Consolas" Margin="0,2,0,0"/>
+                  <TextBlock Text="提交内存" Foreground="#9BA5B4" FontSize="11"/>
+                  <TextBlock x:Name="TxtCommit" Text="--" Foreground="#E8ECF2" FontSize="13"
+                             FontWeight="SemiBold" FontFamily="Consolas" Margin="0,2,0,0" Typography.NumeralAlignment="Tabular"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1">
-                  <TextBlock Text="页面文件" Foreground="#8A94A6" FontSize="10"/>
-                  <TextBlock x:Name="TxtPage" Text="--" Foreground="#E6EAF2" FontSize="14"
-                             FontWeight="SemiBold" FontFamily="Consolas" Margin="0,2,0,0"/>
+                  <TextBlock Text="页面文件" Foreground="#9BA5B4" FontSize="11"/>
+                  <TextBlock x:Name="TxtPage" Text="--" Foreground="#E8ECF2" FontSize="13"
+                             FontWeight="SemiBold" FontFamily="Consolas" Margin="0,2,0,0" Typography.NumeralAlignment="Tabular"/>
                 </StackPanel>
               </Grid>
             </StackPanel>
           </Border>
 
-          <Border Grid.Row="1" CornerRadius="12" Background="#0F141C" BorderBrush="#161C26"
+          <Border Grid.Row="1" CornerRadius="12" Background="#12161D" BorderBrush="#232A36"
                   BorderThickness="1" Padding="18,14" Margin="0,0,0,12">
             <StackPanel>
-              <TextBlock Text="健康检查" Foreground="#8A94A6" FontSize="10.5" Margin="0,0,0,8"/>
+              <TextBlock Text="健康检查" Foreground="#9BA5B4" FontSize="11" Margin="0,0,0,8"/>
               <StackPanel x:Name="PnlHealth"/>
             </StackPanel>
           </Border>
 
-          <Border Grid.Row="2" CornerRadius="12" Background="#0F141C" BorderBrush="#161C26"
+          <Border Grid.Row="2" CornerRadius="12" Background="#12161D" BorderBrush="#232A36"
                   BorderThickness="1" Padding="18,14">
             <Grid>
               <Grid.RowDefinitions>
@@ -883,15 +882,15 @@ $xaml = @'
                 <RowDefinition Height="*"/>
               </Grid.RowDefinitions>
               <DockPanel Grid.Row="0" Margin="0,0,0,6">
-                <TextBlock Text="可用内存趋势 · 1 小时" Foreground="#8A94A6" FontSize="10.5"/>
-                <TextBlock x:Name="TxtTrendMin" Text="" Foreground="#414B5E" FontSize="10" HorizontalAlignment="Right"/>
+                <TextBlock Text="可用内存趋势 · 1 小时" Foreground="#9BA5B4" FontSize="11"/>
+                <TextBlock x:Name="TxtTrendMin" Text="" Foreground="#565F6E" FontSize="11" HorizontalAlignment="Right"/>
               </DockPanel>
               <Grid Grid.Row="1">
                 <Canvas x:Name="TrendCanvas" ClipToBounds="True">
-                  <Polyline x:Name="TrendLine" Stroke="#3DDC84" StrokeThickness="1.6"/>
+                  <Polyline x:Name="TrendLine" Stroke="#3FB950" StrokeThickness="1.6"/>
                 </Canvas>
                 <TextBlock x:Name="TxtTrendHint" Text="采样中 · 每 30 秒一个点"
-                           Foreground="#414B5E" FontSize="10.5"
+                           Foreground="#565F6E" FontSize="11"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Grid>
             </Grid>
@@ -906,14 +905,14 @@ $xaml = @'
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock x:Name="TxtInfo" Grid.Row="0" Text="" Foreground="#8A94A6" FontSize="10.5" Margin="2,0,0,0"/>
+        <TextBlock x:Name="TxtInfo" Grid.Row="0" Text="" Foreground="#9BA5B4" FontSize="11" Margin="2,0,0,0"/>
 
         <DockPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,4">
           <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-            <Button x:Name="BtnGuard" Content="启动看护" Width="112" Style="{StaticResource Btn}" Background="#E8EDF5"/>
-            <Button x:Name="BtnSleep" Content="休眠 开" Width="84" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" ToolTip="升级等待时自动关闭模拟器省内存"/>
-            <Button x:Name="BtnClean" Content="立即清理" Width="102" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24"/>
-            <Button x:Name="BtnLog" Content="打开日志" Width="94" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#161C26"/>
+            <Button x:Name="BtnGuard" Content="启动看护" Width="112" Style="{StaticResource Btn}" Background="#E8ECF2"/>
+            <Button x:Name="BtnSleep" Content="休眠 开" Width="84" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#1A1F29" ToolTip="升级等待时自动关闭模拟器省内存"/>
+            <Button x:Name="BtnClean" Content="立即清理" Width="102" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#1A1F29"/>
+            <Button x:Name="BtnLog" Content="打开日志" Width="94" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#232A36"/>
           </StackPanel>
           <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
             <Button x:Name="BtnExport" Content="导出报告" Style="{StaticResource Mini}" Margin="0,0,8,0" MinWidth="76" ToolTip="导出当前状态到文本报告"/>
@@ -1050,18 +1049,17 @@ $txtTotal.Text = ('/ {0:N0} MB' -f $script:totalMB)
 $compactXaml = @'
 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        CornerRadius="14" Background="#0A0D14" BorderBrush="#161C26" BorderThickness="1">
-  <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.65" Color="Black"/></Border.Effect>
+        CornerRadius="12" Background="#0B0E13" BorderBrush="#232A36" BorderThickness="1">
   <Border.Resources>
     <Style x:Key="CplPrimary" TargetType="Button">
-      <Setter Property="Foreground" Value="#0A0D14"/>
+      <Setter Property="Foreground" Value="#0B0E13"/>
       <Setter Property="FontSize" Value="11"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" CornerRadius="6" Background="{TemplateBinding Background}">
+            <Border x:Name="bd" CornerRadius="8" Background="{TemplateBinding Background}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
@@ -1073,20 +1071,20 @@ $compactXaml = @'
       </Setter>
     </Style>
     <Style x:Key="CplSecondary" TargetType="Button">
-      <Setter Property="Foreground" Value="#8A94A6"/>
+      <Setter Property="Foreground" Value="#9BA5B4"/>
       <Setter Property="FontSize" Value="11"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" CornerRadius="6" Background="{TemplateBinding Background}">
+            <Border x:Name="bd" CornerRadius="8" Background="{TemplateBinding Background}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="bd" Property="Background" Value="#1A2130"/>
-                <Setter Property="Foreground" Value="#E6EAF2"/>
+                <Setter TargetName="bd" Property="Background" Value="#1E242E"/>
+                <Setter Property="Foreground" Value="#E8ECF2"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -1094,19 +1092,19 @@ $compactXaml = @'
       </Setter>
     </Style>
     <Style x:Key="CplGhost" TargetType="Button">
-      <Setter Property="Foreground" Value="#414B5E"/>
+      <Setter Property="Foreground" Value="#565F6E"/>
       <Setter Property="FontSize" Value="10"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="bd" CornerRadius="5" Background="#00000000">
+            <Border x:Name="bd" CornerRadius="8" Background="#00000000">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="bd" Property="Background" Value="#151B26"/>
-                <Setter Property="Foreground" Value="#E6EAF2"/>
+                <Setter TargetName="bd" Property="Background" Value="#171C25"/>
+                <Setter Property="Foreground" Value="#E8ECF2"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -1130,13 +1128,13 @@ $compactXaml = @'
     <!-- 顶栏 -->
     <DockPanel x:Name="CmpHeader" Grid.Row="0" Background="Transparent">
       <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
-        <Ellipse x:Name="CmpGuardDot" Width="5" Height="5" Fill="#414B5E" VerticalAlignment="Center"/>
-        <TextBlock x:Name="CmpGuardText" Text="已停止" Foreground="#414B5E" FontSize="8.5"
+        <Ellipse x:Name="CmpGuardDot" Width="5" Height="5" Fill="#565F6E" VerticalAlignment="Center"/>
+        <TextBlock x:Name="CmpGuardText" Text="已停止" Foreground="#565F6E" FontSize="11"
                    Margin="5,0,10,0" VerticalAlignment="Center"/>
         <Button x:Name="CmpMin" Content="&#x2014;" Width="18" Height="18" Style="{StaticResource CplGhost}"/>
         <Button x:Name="CmpClose" Content="&#x2715;" Width="18" Height="18" Style="{StaticResource CplGhost}"/>
       </StackPanel>
-      <TextBlock Text="MuMuGuard" Foreground="#414B5E" FontSize="9" FontWeight="Bold"
+      <TextBlock Text="MuMuGuard" Foreground="#565F6E" FontSize="11" FontWeight="Bold"
                  VerticalAlignment="Center"/>
     </DockPanel>
 
@@ -1149,8 +1147,8 @@ $compactXaml = @'
 
     <!-- 内存标题 -->
     <DockPanel Grid.Row="2" Margin="0,10,0,0">
-      <TextBlock Text="内存" Foreground="#414B5E" FontSize="9" VerticalAlignment="Center"/>
-      <TextBlock x:Name="CmpMemText" Text="" Foreground="#414B5E" FontSize="8.5"
+      <TextBlock Text="内存" Foreground="#565F6E" FontSize="11" VerticalAlignment="Center"/>
+      <TextBlock x:Name="CmpMemText" Text="" Foreground="#565F6E" FontSize="11"
                  HorizontalAlignment="Right" VerticalAlignment="Center"/>
     </DockPanel>
 
@@ -1159,9 +1157,9 @@ $compactXaml = @'
 <!-- 按钮 -->
     <DockPanel Grid.Row="7" Margin="0,10,0,0">
       <Button x:Name="CmpDetailBtn" DockPanel.Dock="Right" Content="详情" Width="104" Height="27"
-              Style="{StaticResource CplSecondary}" Background="#141A24"/>
+              Style="{StaticResource CplSecondary}" Background="#1A1F29"/>
       <Button x:Name="CmpGuardBtn" Content="启动看护" Height="27" Margin="0,0,10,0"
-              Style="{StaticResource CplPrimary}" Background="#E8EDF5"/>
+              Style="{StaticResource CplPrimary}" Background="#E8ECF2"/>
     </DockPanel>
   </Grid>
 </Border>
@@ -1238,14 +1236,58 @@ $settingsXaml = @'
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" FontFamily="Microsoft YaHei UI">
   <Window.Resources>
+    <Style x:Key="DarkScroll" TargetType="ScrollBar">
+      <Setter Property="Width" Value="8"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Grid Background="Transparent">
+              <Track x:Name="PART_Track" IsDirectionReversed="True">
+                <Track.Thumb>
+                  <Thumb>
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Border CornerRadius="4" Background="#2E3A55"/>
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="NumBox" TargetType="TextBox">
+      <Setter Property="Background" Value="#171C25"/>
+      <Setter Property="Foreground" Value="#E8ECF2"/>
+      <Setter Property="BorderBrush" Value="#2A3340"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="8,4,8,4"/>
+      <Setter Property="FontFamily" Value="Consolas"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border CornerRadius="8" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                    Padding="{TemplateBinding Padding}">
+              <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <Style x:Key="MiniBtn" TargetType="Button">
-      <Setter Property="Foreground" Value="#E6EAF2"/>
+      <Setter Property="Foreground" Value="#E8ECF2"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border CornerRadius="7" Background="{TemplateBinding Background}" Padding="10,4">
+            <Border CornerRadius="8" Background="{TemplateBinding Background}" Padding="10,4">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
           </ControlTemplate>
@@ -1253,8 +1295,7 @@ $settingsXaml = @'
       </Setter>
     </Style>
   </Window.Resources>
-  <Border CornerRadius="14" Background="#0A0D14" BorderBrush="#161C26" BorderThickness="1" Padding="24">
-    <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.6" Color="Black"/></Border.Effect>
+  <Border CornerRadius="12" Background="#0B0E13" BorderBrush="#232A36" BorderThickness="1" Padding="24">
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
@@ -1262,16 +1303,16 @@ $settingsXaml = @'
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
-      <TextBlock Grid.Row="0" Text="阈值设置" Foreground="#E6EAF2" FontSize="16" FontWeight="Bold" Margin="0,0,0,16"/>
+      <TextBlock Grid.Row="0" Text="设置" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" Margin="0,0,0,16"/>
 
-      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0" Style="{x:Null}"><ScrollViewer.Resources><Style TargetType="ScrollBar" BasedOn="{StaticResource DarkScroll}"/></ScrollViewer.Resources>
         <StackPanel x:Name="PnlFields"/>
       </ScrollViewer>
 
       <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-        <Button x:Name="BtnCancel" Content="取消" Width="88" Height="34" Style="{StaticResource MiniBtn}" Background="#161C26"/>
-        <Button x:Name="BtnSave" Content="保存" Width="96" Height="34" Margin="8,0,0,0" Foreground="#0A0D14"
-                Style="{StaticResource MiniBtn}" Background="#E8EDF5"/>
+        <Button x:Name="BtnCancel" Content="取消" Width="88" Height="34" Style="{StaticResource MiniBtn}" Background="#232A36"/>
+        <Button x:Name="BtnSave" Content="保存" Width="96" Height="34" Margin="8,0,0,0" Foreground="#0B0E13"
+                Style="{StaticResource MiniBtn}" Background="#E8ECF2"/>
       </StackPanel>
     </Grid>
   </Border>
@@ -1313,15 +1354,15 @@ $btnSleep.Add_Click({
 
 $btnAll.Add_Click({
     $script:eventFilter = 'all'
-    $btnAll.Foreground = Brush '#E6EAF2'
-    $btnWarn.Foreground = Brush '#8A94A6'
+    $btnAll.Foreground = Brush '#E8ECF2'
+    $btnWarn.Foreground = Brush '#9BA5B4'
     $script:lastEventSig = ''
     Sync-Events
 })
 $btnWarn.Add_Click({
     $script:eventFilter = 'warn'
-    $btnWarn.Foreground = Brush '#F5A524'
-    $btnAll.Foreground = Brush '#8A94A6'
+    $btnWarn.Foreground = Brush '#D29922'
+    $btnAll.Foreground = Brush '#9BA5B4'
     $script:lastEventSig = ''
     Sync-Events
 })

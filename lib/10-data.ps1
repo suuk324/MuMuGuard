@@ -5,6 +5,7 @@
 
 function Get-InstanceData {
     $now = Get-Date
+    if (-not $script:prevSpin) { $script:prevSpin = @{} }
 
     # 一次 Toolhelp32 快照拿到所有进程的 PID / 父进程 / 名字
     $snap = @()
@@ -61,6 +62,22 @@ function Get-InstanceData {
         }
         $script:prevCpu[$pidVal] = @{ Cpu = $proc.CPU; Time = $now }
 
+        # CPU 兜底：进程 CPU 时间读不到（权限/会话隔离）时，用 adb 采到的 nemuinit 累计时间换算
+        if ($cores -lt 0 -and $script:prevSpin -and $script:prevSpin.ContainsKey($index)) {
+            $ps0 = $script:prevSpin[$index]
+            $dt0 = ($now - $ps0.Time).TotalSeconds
+            $spinNow = $null
+            try { if ($script:adbSync.Data -and $script:adbSync.Data.ContainsKey($index)) { $spinNow = $script:adbSync.Data[$index].Spin } } catch { }
+            if ($null -ne $spinNow -and $null -ne $ps0.Spin -and $dt0 -gt 0.4) {
+                $d = [double]$spinNow - [double]$ps0.Spin
+                if ($d -ge 0) { $cores = [math]::Round($d / $dt0, 2) }
+            }
+            if ($null -ne $spinNow) { $script:prevSpin[$index] = @{ Spin = $spinNow; Time = $now } }
+        } elseif ($null -ne $script:prevSpin) {
+            $spinNow2 = $null
+            try { if ($script:adbSync.Data -and $script:adbSync.Data.ContainsKey($index)) { $spinNow2 = $script:adbSync.Data[$index].Spin } } catch { }
+            if ($null -ne $spinNow2) { $script:prevSpin[$index] = @{ Spin = $spinNow2; Time = $now } }
+        }
         # adb 数据（按实例编号匹配）
         $online = $null; $game = $null; $spin = $null; $scriptOn = $null
         $upgrade = $null; $sched = $null

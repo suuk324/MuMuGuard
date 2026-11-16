@@ -788,7 +788,7 @@ $xaml = @'
           </Grid.RowDefinitions>
 
           <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                        MaxHeight="360" Padding="0,0,6,0">
+                        MaxHeight="480" Padding="0,0,6,0">
             <StackPanel x:Name="PnlInstances"/>
           </ScrollViewer>
 

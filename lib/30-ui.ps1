@@ -440,8 +440,8 @@ function New-InstanceCard {
     $border.Background   = Brush '#12161D'
     $border.BorderBrush  = Brush '#232A36'
     $border.BorderThickness = [System.Windows.Thickness]::new(1)
-    $border.Margin  = [System.Windows.Thickness]::new(0,0,0,10)
-    $border.Padding = [System.Windows.Thickness]::new(16,14,16,14)
+    $border.Margin  = [System.Windows.Thickness]::new(0,0,0,8)
+    $border.Padding = [System.Windows.Thickness]::new(14,11,14,11)
 
     $root = New-Object System.Windows.Controls.Grid
     $border.Child = $root
@@ -525,15 +525,28 @@ function New-InstanceCard {
     $game.Text = '检测中'
     $game.Foreground = Brush '#9BA5B4'
     $game.FontSize=11
-    $game.Margin = [System.Windows.Thickness]::new(0,3,0,0)
-    [void]$stack.Children.Add($game)
+    $game.VerticalAlignment = 'Center'
+    # 状态与升级信息共享一行，压低卡片高度
+    $line2 = New-Object System.Windows.Controls.StackPanel
+    $line2.Orientation = 'Horizontal'
+    $line2.Margin = [System.Windows.Thickness]::new(0,3,0,0)
+    [void]$line2.Children.Add($game)
+    $sep2 = New-Object System.Windows.Controls.TextBlock
+    $sep2.Text = '   ·   '
+    $sep2.FontSize = 11
+    $sep2.Foreground = Brush '#565F6E'
+    $sep2.VerticalAlignment = 'Center'
+    [void]$line2.Children.Add($sep2)
+    $sepRef = $sep2
 
-    # 升级倒计时（没有升级时整行隐藏）
+    # 升级倒计时（没有升级时整段隐藏）
     $upgrade = New-Object System.Windows.Controls.TextBlock
     $upgrade.FontSize=11
-    $upgrade.Margin = [System.Windows.Thickness]::new(0,4,0,0)
+    $upgrade.Margin = [System.Windows.Thickness]::new(0,0,0,0)
+    $upgrade.VerticalAlignment = 'Center'
     $upgrade.Visibility = 'Collapsed'
-    [void]$stack.Children.Add($upgrade)
+    [void]$line2.Children.Add($upgrade)
+    [void]$stack.Children.Add($line2)
 
     $foot = New-Object System.Windows.Controls.DockPanel
     $foot.Margin = [System.Windows.Thickness]::new(0,6,0,0)
@@ -566,7 +579,7 @@ function New-InstanceCard {
 
     return [pscustomobject]@{
         Border = $border; Name = $name; Judge = $judge; Game = $game
-        Upgrade = $upgrade
+        Upgrade = $upgrade; Sep = $sepRef
         Metrics = $metrics; Restart = $restart; Detect = $detectBtn
         Track = $track; Arc = $arc; Pct = $pct; Sched = $sched
     }
@@ -778,11 +791,11 @@ function Sync-Cards($data) {
             $c.Game.Foreground = Brush '#9BA5B4'
         }
 
-        $cpuText = if ($r.Cores -ge 0) { '{0:N2} 核' -f $r.Cores } else { '--' }
+        $cpuText = if ($r.Cores -ge 0) { '{0:N2} 核' -f $r.Cores } else { '' }
         if ($r.Sleeping) {
             $c.Metrics.Text = $(if ($r.WakeAt) { '内存已释放' } else { '--' })
         } else {
-            $c.Metrics.Text = ('{0}  ·  {1:N0} MB  ·  CEF {2}' -f $cpuText, $r.Private, $r.CEF)
+            $c.Metrics.Text = $(if ($cpuText) { "$cpuText  ·  " } else { '' }) + ('{0:N0} MB  ·  CEF {1}' -f $r.Private, $r.CEF)
             Set-Tabular $c.Metrics
         }
 
@@ -804,6 +817,7 @@ function Sync-Cards($data) {
                 [void]$c.Upgrade.Inlines.Add($d)
             }
             $c.Upgrade.Visibility = 'Visible'
+        if ($c.Sep) { $c.Sep.Visibility = 'Visible' }
         } elseif ($r.UpName) {
             $sig = "$($r.UpName)|$($r.UpLvl)|$($r.UpLeft)"
             if ($c.Upgrade.Tag -ne $sig) {
@@ -828,8 +842,10 @@ function Sync-Cards($data) {
                 [void]$c.Upgrade.Inlines.Add($r4)
             }
             $c.Upgrade.Visibility = 'Visible'
+        if ($c.Sep) { $c.Sep.Visibility = 'Visible' }
         } elseif ($r.UpName -eq '' -and $c.Upgrade.Visibility -ne 'Collapsed') {
             $c.Upgrade.Visibility = 'Collapsed'
+            if ($c.Sep) { $c.Sep.Visibility = 'Collapsed' }
         }
 
         $c.Arc.ToolTip = "nemuinit 占用 $($r.Spin)%"

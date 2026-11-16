@@ -1550,12 +1550,12 @@ function Update-SleepButton {
     if (-not $btnSleep) { return }
     if ([bool]$script:cfg.AutoSleep) {
         $btnSleep.Content = '休眠 开'
-        $btnSleep.Foreground = Brush '#3FB950'
-        $btnSleep.Background = Brush '#14251A'
+        Bind-ThemeBrush $btnSleep '#3FB950' 'Foreground'
+        Bind-ThemeBrush $btnSleep '#14251A' 'Background'
     } else {
         $btnSleep.Content = '休眠 关'
-        $btnSleep.Foreground = Brush '#9BA5B4'
-        $btnSleep.Background = Brush '#1A1F29'
+        Bind-ThemeBrush $btnSleep '#9BA5B4' 'Foreground'
+        Bind-ThemeBrush $btnSleep '#1A1F29' 'Background'
     }
 }
 

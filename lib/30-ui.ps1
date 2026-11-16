@@ -1387,9 +1387,6 @@ function Show-Settings {
         $tb.TextAlignment = 'Right'
         $tb.FontSize=12
         $tb.FontFamily = New-Object System.Windows.Media.FontFamily('Consolas')
-    Bind-ThemeBrush $tb '#12161D' 'Background'
-    Bind-ThemeBrush $tb '#E8ECF2' 'Foreground'
-    Bind-ThemeBrush $tb '#232A36' 'BorderBrush'
         $tb.Padding = [System.Windows.Thickness]::new(6,3,6,3)
 
         [void]$row.Children.Add($lbl)
@@ -1420,9 +1417,6 @@ function Show-Settings {
         $tb.BorderThickness = [System.Windows.Thickness]::new(1)
         $tb.Padding = [System.Windows.Thickness]::new(8,4,8,4)
         $tb.FontSize=11
-    Bind-ThemeBrush $tb '#12161D' 'Background'
-    Bind-ThemeBrush $tb '#E8ECF2' 'Foreground'
-    Bind-ThemeBrush $tb '#232A36' 'BorderBrush'
         $tb.Padding = [System.Windows.Thickness]::new(6,3,6,3)
 
         [void]$row.Children.Add($lbl)

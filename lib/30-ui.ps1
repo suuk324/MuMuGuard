@@ -1379,7 +1379,12 @@ function Show-Settings {
         $tb.Text = [string]$script:cfg[$f.Key]
         $tb.Width = 120
         $tb.Height = 28
-        try { $tb.Style = $sw.Resources['NumBox'] } catch { }
+        $tb.Background = Brush '#1A2130'
+        $tb.Foreground = Brush '#E8ECF2'
+        $tb.BorderBrush = Brush '#2F3A4C'
+        $tb.BorderThickness = [System.Windows.Thickness]::new(1)
+        $tb.Padding = [System.Windows.Thickness]::new(8,4,8,4)
+        $tb.TextAlignment = 'Right'
         $tb.FontSize=12
         $tb.FontFamily = New-Object System.Windows.Media.FontFamily('Consolas')
     Bind-ThemeBrush $tb '#12161D' 'Background'
@@ -1410,6 +1415,10 @@ function Show-Settings {
         $tb.Text = [string]$script:cfg[$f.Key]
         $tb.Width = 320
         $tb.Height = 28
+        $tb.Background = Brush '#1A2130'
+        $tb.BorderBrush = Brush '#2F3A4C'
+        $tb.BorderThickness = [System.Windows.Thickness]::new(1)
+        $tb.Padding = [System.Windows.Thickness]::new(8,4,8,4)
         $tb.FontSize=11
     Bind-ThemeBrush $tb '#12161D' 'Background'
     Bind-ThemeBrush $tb '#E8ECF2' 'Foreground'

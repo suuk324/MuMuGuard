@@ -96,6 +96,8 @@ function Get-ShortLabels {
         if ($n.Length -le 6) { return @($n) }
         return @(($n).Substring(0, 5) + '…')
     }
+    # 少于 3 台时不做公共前缀压缩：2 台时压缩只会让人看不懂（国际服 → 际服）
+    if ($list.Count -lt 3) { return @($list | ForEach-Object { [string]$_ }) }
 
     $prefix = Get-CommonPrefix -Strings $list
     for ($len = $prefix.Length; $len -ge 0; $len--) {

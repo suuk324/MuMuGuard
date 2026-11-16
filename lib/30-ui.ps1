@@ -12,12 +12,12 @@ function Get-RingView($r, [string]$ctx) {
         return [pscustomobject]@{
             Mode        = 'sleep'
             Dashed      = $false
-            TrackColor  = '#232B3A'
+            TrackColor  = '#1E242E'
             CenterText  = $(if ($r.WakeAt) { $r.WakeAt.ToString('HH:mm') } else { '—' })
             CenterSize  = $smallSize
-            CenterColor = '#7C8BA8'
+            CenterColor = '#8E9AAA'
             Pct         = 0
-            ArcColor    = '#3DDC84'
+            ArcColor    = '#3FB950'
         }
     }
 
@@ -25,26 +25,26 @@ function Get-RingView($r, [string]$ctx) {
         return [pscustomobject]@{
             Mode        = 'off'
             Dashed      = $false
-            TrackColor  = '#2A1214'
+            TrackColor  = '#2A1315'
             CenterText  = '—'
             CenterSize  = $bigSize
-            CenterColor = '#414B5E'
+            CenterColor = '#565F6E'
             Pct         = 0
-            ArcColor    = '#3DDC84'
+            ArcColor    = '#3FB950'
         }
     }
 
-    $col = '#3DDC84'
-    if ($r.Level -eq 1) { $col = '#F5A524' }
-    if ($r.Level -eq 2) { $col = '#F26D6D' }
+    $col = '#3FB950'
+    if ($r.Level -eq 1) { $col = '#D29922' }
+    if ($r.Level -eq 2) { $col = '#F85149' }
 
     return [pscustomobject]@{
         Mode        = 'on'
         Dashed      = $false
-        TrackColor  = '#1A2130'
+        TrackColor  = '#1E242E'
         CenterText  = ([string][int]$r.MemPct + '%')
         CenterSize  = $bigSize
-        CenterColor = '#8A94A6'
+        CenterColor = '#9BA5B4'
         Pct         = $r.MemPct
         ArcColor    = $col
     }
@@ -78,12 +78,12 @@ function New-RingCell {
     $track = New-Object System.Windows.Shapes.Ellipse
     $track.Width  = $RingSize
     $track.Height = $RingSize
-    $track.Stroke = Brush '#1A2130'
+    $track.Stroke = Brush '#1E242E'
     $track.StrokeThickness = $RingStroke
     [void]$grid.Children.Add($track)
 
     $arc = New-Object System.Windows.Shapes.Path
-    $arc.Stroke = Brush '#3DDC84'
+    $arc.Stroke = Brush '#3FB950'
     $arc.StrokeThickness = $RingStroke
     $arc.StrokeStartLineCap = 'Round'
     $arc.StrokeEndLineCap   = 'Round'
@@ -98,13 +98,13 @@ function New-RingCell {
     $pct.Text = '--'
     $pct.FontSize = 20
     $pct.FontWeight = 'Bold'
-    $pct.Foreground = Brush '#E6EAF2'
+    $pct.Foreground = Brush '#E8ECF2'
     $pct.HorizontalAlignment = 'Center'
 
     $num = New-Object System.Windows.Controls.TextBlock
     $num.Text = '实例'
-    $num.FontSize = 8.5
-    $num.Foreground = Brush '#414B5E'
+    $num.FontSize=11
+    $num.Foreground = Brush '#565F6E'
     $num.HorizontalAlignment = 'Center'
     $num.Margin = [System.Windows.Thickness]::new(0,2,0,0)
 
@@ -182,7 +182,7 @@ function Sync-Compact($data, $hm) {
             $tb.VerticalAlignment = "Center"
             $tb.FontSize = 11.5
             $tb.LineHeight = 22
-            $tb.Foreground = Brush "#8A94A6"
+            $tb.Foreground = Brush "#9BA5B4"
             [void]$cmpRingsHost.Children.Add($tb)
             $script:cmpEmpty = $tb
         }
@@ -267,7 +267,7 @@ function Sync-CompactFoot($data, $hm) {
             $b.Height = 14
             $b.CornerRadius = [System.Windows.CornerRadius]::new(3)
             $b.Margin = [System.Windows.Thickness]::new(0,0,2,0)
-            $b.Background = Brush '#2A3650'
+            $b.Background = Brush '#2E3A55'
             [void]$cmpCells.Children.Add($b)
             $script:cellMap += $b
         }
@@ -285,15 +285,15 @@ function Sync-CompactFoot($data, $hm) {
             $b = $script:cellMap[$i]
             if ($i -lt $filled) {
                 if ($freeCells -eq 0 -and $i -eq 15) {
-                    $b.Background = Brush '#F26D6D'
+                    $b.Background = Brush '#F85149'
                     $b.BorderThickness = [System.Windows.Thickness]::new(0)
                 } else {
-                    $b.Background = Brush '#2A3650'
+                    $b.Background = Brush '#2E3A55'
                     $b.BorderThickness = [System.Windows.Thickness]::new(0)
                 }
             } else {
                 $b.Background = Brush '#00000000'
-                $b.BorderBrush = Brush '#F26D6D'
+                $b.BorderBrush = Brush '#F85149'
                 $b.BorderThickness = [System.Windows.Thickness]::new(1)
             }
         }
@@ -306,19 +306,19 @@ function Sync-CompactFoot($data, $hm) {
     if ($script:lastGuardState -ne $script:guardRunning) {
         $script:lastGuardState = $script:guardRunning
         if ($script:guardRunning) {
-            $cmpGuardDot.Fill = Brush '#3DDC84'
+            $cmpGuardDot.Fill = Brush '#3FB950'
             $cmpGuardText.Text = '看护中'
-            $cmpGuardText.Foreground = Brush '#3DDC84'
+            $cmpGuardText.Foreground = Brush '#3FB950'
             $cmpGuardBtn.Content = '停止看护'
-            $cmpGuardBtn.Background = Brush '#1B2A22'
-            $cmpGuardBtn.Foreground = Brush '#3DDC84'
+            $cmpGuardBtn.Background = Brush '#16281D'
+            $cmpGuardBtn.Foreground = Brush '#3FB950'
         } else {
-            $cmpGuardDot.Fill = Brush '#414B5E'
+            $cmpGuardDot.Fill = Brush '#565F6E'
             $cmpGuardText.Text = '已停止'
-            $cmpGuardText.Foreground = Brush '#414B5E'
+            $cmpGuardText.Foreground = Brush '#565F6E'
             $cmpGuardBtn.Content = '启动看护'
-            $cmpGuardBtn.Background = Brush '#E8EDF5'
-            $cmpGuardBtn.Foreground = Brush '#0A0D14'
+            $cmpGuardBtn.Background = Brush '#E8ECF2'
+            $cmpGuardBtn.Foreground = Brush '#0B0E13'
         }
     }
 }
@@ -345,7 +345,7 @@ function Sync-CompactList($data) {
             [void]$panel.ColumnDefinitions.Add($c2)
 
             $nm = New-Object System.Windows.Controls.TextBlock
-            $nm.FontSize = 9.5
+            $nm.FontSize=11
             $nm.VerticalAlignment = 'Center'
             $nm.TextTrimming = 'CharacterEllipsis'
             [System.Windows.Controls.Grid]::SetColumn($nm, 0)
@@ -353,18 +353,18 @@ function Sync-CompactList($data) {
             $barBg = New-Object System.Windows.Controls.Border
             $barBg.Height = 6
             $barBg.CornerRadius = [System.Windows.CornerRadius]::new(3)
-            $barBg.Background = Brush '#1A2130'
+            $barBg.Background = Brush '#1E242E'
             $barBg.VerticalAlignment = 'Center'
             $barBg.Margin = [System.Windows.Thickness]::new(6,0,6,0)
             $barInner = New-Object System.Windows.Controls.Border
             $barInner.CornerRadius = [System.Windows.CornerRadius]::new(3)
             $barInner.HorizontalAlignment = 'Left'
-            $barInner.Background = Brush '#3DDC84'
+            $barInner.Background = Brush '#3FB950'
             $barBg.Child = $barInner
             [System.Windows.Controls.Grid]::SetColumn($barBg, 1)
 
             $st = New-Object System.Windows.Controls.TextBlock
-            $st.FontSize = 9.5
+            $st.FontSize=11
             $st.VerticalAlignment = 'Center'
             $st.HorizontalAlignment = 'Right'
             $st.FontFamily = New-Object System.Windows.Media.FontFamily('Consolas')
@@ -383,7 +383,7 @@ function Sync-CompactList($data) {
         if ($c.Panel.Tag -ne $sig) {
             $c.Panel.Tag = $sig
             $c.Name.Text = $short
-            $c.Name.Foreground = Brush $(if ($rv.Mode -eq 'on') { '#C9D2E0' } else { '#7C8BA8' })
+            $c.Name.Foreground = Brush $(if ($rv.Mode -eq 'on') { '#C7D0DC' } else { '#8E9AAA' })
             $bw = if ($c.BarBg.ActualWidth -gt 10) { $c.BarBg.ActualWidth } else { 160 }
             $c.Bar.Width = if ($rv.Mode -eq 'on') { [math]::Max(2, $bw * $rv.Pct / 100) } else { 0 }
             $c.Bar.Background = Brush $rv.ArcColor
@@ -431,8 +431,8 @@ function Set-View([string]$mode) {
 function New-InstanceCard {
     $border = New-Object System.Windows.Controls.Border
     $border.CornerRadius = [System.Windows.CornerRadius]::new(12)
-    $border.Background   = Brush '#0F141C'
-    $border.BorderBrush  = Brush '#161C26'
+    $border.Background   = Brush '#12161D'
+    $border.BorderBrush  = Brush '#232A36'
     $border.BorderThickness = [System.Windows.Thickness]::new(1)
     $border.Margin  = [System.Windows.Thickness]::new(0,0,0,10)
     $border.Padding = [System.Windows.Thickness]::new(16,14,16,14)
@@ -455,12 +455,12 @@ function New-InstanceCard {
     $track = New-Object System.Windows.Shapes.Ellipse
     $track.Width  = 46
     $track.Height = 46
-    $track.Stroke = Brush '#1A2130'
+    $track.Stroke = Brush '#1E242E'
     $track.StrokeThickness = 5
     [void]$ringGrid.Children.Add($track)
 
     $arc = New-Object System.Windows.Shapes.Path
-    $arc.Stroke = Brush '#3DDC84'
+    $arc.Stroke = Brush '#3FB950'
     $arc.StrokeThickness = 5
     $arc.StrokeStartLineCap = 'Round'
     $arc.StrokeEndLineCap   = 'Round'
@@ -468,9 +468,9 @@ function New-InstanceCard {
     [void]$ringGrid.Children.Add($arc)
 
     $pct = New-Object System.Windows.Controls.TextBlock
-    $pct.FontSize = 11
+    $pct.FontSize=11
     $pct.FontWeight = 'Bold'
-    $pct.Foreground = Brush '#8A94A6'
+    $pct.Foreground = Brush '#9BA5B4'
     $pct.HorizontalAlignment = 'Center'
     $pct.VerticalAlignment   = 'Center'
     [void]$ringGrid.Children.Add($pct)
@@ -488,14 +488,14 @@ function New-InstanceCard {
     $head = New-Object System.Windows.Controls.DockPanel
     $name = New-Object System.Windows.Controls.TextBlock
     $name.Text = '实例 -'
-    $name.Foreground = Brush '#E6EAF2'
-    $name.FontSize = 12
+    $name.Foreground = Brush '#E8ECF2'
+    $name.FontSize=12
     $name.FontWeight = 'Bold'
 
     $judge = New-Object System.Windows.Controls.TextBlock
     $judge.Text = '--'
-    $judge.Foreground = Brush '#3DDC84'
-    $judge.FontSize = 9
+    $judge.Foreground = Brush '#3FB950'
+    $judge.FontSize=11
     $judge.FontWeight = 'Bold'
     [void][System.Windows.Controls.DockPanel]::SetDock($judge, 'Right')
 
@@ -504,8 +504,8 @@ function New-InstanceCard {
     # 升级时间上号标记（紫孔雀里开启该功能时点亮）
     $sched = New-Object System.Windows.Controls.TextBlock
     $sched.Text = '上号'
-    $sched.Foreground = Brush '#F5A524'
-    $sched.FontSize = 9
+    $sched.Foreground = Brush '#D29922'
+    $sched.FontSize=11
     $sched.FontWeight = 'Bold'
     $sched.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
     $sched.ToolTip = '紫孔雀已开启「升级时间上号」'
@@ -517,14 +517,14 @@ function New-InstanceCard {
 
     $game = New-Object System.Windows.Controls.TextBlock
     $game.Text = '检测中'
-    $game.Foreground = Brush '#8A94A6'
-    $game.FontSize = 9.5
+    $game.Foreground = Brush '#9BA5B4'
+    $game.FontSize=11
     $game.Margin = [System.Windows.Thickness]::new(0,3,0,0)
     [void]$stack.Children.Add($game)
 
     # 升级倒计时（没有升级时整行隐藏）
     $upgrade = New-Object System.Windows.Controls.TextBlock
-    $upgrade.FontSize = 9.5
+    $upgrade.FontSize=11
     $upgrade.Margin = [System.Windows.Thickness]::new(0,4,0,0)
     $upgrade.Visibility = 'Collapsed'
     [void]$stack.Children.Add($upgrade)
@@ -549,8 +549,8 @@ function New-InstanceCard {
 
     $metrics = New-Object System.Windows.Controls.TextBlock
     $metrics.Text = '--'
-    $metrics.Foreground = Brush '#414B5E'
-    $metrics.FontSize = 9.5
+    $metrics.Foreground = Brush '#565F6E'
+    $metrics.FontSize=11
     $metrics.VerticalAlignment = 'Center'
 
     [void]$foot.Children.Add($restart)
@@ -609,7 +609,7 @@ function Sync-Cards($data) {
         if (-not $script:placeholder) {
             $t = New-Object System.Windows.Controls.TextBlock
             $t.Text = '未检测到 MuMu 实例'
-            $t.Foreground = Brush '#414B5E'
+            $t.Foreground = Brush '#565F6E'
             $t.FontSize = 11.5
             $t.Margin = [System.Windows.Thickness]::new(4,10,0,0)
             [void]$pnlCards.Children.Add($t)
@@ -706,8 +706,8 @@ function Sync-Cards($data) {
         # 检测开关状态
         $isOff = (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains "$($r.Index)")
         $c.Detect.Content = $(if ($isOff) { '已暂停' } else { '检测中' })
-        $c.Detect.Foreground = Brush $(if ($isOff) { '#F5A524' } else { '#8A94A6' })
-        $c.Detect.Background = Brush $(if ($isOff) { '#2A2110' } else { '#1E293B' })
+        $c.Detect.Foreground = Brush $(if ($isOff) { '#D29922' } else { '#9BA5B4' })
+        $c.Detect.Background = Brush $(if ($isOff) { '#2A2010' } else { '#171C25' })
         $c.Detect.ToolTip = $(if ($isOff) { '该实例的掉线检测已暂停，点击恢复' } else { '点击暂停该实例的掉线检测' })
 
         $c.Name.Text = $r.Name
@@ -720,7 +720,7 @@ function Sync-Cards($data) {
         if ($r.Sleeping) {
             if ($c.Restart.Content -ne '唤醒') {
                 $c.Restart.Content = '唤醒'
-                $c.Restart.Foreground = Brush '#3DDC84'
+                $c.Restart.Foreground = Brush '#3FB950'
                 $c.Restart.ToolTip = '立即唤醒该实例并启动紫孔雀'
             }
             $c.Detect.IsEnabled = $false
@@ -728,19 +728,19 @@ function Sync-Cards($data) {
         } else {
             if ($c.Restart.Content -ne '重启') {
                 $c.Restart.Content = '重启'
-                $c.Restart.Foreground = Brush '#E6EAF2'
+                $c.Restart.Foreground = Brush '#E8ECF2'
                 $c.Restart.ToolTip = '重启该实例并自动启动紫孔雀'
             }
             $c.Detect.IsEnabled = $true
             $c.Detect.Opacity = 1
         }
         if ($r.Sleeping) {
-            $c.Judge.Foreground = Brush '#7C8BA8'
+            $c.Judge.Foreground = Brush '#8E9AAA'
         } else {
             switch ($r.Level) {
-                0 { $c.Judge.Foreground = Brush '#3DDC84' }
-                1 { $c.Judge.Foreground = Brush '#F5A524' }
-                2 { $c.Judge.Foreground = Brush '#F26D6D' }
+                0 { $c.Judge.Foreground = Brush '#3FB950' }
+                1 { $c.Judge.Foreground = Brush '#D29922' }
+                2 { $c.Judge.Foreground = Brush '#F85149' }
             }
         }
 
@@ -757,19 +757,19 @@ function Sync-Cards($data) {
                 if ($ent -and "$($ent.Upgrade)".Trim()) { $sleepUp = "$($ent.Upgrade)".Trim() }
             } catch { }
             $c.Game.Text = $(if ($sleepUp) { "休眠中 · $sleepUp" } else { '休眠中' })
-            $c.Game.Foreground = Brush '#7C8BA8'
+            $c.Game.Foreground = Brush '#8E9AAA'
         } elseif ($r.Online -eq $null) {
             $c.Game.Text = 'adb 未连接'
-            $c.Game.Foreground = Brush '#414B5E'
+            $c.Game.Foreground = Brush '#565F6E'
         } elseif ($r.Script -eq $false) {
             $c.Game.Text = '紫孔雀 · 未运行'
-            $c.Game.Foreground = Brush '#F26D6D'
+            $c.Game.Foreground = Brush '#F85149'
         } elseif ($r.Game -eq $true) {
             $c.Game.Text = '紫孔雀 · 运行中　游戏 · 运行中'
-            $c.Game.Foreground = Brush '#8A94A6'
+            $c.Game.Foreground = Brush '#9BA5B4'
         } else {
             $c.Game.Text = '紫孔雀 · 运行中'
-            $c.Game.Foreground = Brush '#8A94A6'
+            $c.Game.Foreground = Brush '#9BA5B4'
         }
 
         $cpuText = if ($r.Cores -ge 0) { '{0:N2} 核' -f $r.Cores } else { '--' }
@@ -786,14 +786,14 @@ function Sync-Cards($data) {
                 $c.Upgrade.Tag = $sig
                 $c.Upgrade.Inlines.Clear()
                 $a = New-Object System.Windows.Documents.Run('将在 ')
-                $a.Foreground = Brush '#4B566B'
+                $a.Foreground = Brush '#6B7485'
                 [void]$c.Upgrade.Inlines.Add($a)
                 $b = New-Object System.Windows.Documents.Run($(if ($r.WakeAt) { $r.WakeAt.ToString('HH:mm') } else { '--:--' }))
-                $b.Foreground = Brush '#7C8BA8'
+                $b.Foreground = Brush '#8E9AAA'
                 $b.FontWeight = 'Bold'
                 [void]$c.Upgrade.Inlines.Add($b)
                 $d = New-Object System.Windows.Documents.Run(' 自动开机并启动脚本')
-                $d.Foreground = Brush '#4B566B'
+                $d.Foreground = Brush '#6B7485'
                 [void]$c.Upgrade.Inlines.Add($d)
             }
             $c.Upgrade.Visibility = 'Visible'
@@ -804,19 +804,19 @@ function Sync-Cards($data) {
                 $c.Upgrade.Inlines.Clear()
 
                 $r1 = New-Object System.Windows.Documents.Run('升级 · ')
-                $r1.Foreground = Brush '#4B566B'
+                $r1.Foreground = Brush '#6B7485'
                 [void]$c.Upgrade.Inlines.Add($r1)
 
                 $r2 = New-Object System.Windows.Documents.Run(('{0} Lv.{1}' -f $r.UpName, $r.UpLvl))
-                $r2.Foreground = Brush '#C9D2E0'
+                $r2.Foreground = Brush '#C7D0DC'
                 [void]$c.Upgrade.Inlines.Add($r2)
 
                 $r3 = New-Object System.Windows.Documents.Run(('  ·  {0:HH:mm} 完成  ·  剩 ' -f $r.UpDone))
-                $r3.Foreground = Brush '#4B566B'
+                $r3.Foreground = Brush '#6B7485'
                 [void]$c.Upgrade.Inlines.Add($r3)
 
                 $r4 = New-Object System.Windows.Documents.Run($r.UpLeft)
-                $r4.Foreground = Brush '#F5A524'
+                $r4.Foreground = Brush '#D29922'
                 $r4.FontWeight = 'Bold'
                 [void]$c.Upgrade.Inlines.Add($r4)
             }
@@ -860,7 +860,7 @@ function Sync-Events {
     if ($last.Count -eq 0) {
         $t = New-Object System.Windows.Controls.TextBlock
         $t.Text = $(if ($script:eventFilter -eq 'warn') { '没有告警记录' } else { '今天还没有事件' })
-        $t.Foreground = Brush '#414B5E'
+        $t.Foreground = Brush '#565F6E'
         $t.FontSize = 11.5
         [void]$pnlEvents.Children.Add($t)
         return
@@ -879,72 +879,72 @@ function Sync-Events {
             'CLEAN_CEF' {
                 $n = 0; if ($r.Detail -match 'killed=(\d+)') { $n = [int]$Matches[1] }
                 $line.Text = ('{0}   清理 CEF · 回收 {1} 个' -f $time, $n)
-                $line.Foreground = Brush '#3DDC84'
+                $line.Foreground = Brush '#3FB950'
             }
             'LOW_MEM' {
                 $m = 0; if ($r.Detail -match 'available=(\d+)') { $m = [int]$Matches[1] }
                 $line.Text = ('{0}   内存偏低 · 可用 {1:N0} MB' -f $time, $m)
-                $line.Foreground = Brush '#F5A524'
+                $line.Foreground = Brush '#D29922'
             }
             'ALERT_SPIN' {
                 $line.Text = ('{0}   实例空转告警' -f $time)
-                $line.Foreground = Brush '#F26D6D'
+                $line.Foreground = Brush '#F85149'
             }
             'ALERT_MEM' {
                 $line.Text = ('{0}   实例内存偏高' -f $time)
-                $line.Foreground = Brush '#FB923C'
+                $line.Foreground = Brush '#E08A3C'
             }
             'ALERT_SCRIPT' {
                 $line.Text = ('{0}   {1} · {2}' -f $time, $r.Instance, $r.Detail)
-                $line.Foreground = Brush '#F26D6D'
+                $line.Foreground = Brush '#F85149'
             }
             'AUTO_RECOVER' {
                 $line.Text = ('{0}   {1} · 自动拉起脚本' -f $time, $r.Instance)
-                $line.Foreground = Brush '#3DDC84'
+                $line.Foreground = Brush '#3FB950'
             }
             'AUTO_RESTART' {
                 $line.Text = ('{0}   {1} · 自动重启实例' -f $time, $r.Instance)
-                $line.Foreground = Brush '#3DDC84'
+                $line.Foreground = Brush '#3FB950'
             }
             'RECOVER_OK' {
                 $line.Text = ('{0}   {1} · {2}' -f $time, $r.Instance, $r.Detail)
-                $line.Foreground = Brush '#3DDC84'
+                $line.Foreground = Brush '#3FB950'
             }
             'RECOVER_FAIL' {
                 $line.Text = ('{0}   {1} · 恢复失败' -f $time, $r.Instance)
-                $line.Foreground = Brush '#F26D6D'
+                $line.Foreground = Brush '#F85149'
             }
             'SLEEP' {
                 $line.Text = ('{0}   {1} · {2}' -f $time, $r.Instance, $r.Detail)
-                $line.Foreground = Brush '#7C8BA8'
+                $line.Foreground = Brush '#8E9AAA'
             }
             'WAKE_MANUAL' {
                 $line.Text = ('{0}   {1} · 已恢复运行，撤销休眠' -f $time, $r.Instance)
-                $line.Foreground = Brush '#8A94A6'
+                $line.Foreground = Brush '#9BA5B4'
             }
             'WAKE_LATE' {
                 $line.Text = ('{0}   {1} · {2}' -f $time, $r.Instance, $r.Detail)
-                $line.Foreground = Brush '#F5A524'
+                $line.Foreground = Brush '#D29922'
             }
             'WAKE_OK' {
                 $line.Text = ('{0}   {1} · 已唤醒并启动脚本' -f $time, $r.Instance)
-                $line.Foreground = Brush '#3DDC84'
+                $line.Foreground = Brush '#3FB950'
             }
             'WAKE_FAIL' {
                 $line.Text = ('{0}   {1} · 唤醒失败' -f $time, $r.Instance)
-                $line.Foreground = Brush '#F26D6D'
+                $line.Foreground = Brush '#F85149'
             }
             'ROOT_FAIL' {
                 $line.Text = ('{0}   模拟器 root 读取失败，升级信息不可用' -f $time)
-                $line.Foreground = Brush '#F5A524'
+                $line.Foreground = Brush '#D29922'
             }
             'SLEEP_FAIL' {
                 $line.Text = ('{0}   {1} · 休眠失败' -f $time, $r.Instance)
-                $line.Foreground = Brush '#F26D6D'
+                $line.Foreground = Brush '#F85149'
             }
             default {
                 $line.Text = ('{0}   {1}' -f $time, $r.Action)
-                $line.Foreground = Brush '#8A94A6'
+                $line.Foreground = Brush '#9BA5B4'
             }
         }
         [void]$pnlEvents.Children.Add($line)
@@ -964,13 +964,13 @@ function Sync-Health($hm) {
             $row.Margin = [System.Windows.Thickness]::new(0,3,0,0)
 
             $val = New-Object System.Windows.Controls.TextBlock
-            $val.FontSize = 11
+            $val.FontSize=11
             [void][System.Windows.Controls.DockPanel]::SetDock($val, 'Right')
 
             $lbl = New-Object System.Windows.Controls.TextBlock
             $lbl.Text = $it.Name
-            $lbl.FontSize = 11
-            $lbl.Foreground = Brush '#8A94A6'
+            $lbl.FontSize=11
+            $lbl.Foreground = Brush '#9BA5B4'
 
             [void]$row.Children.Add($val)
             [void]$row.Children.Add($lbl)
@@ -983,7 +983,7 @@ function Sync-Health($hm) {
         $it  = $items[$i]
         $val = $script:healthRows[$i].Value
         if ($val.Text -ne $it.Text) { $val.Text = $it.Text }
-        $val.Foreground = Brush $(if ($it.Ok) { '#3DDC84' } else { '#F26D6D' })
+        $val.Foreground = Brush $(if ($it.Ok) { '#3FB950' } else { '#F85149' })
     }
 }
 
@@ -1099,9 +1099,9 @@ function Update-Ui {
         $barWidth = $memHost.ActualWidth
         if ($barWidth -gt 0) { $memFill.Width = [math]::Max(0, [math]::Round($barWidth * $usedPct / 100)) }
 
-        if ($usedPct -ge 92)     { $memFill.Background = Brush '#F26D6D'; $txtAvail.Foreground = Brush '#F26D6D' }
-        elseif ($usedPct -ge 85) { $memFill.Background = Brush '#F5A524'; $txtAvail.Foreground = Brush '#F5A524' }
-        else                     { $memFill.Background = Brush '#3DDC84'; $txtAvail.Foreground = Brush '#E6EAF2' }
+        if ($usedPct -ge 92)     { $memFill.Background = Brush '#F85149'; $txtAvail.Foreground = Brush '#F85149' }
+        elseif ($usedPct -ge 85) { $memFill.Background = Brush '#D29922'; $txtAvail.Foreground = Brush '#D29922' }
+        else                     { $memFill.Background = Brush '#3FB950'; $txtAvail.Foreground = Brush '#E8ECF2' }
 
         # 逐实例内存告警（持续 3 次）
         foreach ($r in $data) {
@@ -1176,27 +1176,27 @@ function Update-Ui {
         $isStale = (-not $winHidden) -and ($data.Count -gt 0) -and ((-not $hbTime) -or ($staleSec -gt 90))
 
         switch ($worst) {
-            0 { $txtStatus.Text = '一切正常'; $txtStatus.Foreground = Brush '#3DDC84'; $statusDot.Fill = Brush '#3DDC84'; $statusPill.Background = Brush '#0F2A1C' }
-            1 { $txtStatus.Text = '需要注意'; $txtStatus.Foreground = Brush '#F5A524'; $statusDot.Fill = Brush '#F5A524'; $statusPill.Background = Brush '#2A2110' }
-            2 { $txtStatus.Text = '存在问题'; $txtStatus.Foreground = Brush '#F26D6D'; $statusDot.Fill = Brush '#F26D6D'; $statusPill.Background = Brush '#2A1214' }
+            0 { $txtStatus.Text = '一切正常'; $txtStatus.Foreground = Brush '#3FB950'; $statusDot.Fill = Brush '#3FB950'; $statusPill.Background = Brush '#10271A' }
+            1 { $txtStatus.Text = '需要注意'; $txtStatus.Foreground = Brush '#D29922'; $statusDot.Fill = Brush '#D29922'; $statusPill.Background = Brush '#2A2010' }
+            2 { $txtStatus.Text = '存在问题'; $txtStatus.Foreground = Brush '#F85149'; $statusDot.Fill = Brush '#F85149'; $statusPill.Background = Brush '#2A1315' }
         }
 
         # 采集停滞的提示优先级最高：数据不可信的时候，说什么都白搭
         if ($isStale) {
             $txtStatus.Text = '数据停滞'
-            $txtStatus.Foreground = Brush '#F5A524'
-            $statusDot.Fill = Brush '#F5A524'
-            $statusPill.Background = Brush '#2A2110'
+            $txtStatus.Foreground = Brush '#D29922'
+            $statusDot.Fill = Brush '#D29922'
+            $statusPill.Background = Brush '#2A2010'
             if ($statusPill) { $statusPill.ToolTip = $(if ($staleSec -gt 0) { "采集已 $staleSec 秒没有更新，正在重连 adb" } else { '采集线程尚未就绪' }) }
         } elseif ($statusPill) { $statusPill.ToolTip = $null }
         if ($script:guardRunning) {
             $btnGuard.Content = '■ 停止看护'
-            $btnGuard.Background = Brush '#1B2A22'
-            $btnGuard.Foreground = Brush '#3DDC84'
+            $btnGuard.Background = Brush '#16281D'
+            $btnGuard.Foreground = Brush '#3FB950'
         } else {
             $btnGuard.Content = '▶ 启动看护'
-            $btnGuard.Background = Brush '#E8EDF5'
-            $btnGuard.Foreground = Brush '#0A0D14'
+            $btnGuard.Background = Brush '#E8ECF2'
+            $btnGuard.Foreground = Brush '#0B0E13'
         }
 
         $guardText = if ($script:guardRunning) { '运行中' } else { '已停止' }
@@ -1219,9 +1219,9 @@ function Update-Ui {
 
         $txtInfo.Text = ('看护 {0}    上次清理 {1}    今日清理 {2} 次 · 回收 {3} 个 · 告警 {4} 条    本次最低可用 {5}{6}' -f `
             $guardText, $lastText, $script:logClean, $script:logKilled, $script:logAlert, $lowText, $overTxt)
-        if ($level -eq 'danger') { $txtInfo.Foreground = Brush '#F26D6D' }
-        elseif ($level -eq 'warn') { $txtInfo.Foreground = Brush '#F5A524' }
-        else { $txtInfo.Foreground = Brush '#8A94A6' }
+        if ($level -eq 'danger') { $txtInfo.Foreground = Brush '#F85149' }
+        elseif ($level -eq 'warn') { $txtInfo.Foreground = Brush '#D29922' }
+        else { $txtInfo.Foreground = Brush '#9BA5B4' }
 
     } catch {
         $txtInfo.Text = '刷新出错：' + $_.Exception.Message
@@ -1242,7 +1242,7 @@ function Show-Settings {
 
     $themeLbl = New-Object System.Windows.Controls.TextBlock
     $themeLbl.Text = '界面主题'
-    Bind-ThemeBrush $themeLbl '#8A94A6' 'Foreground'
+    Bind-ThemeBrush $themeLbl '#9BA5B4' 'Foreground'
     $themeLbl.FontSize = 11.5
     $themeLbl.Width = 190
     $themeLbl.VerticalAlignment = 'Center'
@@ -1259,7 +1259,7 @@ function Show-Settings {
         $rb.Content = $opt.T
         $rb.GroupName = 'ThemeGroup'
         $rb.Tag = $opt.K
-    Bind-ThemeBrush $rb '#E6EAF2' 'Foreground'
+    Bind-ThemeBrush $rb '#E8ECF2' 'Foreground'
         $rb.Margin = [System.Windows.Thickness]::new(0,0,16,0)
         $rb.VerticalAlignment = 'Center'
         $rb.IsChecked = ("$($script:cfg.Theme)" -eq $opt.K)
@@ -1312,14 +1312,14 @@ function Show-Settings {
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $t.Label
-    Bind-ThemeBrush $lbl '#8A94A6' 'Foreground'
+    Bind-ThemeBrush $lbl '#9BA5B4' 'Foreground'
         $lbl.FontSize = 11.5
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
 
         $cb = New-Object System.Windows.Controls.CheckBox
         $cb.IsChecked = ([bool]$script:cfg[$t.Key])
-    Bind-ThemeBrush $cb '#E6EAF2' 'Foreground'
+    Bind-ThemeBrush $cb '#E8ECF2' 'Foreground'
         $cb.VerticalAlignment = 'Center'
 
         [void]$row.Children.Add($lbl)
@@ -1335,7 +1335,7 @@ function Show-Settings {
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $f.Label
-    Bind-ThemeBrush $lbl '#8A94A6' 'Foreground'
+    Bind-ThemeBrush $lbl '#9BA5B4' 'Foreground'
         $lbl.FontSize = 11.5
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
@@ -1344,11 +1344,11 @@ function Show-Settings {
         $tb.Text = [string]$script:cfg[$f.Key]
         $tb.Width = 150
         $tb.Height = 26
-        $tb.FontSize = 12
+        $tb.FontSize=12
         $tb.FontFamily = New-Object System.Windows.Media.FontFamily('Consolas')
-    Bind-ThemeBrush $tb '#0F141C' 'Background'
-    Bind-ThemeBrush $tb '#E6EAF2' 'Foreground'
-    Bind-ThemeBrush $tb '#161C26' 'BorderBrush'
+    Bind-ThemeBrush $tb '#12161D' 'Background'
+    Bind-ThemeBrush $tb '#E8ECF2' 'Foreground'
+    Bind-ThemeBrush $tb '#232A36' 'BorderBrush'
         $tb.Padding = [System.Windows.Thickness]::new(6,3,6,3)
 
         [void]$row.Children.Add($lbl)
@@ -1364,7 +1364,7 @@ function Show-Settings {
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $f.Label
-    Bind-ThemeBrush $lbl '#8A94A6' 'Foreground'
+    Bind-ThemeBrush $lbl '#9BA5B4' 'Foreground'
         $lbl.FontSize = 11.5
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
@@ -1373,10 +1373,10 @@ function Show-Settings {
         $tb.Text = [string]$script:cfg[$f.Key]
         $tb.Width = 320
         $tb.Height = 26
-        $tb.FontSize = 11
-    Bind-ThemeBrush $tb '#0F141C' 'Background'
-    Bind-ThemeBrush $tb '#E6EAF2' 'Foreground'
-    Bind-ThemeBrush $tb '#161C26' 'BorderBrush'
+        $tb.FontSize=11
+    Bind-ThemeBrush $tb '#12161D' 'Background'
+    Bind-ThemeBrush $tb '#E8ECF2' 'Foreground'
+    Bind-ThemeBrush $tb '#232A36' 'BorderBrush'
         $tb.Padding = [System.Windows.Thickness]::new(6,3,6,3)
 
         [void]$row.Children.Add($lbl)
@@ -1403,7 +1403,7 @@ function Show-Settings {
         $dlg.WindowStartupLocation = 'CenterOwner'
         $dlg.WindowStyle = 'ToolWindow'
         $dlg.ResizeMode = 'NoResize'
-        $dlg.Background = Brush '#0F141C'
+        $dlg.Background = Brush '#12161D'
 
         $outer = New-Object System.Windows.Controls.StackPanel
         $outer.Margin = [System.Windows.Thickness]::new(22, 18, 22, 18)
@@ -1411,15 +1411,15 @@ function Show-Settings {
         $t1 = New-Object System.Windows.Controls.TextBlock
         $t1.Text = "将彻底删除以下内容（不可恢复）：`r`n`r`n· 全部休眠任务（正在休眠的实例不会再自动唤醒）`r`n· 内存趋势、今日统计、事件记录`r`n· 所有日志与已导出的报告`r`n`r`n设置（别名、检测开关、窗口位置）会保留。"
         $t1.TextWrapping = 'Wrap'
-        $t1.FontSize = 12
+        $t1.FontSize=12
         $t1.LineHeight = 20
-        $t1.Foreground = Brush '#C9D2E0'
+        $t1.Foreground = Brush '#C7D0DC'
         [void]$outer.Children.Add($t1)
 
         $chk = New-Object System.Windows.Controls.CheckBox
         $chk.Content = '同时停止看护'
-        $chk.Foreground = Brush '#E6EAF2'
-        $chk.FontSize = 12
+        $chk.Foreground = Brush '#E8ECF2'
+        $chk.FontSize=12
         $chk.Margin = [System.Windows.Thickness]::new(0, 16, 0, 0)
         [void]$outer.Children.Add($chk)
 
@@ -1440,7 +1440,7 @@ function Show-Settings {
         $btnYes.Content = '彻底清除'
         $btnYes.Style = $win.Resources['Mini']
         $btnYes.MinWidth = 96
-        $btnYes.Foreground = Brush '#F26D6D'
+        $btnYes.Foreground = Brush '#F85149'
         $btnYes.Tag = $chk
         $btnYes.Add_Click({
             $stop = [bool]$s.Tag.IsChecked
@@ -1509,12 +1509,12 @@ function Update-SleepButton {
     if (-not $btnSleep) { return }
     if ([bool]$script:cfg.AutoSleep) {
         $btnSleep.Content = '休眠 开'
-        $btnSleep.Foreground = Brush '#3DDC84'
-        $btnSleep.Background = Brush '#16241C'
+        $btnSleep.Foreground = Brush '#3FB950'
+        $btnSleep.Background = Brush '#14251A'
     } else {
         $btnSleep.Content = '休眠 关'
-        $btnSleep.Foreground = Brush '#8A94A6'
-        $btnSleep.Background = Brush '#141A24'
+        $btnSleep.Foreground = Brush '#9BA5B4'
+        $btnSleep.Background = Brush '#1A1F29'
     }
 }
 

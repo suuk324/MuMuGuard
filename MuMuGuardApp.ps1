@@ -1236,6 +1236,50 @@ $settingsXaml = @'
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" FontFamily="Microsoft YaHei UI">
   <Window.Resources>
+    <Style x:Key="DarkScroll" TargetType="ScrollBar">
+      <Setter Property="Width" Value="8"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Grid Background="Transparent">
+              <Track x:Name="PART_Track" IsDirectionReversed="True">
+                <Track.Thumb>
+                  <Thumb>
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Border CornerRadius="4" Background="#2E3A55"/>
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="NumBox" TargetType="TextBox">
+      <Setter Property="Background" Value="#171C25"/>
+      <Setter Property="Foreground" Value="#E8ECF2"/>
+      <Setter Property="BorderBrush" Value="#2A3340"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="8,4,8,4"/>
+      <Setter Property="FontFamily" Value="Consolas"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border CornerRadius="8" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                    Padding="{TemplateBinding Padding}">
+              <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <Style x:Key="MiniBtn" TargetType="Button">
       <Setter Property="Foreground" Value="#E8ECF2"/>
       <Setter Property="FontSize" Value="12"/>
@@ -1259,9 +1303,9 @@ $settingsXaml = @'
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
-      <TextBlock Grid.Row="0" Text="阈值设置" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" Margin="0,0,0,16"/>
+      <TextBlock Grid.Row="0" Text="设置" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" Margin="0,0,0,16"/>
 
-      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0" Style="{x:Null}"><ScrollViewer.Resources><Style TargetType="ScrollBar" BasedOn="{StaticResource DarkScroll}"/></ScrollViewer.Resources>
         <StackPanel x:Name="PnlFields"/>
       </ScrollViewer>
 

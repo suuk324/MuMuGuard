@@ -1253,12 +1253,21 @@ function Update-Ui {
 }
 
 
+function Add-Section($panel, [string]$text) {
+    $h = New-Object System.Windows.Controls.TextBlock
+    $h.Text = $text
+    $h.FontSize = 11
+    $h.Foreground = Brush '#6B7485'
+    $h.Margin = [System.Windows.Thickness]::new(0, 12, 0, 8)
+    [void]$panel.Children.Add($h)
+}
 function Show-Settings {
     $sw = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $settingsXaml))
     $sw.Owner = $win
     Set-ThemeResources $sw (Get-ActiveTheme)
     $script:settingsWin = $sw
     $pnl = $sw.FindName('PnlFields')
+    Add-Section $pnl '外观'
 
     # ---- 主题选择（改了立刻生效）----
     $themeRow = New-Object System.Windows.Controls.DockPanel
@@ -1330,14 +1339,15 @@ function Show-Settings {
     )
 
     $checks = @{}
+    Add-Section $pnl '行为'
     foreach ($t in $toggles) {
         $row = New-Object System.Windows.Controls.DockPanel
-        $row.Margin = [System.Windows.Thickness]::new(0,0,0,10)
+        $row.Margin = [System.Windows.Thickness]::new(0,0,0,12)
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $t.Label
     Bind-ThemeBrush $lbl '#9BA5B4' 'Foreground'
-        $lbl.FontSize = 11.5
+        $lbl.FontSize = 12
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
 
@@ -1353,21 +1363,23 @@ function Show-Settings {
     }
 
     $boxes = @{}
+    Add-Section $pnl '阈值'
     foreach ($f in $fields) {
         $row = New-Object System.Windows.Controls.DockPanel
-        $row.Margin = [System.Windows.Thickness]::new(0,0,0,10)
+        $row.Margin = [System.Windows.Thickness]::new(0,0,0,12)
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $f.Label
     Bind-ThemeBrush $lbl '#9BA5B4' 'Foreground'
-        $lbl.FontSize = 11.5
+        $lbl.FontSize = 12
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
 
         $tb = New-Object System.Windows.Controls.TextBox
         $tb.Text = [string]$script:cfg[$f.Key]
-        $tb.Width = 150
-        $tb.Height = 26
+        $tb.Width = 120
+        $tb.Height = 28
+        try { $tb.Style = $sw.Resources['NumBox'] } catch { }
         $tb.FontSize=12
         $tb.FontFamily = New-Object System.Windows.Media.FontFamily('Consolas')
     Bind-ThemeBrush $tb '#12161D' 'Background'
@@ -1382,21 +1394,22 @@ function Show-Settings {
     }
 
     $textBoxes = @{}
+    Add-Section $pnl '实例别名'
     foreach ($f in $textFields) {
         $row = New-Object System.Windows.Controls.DockPanel
-        $row.Margin = [System.Windows.Thickness]::new(0,0,0,10)
+        $row.Margin = [System.Windows.Thickness]::new(0,0,0,12)
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $f.Label
     Bind-ThemeBrush $lbl '#9BA5B4' 'Foreground'
-        $lbl.FontSize = 11.5
+        $lbl.FontSize = 12
         $lbl.VerticalAlignment = 'Center'
         $lbl.Width = 190
 
         $tb = New-Object System.Windows.Controls.TextBox
         $tb.Text = [string]$script:cfg[$f.Key]
         $tb.Width = 320
-        $tb.Height = 26
+        $tb.Height = 28
         $tb.FontSize=11
     Bind-ThemeBrush $tb '#12161D' 'Background'
     Bind-ThemeBrush $tb '#E8ECF2' 'Foreground'
@@ -1414,7 +1427,8 @@ function Show-Settings {
     $memBtn.Content = '清除记忆…'
     $memBtn.Style = $win.Resources['Mini']
     $memBtn.HorizontalAlignment = 'Left'
-    $memBtn.Margin = [System.Windows.Thickness]::new(0, 16, 0, 0)
+    Add-Section $pnl '维护'
+    $memBtn.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
     $memBtn.ToolTip = '彻底删除休眠任务、趋势、日志与统计（设置会保留）'
     $memBtn.Add_Click({
         # 防重入：对话框已打开时忽略重复点击

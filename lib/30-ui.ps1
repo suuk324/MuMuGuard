@@ -1270,14 +1270,14 @@ function Show-Settings {
     Add-Section $pnl '外观'
 
     # ---- 主题选择（改了立刻生效）----
-    $themeRow = New-Object System.Windows.Controls.DockPanel
+    $themeRow = New-Object System.Windows.Controls.StackPanel
     $themeRow.Margin = [System.Windows.Thickness]::new(0,0,0,14)
 
     $themeLbl = New-Object System.Windows.Controls.TextBlock
     $themeLbl.Text = '界面主题'
     Bind-ThemeBrush $themeLbl '#9BA5B4' 'Foreground'
-    $themeLbl.FontSize = 11.5
-    $themeLbl.Width = 190
+    $themeLbl.FontSize = 12
+    $themeLbl.Margin = [System.Windows.Thickness]::new(0,0,0,8)
     $themeLbl.VerticalAlignment = 'Center'
     [void]$themeRow.Children.Add($themeLbl)
 

@@ -829,7 +829,7 @@ $xaml = @'
               <TextBlock Text="主机内存" Foreground="#9BA5B4" FontSize="11"/>
               <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                 <TextBlock x:Name="TxtAvail" Text="--" Foreground="#E8ECF2" FontSize="20" FontWeight="Bold"
-                           FontFamily="Consolas"/>
+                           FontFamily="Consolas" Typography.NumeralAlignment="Tabular"/>
                 <TextBlock x:Name="TxtTotal" Text="" Foreground="#9BA5B4" FontSize="11"
                            VerticalAlignment="Bottom" Margin="8,0,0,5"/>
               </StackPanel>
@@ -855,12 +855,12 @@ $xaml = @'
                 <StackPanel Grid.Column="0">
                   <TextBlock Text="提交内存" Foreground="#9BA5B4" FontSize="11"/>
                   <TextBlock x:Name="TxtCommit" Text="--" Foreground="#E8ECF2" FontSize="13"
-                             FontWeight="SemiBold" FontFamily="Consolas" Margin="0,2,0,0"/>
+                             FontWeight="SemiBold" FontFamily="Consolas" Margin="0,2,0,0" Typography.NumeralAlignment="Tabular"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1">
                   <TextBlock Text="页面文件" Foreground="#9BA5B4" FontSize="11"/>
                   <TextBlock x:Name="TxtPage" Text="--" Foreground="#E8ECF2" FontSize="13"
-                             FontWeight="SemiBold" FontFamily="Consolas" Margin="0,2,0,0"/>
+                             FontWeight="SemiBold" FontFamily="Consolas" Margin="0,2,0,0" Typography.NumeralAlignment="Tabular"/>
                 </StackPanel>
               </Grid>
             </StackPanel>

@@ -4,6 +4,11 @@
 # 本文件由拆分脚本生成，供 MuMuGuardApp.ps1 dot-source（共享同一 $script: 作用域）
 
 # 环的显示状态判定（紧凑视图与详情卡片共用，避免两处逻辑不一致）
+function Set-Tabular($tb) {
+    if (-not $tb) { return }
+    try { [System.Windows.Documents.Typography]::SetNumeralAlignment($tb, [System.Windows.Documents.NumeralAlignment]::Tabular) } catch { }
+}
+
 function Get-RingView($r, [string]$ctx) {
     $smallSize = if ($ctx -eq 'card') { 10 } else { 12 }
     $bigSize   = if ($ctx -eq 'card') { 11 } else { 20 }
@@ -97,6 +102,7 @@ function New-RingCell {
     $pct = New-Object System.Windows.Controls.TextBlock
     $pct.Text = '--'
     $pct.FontSize = 20
+    Set-Tabular $pct
     $pct.FontWeight = 'Bold'
     $pct.Foreground = Brush '#E8ECF2'
     $pct.HorizontalAlignment = 'Center'
@@ -308,10 +314,10 @@ function Sync-CompactFoot($data, $hm) {
         if ($script:guardRunning) {
             $cmpGuardDot.Fill = Brush '#3FB950'
             $cmpGuardText.Text = '看护中'
-            $cmpGuardText.Foreground = Brush '#3FB950'
+            $cmpGuardText.Foreground = Brush '#C7D0DC'
             $cmpGuardBtn.Content = '停止看护'
-            $cmpGuardBtn.Background = Brush '#16281D'
-            $cmpGuardBtn.Foreground = Brush '#3FB950'
+            $cmpGuardBtn.Background = Brush '#1A1F29'
+            $cmpGuardBtn.Foreground = Brush '#C7D0DC'
         } else {
             $cmpGuardDot.Fill = Brush '#565F6E'
             $cmpGuardText.Text = '已停止'
@@ -494,7 +500,7 @@ function New-InstanceCard {
 
     $judge = New-Object System.Windows.Controls.TextBlock
     $judge.Text = '--'
-    $judge.Foreground = Brush '#3FB950'
+    $judge.Foreground = Brush '#9BA5B4'
     $judge.FontSize=11
     $judge.FontWeight = 'Bold'
     [void][System.Windows.Controls.DockPanel]::SetDock($judge, 'Right')
@@ -504,7 +510,7 @@ function New-InstanceCard {
     # 升级时间上号标记（紫孔雀里开启该功能时点亮）
     $sched = New-Object System.Windows.Controls.TextBlock
     $sched.Text = '上号'
-    $sched.Foreground = Brush '#D29922'
+    $sched.Foreground = Brush '#9BA5B4'
     $sched.FontSize=11
     $sched.FontWeight = 'Bold'
     $sched.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
@@ -738,7 +744,7 @@ function Sync-Cards($data) {
             $c.Judge.Foreground = Brush '#8E9AAA'
         } else {
             switch ($r.Level) {
-                0 { $c.Judge.Foreground = Brush '#3FB950' }
+                0 { $c.Judge.Foreground = Brush '#9BA5B4' }
                 1 { $c.Judge.Foreground = Brush '#D29922' }
                 2 { $c.Judge.Foreground = Brush '#F85149' }
             }
@@ -777,6 +783,7 @@ function Sync-Cards($data) {
             $c.Metrics.Text = $(if ($r.WakeAt) { '内存已释放' } else { '--' })
         } else {
             $c.Metrics.Text = ('{0}  ·  {1:N0} MB  ·  CEF {2}' -f $cpuText, $r.Private, $r.CEF)
+            Set-Tabular $c.Metrics
         }
 
         # 休眠时，升级行改成唤醒提示
@@ -879,7 +886,7 @@ function Sync-Events {
             'CLEAN_CEF' {
                 $n = 0; if ($r.Detail -match 'killed=(\d+)') { $n = [int]$Matches[1] }
                 $line.Text = ('{0}   清理 CEF · 回收 {1} 个' -f $time, $n)
-                $line.Foreground = Brush '#3FB950'
+                $line.Foreground = Brush '#9BA5B4'
             }
             'LOW_MEM' {
                 $m = 0; if ($r.Detail -match 'available=(\d+)') { $m = [int]$Matches[1] }
@@ -900,15 +907,15 @@ function Sync-Events {
             }
             'AUTO_RECOVER' {
                 $line.Text = ('{0}   {1} · 自动拉起脚本' -f $time, $r.Instance)
-                $line.Foreground = Brush '#3FB950'
+                $line.Foreground = Brush '#9BA5B4'
             }
             'AUTO_RESTART' {
                 $line.Text = ('{0}   {1} · 自动重启实例' -f $time, $r.Instance)
-                $line.Foreground = Brush '#3FB950'
+                $line.Foreground = Brush '#9BA5B4'
             }
             'RECOVER_OK' {
                 $line.Text = ('{0}   {1} · {2}' -f $time, $r.Instance, $r.Detail)
-                $line.Foreground = Brush '#3FB950'
+                $line.Foreground = Brush '#9BA5B4'
             }
             'RECOVER_FAIL' {
                 $line.Text = ('{0}   {1} · 恢复失败' -f $time, $r.Instance)
@@ -928,7 +935,7 @@ function Sync-Events {
             }
             'WAKE_OK' {
                 $line.Text = ('{0}   {1} · 已唤醒并启动脚本' -f $time, $r.Instance)
-                $line.Foreground = Brush '#3FB950'
+                $line.Foreground = Brush '#9BA5B4'
             }
             'WAKE_FAIL' {
                 $line.Text = ('{0}   {1} · 唤醒失败' -f $time, $r.Instance)
@@ -983,7 +990,8 @@ function Sync-Health($hm) {
         $it  = $items[$i]
         $val = $script:healthRows[$i].Value
         if ($val.Text -ne $it.Text) { $val.Text = $it.Text }
-        $val.Foreground = Brush $(if ($it.Ok) { '#3FB950' } else { '#F85149' })
+        $val.Foreground = Brush $(if ($it.Ok) { '#9BA5B4' } else { '#F85149' })
+        Set-Tabular $val
     }
 }
 
@@ -1176,9 +1184,9 @@ function Update-Ui {
         $isStale = (-not $winHidden) -and ($data.Count -gt 0) -and ((-not $hbTime) -or ($staleSec -gt 90))
 
         switch ($worst) {
-            0 { $txtStatus.Text = '一切正常'; $txtStatus.Foreground = Brush '#3FB950'; $statusDot.Fill = Brush '#3FB950'; $statusPill.Background = Brush '#10271A' }
-            1 { $txtStatus.Text = '需要注意'; $txtStatus.Foreground = Brush '#D29922'; $statusDot.Fill = Brush '#D29922'; $statusPill.Background = Brush '#2A2010' }
-            2 { $txtStatus.Text = '存在问题'; $txtStatus.Foreground = Brush '#F85149'; $statusDot.Fill = Brush '#F85149'; $statusPill.Background = Brush '#2A1315' }
+            0 { $txtStatus.Text = '一切正常'; $txtStatus.Foreground = Brush '#9BA5B4'; $statusDot.Fill = Brush '#3FB950'; $statusPill.Background = [System.Windows.Media.Brushes]::Transparent }
+            1 { $txtStatus.Text = '需要注意'; $txtStatus.Foreground = Brush '#D29922'; $statusDot.Fill = Brush '#D29922'; $statusPill.Background = [System.Windows.Media.Brushes]::Transparent }
+            2 { $txtStatus.Text = '存在问题'; $txtStatus.Foreground = Brush '#F85149'; $statusDot.Fill = Brush '#F85149'; $statusPill.Background = [System.Windows.Media.Brushes]::Transparent }
         }
 
         # 采集停滞的提示优先级最高：数据不可信的时候，说什么都白搭
@@ -1186,7 +1194,7 @@ function Update-Ui {
             $txtStatus.Text = '数据停滞'
             $txtStatus.Foreground = Brush '#D29922'
             $statusDot.Fill = Brush '#D29922'
-            $statusPill.Background = Brush '#2A2010'
+            $statusPill.Background = [System.Windows.Media.Brushes]::Transparent
             if ($statusPill) { $statusPill.ToolTip = $(if ($staleSec -gt 0) { "采集已 $staleSec 秒没有更新，正在重连 adb" } else { '采集线程尚未就绪' }) }
         } elseif ($statusPill) { $statusPill.ToolTip = $null }
         if ($script:guardRunning) {

@@ -1293,7 +1293,7 @@ function Show-Settings {
         $rb.GroupName = 'ThemeGroup'
         $rb.Tag = $opt.K
     Bind-ThemeBrush $rb '#E8ECF2' 'Foreground'
-        $rb.Margin = [System.Windows.Thickness]::new(0,0,16,0)
+        $rb.Margin = [System.Windows.Thickness]::new(0,0,20,0)
         $rb.VerticalAlignment = 'Center'
         $rb.IsChecked = ("$($script:cfg.Theme)" -eq $opt.K)
         $rb.Add_Checked({

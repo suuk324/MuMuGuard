@@ -205,7 +205,9 @@ function Get-ThemeLabel([string]$mode) {
 function Bind-ThemeBrush {
     param($Control, [string]$Hex, [string]$Which = 'Foreground')
     if (-not $Control) { return }
-    $token = 'T_' + ($Hex -replace '#', '').ToUpper()
+    # 通过「色值反查表」找资源键：调色板的值改过之后，不能再靠色值拼键名
+    $key = $Hex.ToUpper()
+    $token = if ($script:HexToToken.ContainsKey($key)) { $script:HexToToken[$key] } else { 'T_' + ($Hex -replace '#', '').ToUpper() }
     $dp = $null
     switch ($Which) {
         'Foreground' {

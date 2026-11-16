@@ -446,17 +446,23 @@ Test-Case '解析：SCH 段能单独取到上号开关' {
     Assert-Equal $true $sched
 }
 
-Test-Case '状态机：不是我们唤醒的实例 → 线二完全不参与' {
+Test-Case '状态机：没有起始时间 → 视为刚开始，先等待' {
     $row = @{ Index = '9'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
     $r = Get-SleepStage -Row $row -Since $null -GameGone $null -Now $stNow
-    Assert-Equal 'idle' "$($r.Action)"
-    Assert-Equal 'not-awakened' "$($r.Reason)"
+    Assert-Equal 'wait' "$($r.Action)"
 }
 
 Test-Case '状态机：登记满 20 分钟且游戏已关 3 分钟 → 休眠' {
     $row = @{ Index = '9'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
     $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-4) -Now $stNow
     Assert-Equal 'sleep' "$($r.Action)"
+}
+
+Test-Case '状态机：游戏状态读不到（未知）→ 不睡' {
+    $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $null; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-25) -GameGone $stNow.AddMinutes(-5) -Now $stNow
+    Assert-Equal 'wait' "$($r.Action)"
+    Assert-Equal 'game-unknown' "$($r.Reason)"
 }
 
 Write-Host ''

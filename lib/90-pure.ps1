@@ -211,11 +211,12 @@ function Get-SleepStage {
     if ($Row.Sched -ne $true) { return @{ Action = 'idle'; Reason = 'scheduling-off' } }
     if ($Row.Script -ne $true) { return @{ Action = 'idle'; Reason = 'script-not-running' } }
 
-    # 线二只对「我们唤醒登记过的实例」生效；手动双击开的模拟器不登记，完全不管
-    if (-not $Since) { return @{ Action = 'idle'; Reason = 'not-awakened' } }
+    if (-not $Since) { $Since = $Now }
 
     # 游戏在跑 = 脚本在干活，绝不休眠
     if ($Row.Game -eq $true) { return @{ Action = 'wait'; Reason = 'game-running' } }
+    # 游戏状态读不到（采集异常）也不能睡，宁可晚睡
+    if ($Row.Game -ne $false) { return @{ Action = 'wait'; Reason = 'game-unknown' } }
 
     # 唤醒后的等待期
     $elapsed = ($Now - [datetime]$Since).TotalMinutes

@@ -70,6 +70,10 @@ function Get-SleepList {
 function Save-SleepList($list) {
     try {
         $arr = @($list | Where-Object { $_ -ne $null })
+        # 同一实例只保留最后一条，避免重复任务
+        $uniq = [ordered]@{}
+        foreach ($e in $arr) { $uniq["$($e.Index)"] = $e }
+        $arr = @($uniq.Values)
         if ($arr.Count -eq 0) {
             '[]' | Set-Content -Path $SleepFile -Encoding UTF8
         } else {
@@ -153,7 +157,6 @@ function Invoke-AutoSleep {
         if ($runningIdx.ContainsKey($idx)) {
             Write-GuardLog 'WAKE_MANUAL' "实例$idx" '已恢复运行，撤销休眠记录'
             try { Reset-InstanceMemory $idx } catch { }
-            try { Set-WakeMark $idx 'auto' } catch { }
             $changed = $true
             continue
         }
@@ -168,12 +171,25 @@ function Invoke-AutoSleep {
             $script:sleepStage[$idx] = @{ Since = $null; GameGone = $null }
         }
         $st = $script:sleepStage[$idx]
-        # 只认「我们唤醒登记过」的实例：唤醒时刻与游戏关闭时刻都存在 state.json，面板重启不丢
-        $wakeAt = $null
-        try { $wakeAt = Get-WakeAt $idx } catch { }
-        $st['Since'] = $wakeAt
-        if (-not $st['GameGone']) {
-            try { $st['GameGone'] = Get-GameGone $idx } catch { }
+        # 20 分钟保护期按模拟器进程启动时间算，面板重启也不会重置
+        $procStart = $null
+        try { if ($r.PID -and [int]$r.PID -gt 0) { $procStart = (Get-Process -Id ([int]$r.PID) -ErrorAction Stop).StartTime } } catch { }
+        if ($procStart) { $st['Since'] = $procStart }
+        elseif (-not $st['Since']) { $st['Since'] = $now }
+
+        # 采集数据超过 60 秒未更新就不判定（宁可晚睡，不能用过期状态误关机）
+        $ageSec = $null
+        try { if ($r.At) { $ageSec = [int]((Get-Date) - [datetime]$r.At).TotalSeconds } } catch { }
+        if ($null -eq $ageSec -or $ageSec -gt 60) {
+            $key = "sleep-$idx-stale"
+            if (-not $script:sleepWarnAt) { $script:sleepWarnAt = @{} }
+            $lastAt2 = $script:sleepWarnAt[$key]
+            if (-not $lastAt2 -or ($now - $lastAt2).TotalMinutes -ge 10) {
+                $script:sleepWarnAt[$key] = $now
+                $ageTxt = $(if ($null -eq $ageSec) { '未知' } else { "$ageSec 秒" })
+                Write-Diag ("实例{0} 未休眠[stale-data] 采集数据 {1}未更新" -f $idx, $ageTxt)
+            }
+            continue
         }
 
         $dec = Get-SleepStage -Row $r -Since $st['Since'] -GameGone $st['GameGone'] -Now $now `
@@ -188,14 +204,13 @@ function Invoke-AutoSleep {
 
         if ($action -eq 'gamegone') {
             $st['GameGone'] = $now
-            try { Set-GameGone $idx $now } catch { }
             Write-Diag ("实例{0} 游戏已退出，开始 {1} 分钟确认" -f $idx, $goneMin)
             continue
         }
 
         if ($action -eq 'wait') {
             # 游戏又起来了 → 取消确认计时
-            if ($r.Game -eq $true -and $st['GameGone']) { $st['GameGone'] = $null; try { Clear-GameGone $idx } catch { } }
+            if ($r.Game -eq $true -and $st['GameGone']) { $st['GameGone'] = $null }
             $key = "sleep-$idx-$reason"
             if (-not $script:sleepWarnAt) { $script:sleepWarnAt = @{} }
             $lastAt = $script:sleepWarnAt[$key]
@@ -224,9 +239,6 @@ function Invoke-AutoSleep {
             Write-GuardLog 'SLEEP' "实例$idx" ("关机休眠，{0} 唤醒（{1}）" -f $wakeAt.ToString('HH:mm'), $entry.Upgrade)
             # 我们自己关的：清空该实例记忆，下次开机像新实例一样重新抓取
             try { Reset-InstanceMemory $idx 'sleep' } catch { }
-            # 休眠成功后清掉唤醒登记，下次唤醒再登记
-            try { Clear-WakeMark $idx } catch { }
-            try { Clear-GameGone $idx } catch { }
             $st['Since'] = $null
             $st['GameGone'] = $null
         } catch {
@@ -299,7 +311,8 @@ function Invoke-AutoRecover {
             continue
         }
 
-        if ($r.Script -eq $true) {
+        # 只有「确认没在跑」才计入掉线；Script 为 $null（采集未知）时不动
+        if ($r.Script -ne $false) {
             $script:failCount[$idx] = 0
             continue
         }
@@ -505,83 +518,8 @@ function Get-Autostart {
 
 # ---------------- 批量操作 ----------------
 
-# 全部重启：对所有运行中的实例触发重启并自动拉起脚本
-function Invoke-BatchRestart {
-    $rows = @($script:lastInstances | Where-Object { $_.Index -ne '-' })
-    if ($rows.Count -eq 0) { return 0 }
-    $n = 0
-    foreach ($r in $rows) {
-        $idx = "$($r.Index)"
-        try {
-            $log = Join-Path $LogDir 'restart.log'
-            Start-Process -FilePath 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' `
-                -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
-                              '-File', (Get-HelperScript 'Restart-Instance.ps1'),
-                              '-Index', $idx, '-LogFile', $log `
-                -WindowStyle Hidden | Out-Null
-            Write-GuardLog 'AUTO_RESTART' "实例$idx" '批量重启'
-            $n++
-        } catch {
-            Write-Diag "批量重启实例 $idx 失败: $($_.Exception.Message)"
-        }
-    }
-    return $n
-}
 
-# 全部休眠：只休眠有升级完成时间的实例，其余跳过
-function Invoke-BatchSleep {
-    $list = @(Get-SleepList)
-    $leadMin = [double]$script:cfg.SleepLeadMin
-    $now = Get-Date
-    $n = 0
-    $skip = 0
 
-    foreach ($r in @($script:lastInstances)) {
-        $idx = "$($r.Index)"
-        if ($idx -eq '-' -or $r.Sleeping) { continue }
-        if (@($list | Where-Object { "$($_.Index)" -eq $idx }).Count -gt 0) { continue }
-        if (-not $r.UpDone) { $skip++; continue }
-
-        $doneAt = [datetime]$r.UpDone
-        $wakeAt = $doneAt.AddMinutes(-$leadMin)
-        if ($wakeAt -le $now.AddMinutes(2)) { $skip++; continue }
-
-        $list += [pscustomobject]@{
-            Index   = $idx
-            WakeAt  = $wakeAt.ToString('yyyy-MM-ddTHH:mm:ss')
-            DoneAt  = $doneAt.ToString('yyyy-MM-ddTHH:mm:ss')
-            Upgrade = ('{0} Lv.{1}' -f $r.UpName, $r.UpLvl)
-            Since   = $now.ToString('yyyy-MM-ddTHH:mm:ss')
-        }
-        try {
-            Start-Process -FilePath $MuMuMgr -ArgumentList 'control', '-v', $idx, 'shutdown' -WindowStyle Hidden | Out-Null
-            Write-GuardLog 'SLEEP' "实例$idx" ("批量休眠，{0} 唤醒" -f $wakeAt.ToString('HH:mm'))
-            $n++
-        } catch {
-            Write-Diag "批量休眠实例 $idx 失败: $($_.Exception.Message)"
-        }
-    }
-
-    Save-SleepList $list
-    if (@($list).Count -gt 0) { Start-Waker }
-    return [pscustomobject]@{ Slept = $n; Skipped = $skip }
-}
-
-# 全部唤醒：把所有休眠任务改成立即执行
-function Invoke-BatchWake {
-    $list = @(Get-SleepList)
-    if ($list.Count -eq 0) { return 0 }
-    $nowStr = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
-    $n = 0
-    foreach ($e in $list) {
-        $e.WakeAt = $nowStr
-        $n++
-    }
-    Save-SleepList $list
-    Start-Waker
-    Write-GuardLog 'WAKE_MANUAL' '-' '批量唤醒'
-    return $n
-}
 
 # 手动接管某台实例：清掉它的"记忆"，下一轮重新抓取
 function Reset-InstanceMemory([string]$index, [string]$Reason = 'manual') {
@@ -591,7 +529,7 @@ function Reset-InstanceMemory([string]$index, [string]$Reason = 'manual') {
     try { $script:recovering[$i] = $false } catch { }
     try { if ($script:adbSync.Force) { $script:adbSync.Force[$i] = $true } } catch { }
     # 重新计时：像新实例一样，先等 20 分钟再判断
-    try { if (-not $script:sleepStage) { $script:sleepStage = @{} }; $script:sleepStage[$i] = @{ Since = Get-Date; GameGone = $null; ResetAt = Get-Date } } catch { }
+    try { if (-not $script:sleepStage) { $script:sleepStage = @{} }; $script:sleepStage[$i] = @{ Since = Get-Date; GameGone = $null } } catch { }
     Write-Diag ("实例{0} 已清除升级数据，等待重新抓取（{1}）" -f $i, $Reason)
 }
 
@@ -609,7 +547,7 @@ function Invoke-ClearMemory([bool]$StopGuard) {
     $logDir = Join-Path $Root 'logs'
     if (Test-Path $logDir) {
         Get-ChildItem $logDir -File -ErrorAction SilentlyContinue | Where-Object {
-            $_.Extension -in '.log', '.csv', '.txt'
+            $_.Extension -in '.log', '.csv', '.txt' -and $_.Name -ne ('guard-{0:yyyyMMdd}.csv' -f (Get-Date))
         } | ForEach-Object {
             try { Remove-Item $_.FullName -Force -ErrorAction Stop; $removed++ } catch { }
         }
@@ -646,83 +584,4 @@ function Invoke-ClearMemory([bool]$StopGuard) {
 
     Write-Diag ("已清除程序记忆：删除 {0} 个文件，休眠任务与统计已归零" -f $removed)
     return $removed
-}
-# ---------------- 每实例运行状态（state.json）----------------
-# 用途：记住"这个升级任务已经休眠过了"，避免唤醒后又被立刻关掉
-$script:opState = @{}
-
-function Load-OpState {
-    $script:opState = @{}
-    try {
-        $p = Join-Path $Root 'state.json'
-        if (-not (Test-Path $p)) { return }
-        $raw = Get-Content $p -Raw -Encoding UTF8
-        if (-not $raw -or -not $raw.Trim()) { return }
-        $j = $raw | ConvertFrom-Json
-        if ($j -and ($j.PSObject.Properties.Name -contains 'instances')) {
-            foreach ($pp in $j.instances.PSObject.Properties) {
-                $script:opState["$($pp.Name)"] = @{
-                    LastWakeAt = "$($pp.Value.LastWakeAt)"
-                    LastWakeBy = "$($pp.Value.LastWakeBy)"
-                }
-            }
-        }
-    } catch { }
-}
-
-function Save-OpState {
-    try {
-        $inst = [ordered]@{}
-        foreach ($k in @($script:opState.Keys)) { $inst["$k"] = $script:opState[$k] }
-        ConvertTo-Json -InputObject ([ordered]@{ instances = $inst }) -Depth 5 |
-            Set-Content -Path (Join-Path $Root 'state.json') -Encoding UTF8
-    } catch { }
-}
-
-
-
-function Set-WakeMark([string]$idx, [string]$by) {
-    $k = "$idx"
-    if (-not $script:opState.ContainsKey($k)) { $script:opState[$k] = @{} }
-    $script:opState[$k]['LastWakeAt'] = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
-    $script:opState[$k]['LastWakeBy'] = "$by"
-    Save-OpState
-}
-
-function Get-WakeAt([string]$idx) {
-    $k = "$idx"
-    if (-not $script:opState.ContainsKey($k)) { return $null }
-    $v = "$($script:opState[$k]['LastWakeAt'])"
-    if (-not $v) { return $null }
-    try { return [datetime]::Parse($v) } catch { return $null }
-}
-
-function Clear-WakeMark([string]$idx) {
-    $k = "$idx"
-    if (-not $script:opState.ContainsKey($k)) { return }
-    try { $script:opState[$k].Remove('LastWakeAt') } catch { }
-    try { $script:opState[$k].Remove('LastWakeBy') } catch { }
-    Save-OpState
-}
-
-function Set-GameGone([string]$idx, $when) {
-    $k = "$idx"
-    if (-not $script:opState.ContainsKey($k)) { $script:opState[$k] = @{} }
-    $script:opState[$k]['GameGone'] = ([datetime]$when).ToString('yyyy-MM-ddTHH:mm:ss')
-    Save-OpState
-}
-
-function Get-GameGone([string]$idx) {
-    $k = "$idx"
-    if (-not $script:opState.ContainsKey($k)) { return $null }
-    $v = "$($script:opState[$k]['GameGone'])"
-    if (-not $v) { return $null }
-    try { return [datetime]::Parse($v) } catch { return $null }
-}
-
-function Clear-GameGone([string]$idx) {
-    $k = "$idx"
-    if (-not $script:opState.ContainsKey($k)) { return }
-    try { $script:opState[$k].Remove('GameGone') } catch { }
-    Save-OpState
 }

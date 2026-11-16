@@ -655,7 +655,6 @@ function Sync-Cards($data) {
                         Write-GuardLog 'WAKE_MANUAL' "实例$i" '手动唤醒'
                         # 手动接管：清掉该实例已抓取的升级数据，下轮重新抓取
                         Reset-InstanceMemory $i
-                        try { Set-WakeMark $i 'manual' } catch { }
                         $txtInfo.Text = "正在唤醒实例 $i"
                     } catch {
                         Write-Diag "手动唤醒失败: $($_.Exception.Message)"
@@ -676,7 +675,6 @@ function Sync-Cards($data) {
                                       '-Index', "$i", '-LogFile', $log `
                         -WindowStyle Hidden | Out-Null
                     Reset-InstanceMemory $i
-                    try { Set-WakeMark $i 'restart' } catch { }
                     $txtInfo.Text = "已开始重启实例 $i，完成后会自动启动紫孔雀"
                 } catch {
                     Write-Diag "重启实例失败: $($_.Exception.Message)"
@@ -1225,14 +1223,6 @@ function Update-Ui {
         elseif ($level -eq 'warn') { $txtInfo.Foreground = Brush '#F5A524' }
         else { $txtInfo.Foreground = Brush '#8A94A6' }
 
-        # 批量操作按钮：实例多于 1 个才显示
-        $multi = ($running + @($data | Where-Object { $_.Sleeping }).Count) -gt 1
-        $vis = if ($multi) { 'Visible' } else { 'Collapsed' }
-        if ($btnAllRestart.Visibility.ToString() -ne $vis) {
-            $btnAllRestart.Visibility = $vis
-            $btnAllSleep.Visibility   = $vis
-            $btnAllWake.Visibility    = $vis
-        }
     } catch {
         $txtInfo.Text = '刷新出错：' + $_.Exception.Message
     }
@@ -1469,9 +1459,16 @@ function Show-Settings {
     })
     [void]$pnl.Children.Add($memBtn)
     $sw.FindName('BtnSave').Add_Click({
+        # 数值非法时提示并中止保存，避免"以为存上了其实没生效"
+        $badKeys = @()
         foreach ($k in $boxes.Keys) {
             $v = 0.0
             if ([double]::TryParse($boxes[$k].Text, [ref]$v)) { $script:cfg[$k] = $v }
+            else { $badKeys += $k }
+        }
+        if ($badKeys.Count -gt 0) {
+            [void][System.Windows.MessageBox]::Show(("以下数值填写有误，请改成数字后再保存：`n`n{0}" -f ($badKeys -join "、")), "MuMuGuard", "OK", "Warning")
+            return
         }
         foreach ($k in $checks.Keys) {
             $script:cfg[$k] = [bool]$checks[$k].IsChecked

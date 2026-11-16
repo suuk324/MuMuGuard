@@ -4,7 +4,7 @@
 
 给 MuMu 模拟器多开用的轻量监控与自动化工具。**打开就用，关掉即走**，不留后台服务。
 
-![版本](https://img.shields.io/badge/version-1.3.0-3DDC84)
+![版本](https://img.shields.io/badge/version-1.4.0-3DDC84)
 ![CI](https://github.com/suuk324/MuMuGuard/actions/workflows/ci.yml/badge.svg)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
@@ -35,7 +35,6 @@
 | **CEF 泄漏清理** | 清理堆积的 `CefViewWing.exe`，释放被吃掉的几个 GB |
 | **升级休眠** | 脚本只是在等建筑升级时，自动关掉模拟器省内存，升级前自动唤醒 |
 | **健康自检** | 主机内存/提交内存/实例内存偏低时预警 |
-| **一键操作** | 全部重启 / 全部休眠 / 全部唤醒 |
 | **托盘常驻** | 收起后只在托盘留一个图标，唤醒器独立运行 |
 
 **它不做什么**：不联网（除了检查更新）、不上传数据、不常驻服务、不修改 MuMu 本体。

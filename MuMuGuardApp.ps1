@@ -292,7 +292,7 @@ if ($script:cfg.MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.3.0'
+$script:appVersion = '1.4.0'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -543,8 +543,9 @@ $workerScript = {
                     if ($res -match '(?s)INST\s*(.*?)\s*SEP') { $instPart = $Matches[1] }
                     $installed = ($instPart -match 'package:')
 
-                    $scriptOn = ($scriptPart -match '(?m)^\s*\d+\s*$')
-                    $gameOn   = ($gamePart   -match '(?m)^\s*\d+\s*$')
+                    # 三态：只有明确解析到段落才判定；解析不到 = 未知（null），不能当成「没在跑」
+                    if ($res -match '(?s)SCRIPT\s*(.*?)\s*GAME') { $scriptOn = ($scriptPart -match '(?m)^\s*\d+\s*$') } else { $scriptOn = $null }
+                    if ($res -match '(?s)GAME\s*(.*?)(?:\s*INST|\s*SEP)') { $gameOn = ($gamePart -match '(?m)^\s*\d+\s*$') } else { $gameOn = $null }
 
                     # nemuinit 时间在 SEP 段，升级信息在 MEM 段
                     if ($res -match '(?s)SEP\s*(.*?)(?:MEM|$)') { $psPart = $Matches[1] }
@@ -589,6 +590,7 @@ $workerScript = {
                     Online  = $online
                     AdbErr  = $errText
                     Chan    = $chan
+                    At      = (Get-Date)
                     Script  = $scriptOn
                     Installed = $installed
                     Game    = $gameOn
@@ -912,9 +914,6 @@ $xaml = @'
             <Button x:Name="BtnSleep" Content="休眠 开" Width="84" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" ToolTip="升级等待时自动关闭模拟器省内存"/>
             <Button x:Name="BtnClean" Content="立即清理" Width="102" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24"/>
             <Button x:Name="BtnLog" Content="打开日志" Width="94" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#161C26"/>
-            <Button x:Name="BtnAllRestart" Content="全部重启" Width="86" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="重启所有运行中的实例"/>
-            <Button x:Name="BtnAllSleep" Content="全部休眠" Width="86" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="关闭所有可休眠的实例"/>
-            <Button x:Name="BtnAllWake" Content="全部唤醒" Width="86" Margin="10,0,0,0" Style="{StaticResource Btn}" Background="#141A24" Visibility="Collapsed" ToolTip="唤醒所有休眠中的实例"/>
           </StackPanel>
           <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
             <Button x:Name="BtnExport" Content="导出报告" Style="{StaticResource Mini}" Margin="0,0,8,0" MinWidth="76" ToolTip="导出当前状态到文本报告"/>
@@ -1027,9 +1026,6 @@ $txtCommit  = $win.FindName('TxtCommit')
 $txtPage    = $win.FindName('TxtPage')
 $txtInfo    = $win.FindName('TxtInfo')
 $txtVersion = $win.FindName('TxtVersion')
-$btnAllRestart = $win.FindName('BtnAllRestart')
-$btnAllSleep   = $win.FindName('BtnAllSleep')
-$btnAllWake    = $win.FindName('BtnAllWake')
 $trendCanvas = $win.FindName('TrendCanvas')
 $trendLine  = $win.FindName('TrendLine')
 $txtTrendMin = $win.FindName('TxtTrendMin')
@@ -1306,35 +1302,6 @@ $btnLog.Add_Click({ if (Test-Path $LogDir) { Start-Process explorer.exe -Argumen
 $btnExport.Add_Click({ Export-Report })
 $btnSettings.Add_Click({ Show-Settings })
 $btnUpdate.Add_Click({ Invoke-UpdateCheckUI -Silent $false })
-
-$btnAllRestart.Add_Click({
-    $n = @($script:lastInstances | Where-Object { $_.Index -ne '-' }).Count
-    if ($n -eq 0) { $txtInfo.Text = '没有运行中的实例'; return }
-    $res = [System.Windows.MessageBox]::Show("重启全部 $n 个实例？`n`n每个实例都会断线重登，过程约 1-2 分钟。", 'MuMuGuard', 'YesNo', 'Warning')
-    if ($res -ne 'Yes') { return }
-    $c = Invoke-BatchRestart
-    $txtInfo.Text = "已开始重启 $c 个实例"
-})
-
-$btnAllSleep.Add_Click({
-    $res = [System.Windows.MessageBox]::Show(
-        "休眠所有可休眠的实例？`n`n只有「有升级完成时间」的实例能休眠，其余会跳过。`n休眠后会在升级完成前自动唤醒。",
-        'MuMuGuard', 'YesNo', 'Question')
-    if ($res -ne 'Yes') { return }
-    $r = Invoke-BatchSleep
-    $txtInfo.Text = ('已休眠 {0} 个，跳过 {1} 个（无升级数据或时间太近）' -f $r.Slept, $r.Skipped)
-    Update-Ui
-})
-
-$btnAllWake.Add_Click({
-    $c = @(Get-SleepList).Count
-    if ($c -eq 0) { $txtInfo.Text = '没有处于休眠的实例'; return }
-    $res = [System.Windows.MessageBox]::Show("唤醒全部 $c 个休眠中的实例？", 'MuMuGuard', 'YesNo', 'Question')
-    if ($res -ne 'Yes') { return }
-    $n = Invoke-BatchWake
-    $txtInfo.Text = "正在唤醒 $n 个实例"
-    Update-Ui
-})
 
 $btnSleep.Add_Click({
     $script:cfg.AutoSleep = -not ([bool]$script:cfg.AutoSleep)

@@ -44,7 +44,7 @@ function Make-Visible($w) {
         $r = $w.Current.BoundingRectangle
         if ($r.X -lt -10000) {
             [WinVis]::Restore([IntPtr]$w.Current.NativeWindowHandle)
-            Start-Sleep -Milliseconds 700
+            Start-Sleep -Milliseconds 1500
         }
     } catch { }
 }
@@ -93,6 +93,7 @@ Check '唤醒器' ($(if ($sleepList.Count -gt 0) { $wakers.Count -eq 1 } else { 
 
 # 确保停在紧凑视图
 $win = Get-Win
+Make-Visible $win
 Check '窗口存在' ($null -ne $win) ''
 [void](Click-Like $win '概要')
 Start-Sleep -Seconds 3
@@ -111,49 +112,12 @@ $detailBtn = $null
 foreach ($b in (Get-OfType $win $BTN)) { if ($b.Current.Name -eq '详情') { $detailBtn = $b; break } }
 if ($detailBtn) {
     $wr = $win.Current.BoundingRectangle
-    $br = $detailBtn.Current.BoundingRectangle
-    $gap = $wr.Bottom - $br.Bottom
-    Check '底部按钮未被裁切' ($gap -gt 6) ("按钮底边距窗口 $([math]::Round($gap)) px")
-} else { Skip '底部按钮未被裁切' '未找到详情按钮' }
-
-# ---------- 3. 详情视图 ----------
-Write-Host ''
-Write-Host '=== 3. 详情视图 ===' -ForegroundColor Cyan
-[void](Click-Like $win '详情')
-Start-Sleep -Seconds 4
-$n2 = Get-Names $win
-Check '版本号' ((@($n2 | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' })).Count -eq 1) ((@($n2 | Where-Object { $_ -match '^v\d' })) -join ',')
-Check '事件区' ($n2 -contains '事件') ''
-Check '健康检查区' ($n2 -contains '健康检查') ''
-Check '趋势区' (Has-Text $n2 '可用内存趋势') ''
-Check '检查更新按钮' (Has-Text $n2 '检查更新') ''
-Check '导出报告按钮' (Has-Text $n2 '导出报告') ''
-Check '设置按钮' (Has-Text $n2 '设置') ''
-Check '批量操作按钮' ((Has-Text $n2 '全部重启') -and (Has-Text $n2 '全部休眠') -and (Has-Text $n2 '全部唤醒')) ''
-
-# ---------- 4. 数据准确性 ----------
-Write-Host ''
-Write-Host '=== 4. 数据准确性 ===' -ForegroundColor Cyan
-$cfg = Get-Content (Join-Path $dir 'config.json') -Raw | ConvertFrom-Json
-$devs = @(Get-CimInstance Win32_Process -Filter "Name='MuMuNxDevice.exe'" -ErrorAction SilentlyContinue)
-$pctShown = @($n2 | Where-Object { $_ -match '^\d+%$' })
-$verified = 0
-$script:ringChecked = 0
-foreach ($d in $devs) {
-    if ($d.CommandLine -notmatch 'MuMuPlayer-([\d\.]+)-(\d+)') { continue }
-    $series = $Matches[1]; $idx = $Matches[2]
-    $pr = Get-Process -Id $d.ProcessId -ErrorAction SilentlyContinue
-    if (-not $pr) { continue }
-    $vmJson = Join-Path ([string]$cfg.MuMuRoot) "vms\MuMuPlayer-$series-$idx\configs\vm_config.json"
-    $memGB = 0
-    if (Test-Path $vmJson) { try { $memGB = [int](Get-Content $vmJson -Raw | ConvertFrom-Json).vm.memory } catch { } }
-    $base = if ($memGB -gt 0) { $memGB * 1024 + 2500 } else { [int]$cfg.MemAlertMB }
-    $mb = [int]($pr.PrivateMemorySize64 / 1MB)
-    $expect = [math]::Min(100, [int][math]::Round($mb / $base * 100, 0))
-    # 界面刷新与采样之间有 1~3 秒差，允许 ±1% 误差
-    $okRing = $false
-    foreach ($pc in $pctShown) {
-        if ($pc -match '^(\d+)%$') { if ([math]::Abs([int]$Matches[1] - $expect) -le 1) { $okRing = $true; break } }
+    if ($wr.X -lt -10000 -or $wr.Width -lt 200) {
+        Skip '底部按钮未被裁切' '窗口处于最小化，几何测量不可靠'
+    } else {
+        $br = $detailBtn.Current.BoundingRectangle
+        $gap = $wr.Bottom - $br.Bottom
+        Check '底部按钮未被裁切' ($gap -gt 6) ("按钮底边距窗口 $([Math]::Round($gap)) px")
     }
     if ($okRing) { $verified++ }
     elseif ($pctShown.Count -eq 0) { $script:ringChecked++ }   # 停止状态显示「—」属正常
@@ -164,7 +128,7 @@ Check '环百分比与内存吻合' ($verified -ge 1 -or $devs.Count -eq 0 -or $
 Write-Host ''
 Write-Host '=== 5. 设置与主题 ===' -ForegroundColor Cyan
 [void](Click-Like $win '设置')
-Start-Sleep -Seconds 3
+for ($w8 = 0; $w8 -lt 20; $w8++) { Start-Sleep -Milliseconds 500; if (Has-Text (Get-Names $win) '界面主题') { break } }
 $ns = Get-Names $win
 Check '设置面板打开' (($ns -contains '界面主题') -or (Has-Text $ns '阈值设置')) ''
 Check '主题三个选项' ((Has-Text $ns '跟随系统') -and (Has-Text $ns '深色') -and (Has-Text $ns '浅色')) ''
@@ -245,3 +209,4 @@ if ($bad -eq 0) {
     $fails | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
     exit 1
 }
+

@@ -150,6 +150,7 @@ function Get-InstanceData {
             MemBase = $memBase
             GuestGB = $(if ($ic) { $ic.MemoryGB } else { 0 })
             Online  = $online
+            At      = $(if ($a) { $a.At })
             Script  = $scriptOn
             Game    = $game
             Installed = $installed

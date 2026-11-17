@@ -496,7 +496,7 @@ $script:remoteXaml = @"
       </Setter>
     </Style>
   </Window.Resources>
-  <Border CornerRadius="12" Background="#0B0E13" BorderBrush="#232A36" BorderThickness="1" Padding="22">
+  <Viewbox Stretch="Uniform"><Border CornerRadius="12" Background="#0B0E13" BorderBrush="#232A36" BorderThickness="1" Padding="22">
     <StackPanel>
       <TextBlock Text="手机访问" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" Margin="0,0,0,4"/>
       <TextBlock x:Name="TxtHint" Foreground="#6B7485" FontSize="11" TextWrapping="Wrap"
@@ -516,7 +516,7 @@ $script:remoteXaml = @"
         <Button x:Name="BtnClose" Grid.Column="2" Content="关闭" Style="{StaticResource DlgBtn}"/>
       </Grid>
     </StackPanel>
-  </Border>
+  </Border></Viewbox>
 </Window>
 "@
 
@@ -527,18 +527,7 @@ function Show-RemoteDialog {
     }
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $script:remoteXaml))
     Set-ThemeResources $dlg (Get-ActiveTheme)
-    # 这个窗口按设备像素算尺寸，屏幕缩放 150% 时要把 DIP 尺寸乘上去，否则内容会被裁
-    try {
-        $srcScale = 1.0
-        $gfx = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero)
-        $srcScale = [double]$gfx.DpiX / 96.0
-        $gfx.Dispose()
-        if ($srcScale -gt 1) {
-            $dlg.Width = 420 * $srcScale
-            $dlg.Height = 580 * $srcScale
-        }
-    } catch { }
-    if ($win -and $win.IsVisible) { try { $dlg.Owner = $win } catch { } }
+   if ($win -and $win.IsVisible) { try { $dlg.Owner = $win } catch { } }
 
     $hint     = $dlg.FindName('TxtHint')
     $qrBox    = $dlg.FindName('QrBox')

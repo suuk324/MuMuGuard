@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update', '60-remote')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -222,6 +222,11 @@ $defaultCfg = [ordered]@{
     NemuSpinPct  = 50
     MemAlertMB   = 9216
     LogKeepDays  = 7
+    # 自动恢复
+    # 远程访问
+    RemoteEnabled    = $false
+    RemotePort       = 8787
+    RemoteToken      = ''
     # 自动恢复
     AutoRecover      = $true
     RecoverCheckSec  = 60
@@ -1462,6 +1467,20 @@ $rescanTimer.Add_Tick({
 })
 $rescanTimer.Start()
 
+# 远程访问：队列处理（500ms）+ 状态快照刷新
+$remoteTimer = New-Object System.Windows.Threading.DispatcherTimer
+$remoteTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+$remoteTimer.Add_Tick({
+    try { Invoke-RemoteCommands } catch { }
+})
+$remoteTimer.Start()
+
+if ($script:cfg.RemoteEnabled -eq $true) {
+    try {
+        if (-not (Start-RemoteServer)) { Write-Diag '远程服务未启动（详见日志）' }
+    } catch { Write-Diag "远程服务启动异常: $($_.Exception.Message)" }
+}
+
 $updateTimer = New-Object System.Windows.Threading.DispatcherTimer
 $updateTimer.Interval = [TimeSpan]::FromSeconds(20)
 $updateTimer.Add_Tick({
@@ -1517,6 +1536,7 @@ $win.Add_Closed({
     $timer.Stop()
     $guardTimer.Stop()
     $recoverTimer.Stop()
+    try { Stop-RemoteServer } catch { }
     $script:adbSync.Stop = $true
     try {
         if ($win.WindowState -eq 'Normal') {

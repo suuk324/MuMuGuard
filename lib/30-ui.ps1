@@ -1321,7 +1321,8 @@ function Show-Settings {
         @{ Key = 'RecoverCooldown';  Label = '恢复冷却(分钟)';    Step = 1 },
         @{ Key = 'SleepLeadMin';    Label = '提前唤醒(分钟)';     Step = 1 },
         @{ Key = 'SleepMinHours';   Label = '最短休眠(小时)';     Step = 1 },
-        @{ Key = 'SleepMaxHours';   Label = '最长休眠(小时)';     Step = 1 }
+        @{ Key = 'SleepMaxHours';   Label = '最长休眠(小时)';     Step = 1 },
+        @{ Key = 'RemotePort';      Label = '远程端口';            Step = 1 }
     )
 
     # 文本类设置（路径 / 包名）
@@ -1335,7 +1336,8 @@ function Show-Settings {
     $toggles = @(
         @{ Key = 'AutoRecover'; Label = '脚本掉线自动恢复' },
         @{ Key = 'AutoSleep';   Label = '升级等待时休眠模拟器' },
-        @{ Key = 'StartWithWindows'; Label = '开机自动启动面板（进托盘）' }
+        @{ Key = 'StartWithWindows'; Label = '开机自动启动面板（进托盘）' },
+        @{ Key = 'RemoteEnabled'; Label = '开放远程访问（手机浏览器）' }
     )
 
     $checks = @{}
@@ -1430,6 +1432,25 @@ function Show-Settings {
     $memBtn.Content = '清除记忆…'
     $memBtn.Style = $win.Resources['Mini']
     $memBtn.HorizontalAlignment = 'Left'
+    # 远程访问地址
+    Add-Section $pnl '远程访问'
+    $urlTips = @(Get-RemoteUrls)
+    $urlText = New-Object System.Windows.Controls.TextBlock
+    $urlText.FontSize = 11
+    $urlText.TextWrapping = 'Wrap'
+    $urlText.Margin = [System.Windows.Thickness]::new(0,0,0,10)
+    if ($script:cfg.RemoteEnabled -eq $true -and $urlTips.Count -gt 0) {
+        $urlText.Foreground = Brush '#9BA5B4'
+        $urlText.Text = ($urlTips | ForEach-Object { $_.Url }) -join "`r`n"
+    } elseif ($script:cfg.RemoteEnabled -eq $true) {
+        $urlText.Foreground = Brush '#D29922'
+        $urlText.Text = '已开启，但没有找到可用的局域网地址'
+    } else {
+        $urlText.Foreground = Brush '#6B7485'
+        $urlText.Text = '未开启'
+    }
+    [void]$pnl.Children.Add($urlText)
+
     Add-Section $pnl '维护'
     $memBtn.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
     $memBtn.ToolTip = '彻底删除休眠任务、趋势、日志与统计（设置会保留）'
@@ -1522,6 +1543,14 @@ function Show-Settings {
         [void](Set-Autostart ([bool]$script:cfg.StartWithWindows))
         Update-TrayMenu
         Save-Config
+        # 远程访问：开关立即生效，不用重启面板
+        try {
+            if ($script:cfg.RemoteEnabled -eq $true) {
+                if (-not $script:remoteHandle) { [void](Start-RemoteServer) }
+            } else {
+                Stop-RemoteServer
+            }
+        } catch { Write-Diag "切换远程访问失败: $($_.Exception.Message)" }
         $guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
         $recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
         $sw.Close()

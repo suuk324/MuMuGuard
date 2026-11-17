@@ -58,6 +58,12 @@ function Get-OutboundPageUrl {
 $script:mqttScript = {
     param($sync, $broker, $port, $uid, $clientId, $root, $key)
 
+    function KeyBytes([string]$hex) {
+        $n = [int]($hex.Length / 2)
+        $out = New-Object byte[] $n
+        for ($i = 0; $i -lt $n; $i++) { $out[$i] = [Convert]::ToByte($hex.Substring($i * 2, 2), 16) }
+        return ,$out
+    }
     function Log([string]$m) {
         try { Add-Content -Path (Join-Path $root 'logs\outbound.log') -Value ('[{0:HH:mm:ss}] {1}' -f (Get-Date), $m) -Encoding UTF8 } catch { }
     }
@@ -181,7 +187,7 @@ $script:mqttScript = {
                     if (-not $state) { $state = '{}' }
                     # 状态也签名：{"d": <原状态JSON>, "s": <HMAC>}，手机端校验后才显示
                     $h2 = New-Object System.Security.Cryptography.HMACSHA256
-                    $h2.Key = [System.Text.Encoding]::UTF8.GetBytes($key)
+                    $h2.Key = (KeyBytes $key)
                     $sig2 = ([BitConverter]::ToString($h2.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($state))) -replace '-', '').ToLower()
                     $h2.Dispose()
                     $env2 = '{"d":' + (ConvertTo-Json $state -Compress) + ',"s":"' + $sig2 + '"}'
@@ -206,7 +212,7 @@ $script:mqttScript = {
                                 try {
                                     $expect = ''
                                     $h = New-Object System.Security.Cryptography.HMACSHA256
-                                    $h.Key = [System.Text.Encoding]::UTF8.GetBytes($key)
+                                    $h.Key = (KeyBytes $key)
                                     $raw = [System.Text.Encoding]::UTF8.GetBytes(([string]$cmd.cmd + '|' + [string]$cmd.ts))
                                     $expect = ([BitConverter]::ToString($h.ComputeHash($raw)) -replace '-', '').ToLower()
                                     $h.Dispose()

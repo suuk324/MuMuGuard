@@ -107,7 +107,7 @@ function Build-RemoteState {
 
     $obj = [ordered]@{
         v         = 1
-        ts        = [int][double]::Parse((Get-Date -UFormat %s))
+        ts        = [int64](([datetime]::UtcNow - (New-Object datetime 1970,1,1,0,0,0,([DateTimeKind]::Utc))).TotalSeconds)
         guard     = [bool]$script:guardRunning
         sleep     = [bool]$script:cfg.AutoSleep
         host      = $hostInfo

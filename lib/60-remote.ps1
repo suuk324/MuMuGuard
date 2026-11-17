@@ -468,3 +468,144 @@ function Invoke-RemoteCommands {
     # 快照交给服务线程
     try { $sync.RemoteState = Build-RemoteState } catch { }
 }
+
+# ---------------- 手机访问窗口（XAML 构建，和设置面板同一套做法，DPI 才正常） ----------------
+$script:remoteXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="手机访问" Width="420" Height="580"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterScreen" ShowInTaskbar="False">
+  <Window.Resources>
+    <Style x:Key="DlgBtn" TargetType="Button">
+      <Setter Property="Background" Value="#1A1F29"/>
+      <Setter Property="Foreground" Value="#E8ECF2"/>
+      <Setter Property="BorderBrush" Value="#232A36"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Padding" Value="0,7,0,7"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border CornerRadius="8" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+  <Border CornerRadius="12" Background="#0B0E13" BorderBrush="#232A36" BorderThickness="1" Padding="22">
+    <StackPanel>
+      <TextBlock Text="手机访问" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" Margin="0,0,0,4"/>
+      <TextBlock x:Name="TxtHint" Foreground="#6B7485" FontSize="11" TextWrapping="Wrap"
+                 Width="330" HorizontalAlignment="Left" Margin="0,0,0,14"/>
+      <Border x:Name="QrBox" Width="210" Height="210" Background="White" CornerRadius="8"
+              HorizontalAlignment="Center" Margin="0,0,0,12">
+        <Image x:Name="ImgQr" Width="186" Height="186" Stretch="Uniform"/>
+      </Border>
+      <TextBlock x:Name="TxtUrl" Foreground="#9BA5B4" FontSize="10" TextWrapping="Wrap"
+                 Width="330" TextAlignment="Center" Margin="0,0,0,14"/>
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Button x:Name="BtnPower" Grid.Column="0" Style="{StaticResource DlgBtn}" Margin="0,0,8,0"/>
+        <Button x:Name="BtnRefresh" Grid.Column="1" Content="刷新令牌" Style="{StaticResource DlgBtn}" Margin="0,0,8,0"/>
+        <Button x:Name="BtnClose" Grid.Column="2" Content="关闭" Style="{StaticResource DlgBtn}"/>
+      </Grid>
+    </StackPanel>
+  </Border>
+</Window>
+"@
+
+function Show-RemoteDialog {
+    if ($script:remoteDlg) {
+        try { $script:remoteDlg.Activate() } catch { }
+        return
+    }
+    $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $script:remoteXaml))
+    Set-ThemeResources $dlg (Get-ActiveTheme)
+    # 这个窗口按设备像素算尺寸，屏幕缩放 150% 时要把 DIP 尺寸乘上去，否则内容会被裁
+    try {
+        $srcScale = 1.0
+        $gfx = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero)
+        $srcScale = [double]$gfx.DpiX / 96.0
+        $gfx.Dispose()
+        if ($srcScale -gt 1) {
+            $dlg.Width = 420 * $srcScale
+            $dlg.Height = 580 * $srcScale
+        }
+    } catch { }
+    if ($win -and $win.IsVisible) { try { $dlg.Owner = $win } catch { } }
+
+    $hint     = $dlg.FindName('TxtHint')
+    $qrBox    = $dlg.FindName('QrBox')
+    $imgQr    = $dlg.FindName('ImgQr')
+    $txtUrl   = $dlg.FindName('TxtUrl')
+    $btnPower = $dlg.FindName('BtnPower')
+    $btnRefresh = $dlg.FindName('BtnRefresh')
+
+    $refreshUi = {
+        $enabled = [bool]$script:cfg.RemoteEnabled
+        if ($enabled) {
+            $btnPower.Content = '停止'
+            $btnRefresh.IsEnabled = $true
+            $hint.Text = '手机扫下面的二维码，或直接输入网址。同一 WiFi 下即可访问。'
+            $urls = @(Get-RemoteUrls)
+            $url = ''
+            if ($urls.Count -gt 0) { $url = $urls[0].Url }
+            if ($url) {
+                $txtUrl.Text = $url
+                $qrBox.Visibility = 'Visible'
+                try { $imgQr.Source = New-QrBitmap $url 8 3 } catch { $imgQr.Source = $null }
+            } else {
+                $txtUrl.Text = '没有找到可用的局域网地址'
+                $qrBox.Visibility = 'Collapsed'
+            }
+        } else {
+            $btnPower.Content = '启用'
+            $btnRefresh.IsEnabled = $false
+            $hint.Text = '启用后，手机可以查看状态，并控制看护、休眠、清理。'
+            $txtUrl.Text = ''
+            $qrBox.Visibility = 'Collapsed'
+        }
+    }
+
+    $btnPower.Add_Click({
+        try {
+            if ([bool]$script:cfg.RemoteEnabled) {
+                Stop-RemoteServer
+                $script:cfg.RemoteEnabled = $false
+            } else {
+                $script:cfg.RemoteEnabled = $true
+                if (-not $script:cfg.RemoteToken) { $script:cfg.RemoteToken = New-RemoteToken }
+                if (-not (Start-RemoteServer)) { $script:cfg.RemoteEnabled = $false }
+            }
+            Save-Config
+        } catch { Write-Diag "切换手机访问失败: $($_.Exception.Message)" }
+        & $refreshUi
+    })
+
+    $btnRefresh.Add_Click({
+        try {
+            $script:cfg.RemoteToken = New-RemoteToken
+            Save-Config
+            if ($script:cfg.RemoteEnabled) {
+                Stop-RemoteServer
+                [void](Start-RemoteServer)
+            }
+            Write-Diag '手机访问：令牌已刷新'
+        } catch { Write-Diag "刷新令牌失败: $($_.Exception.Message)" }
+        & $refreshUi
+    })
+
+    $dlg.FindName('BtnClose').Add_Click({ $dlg.Close() })
+    $dlg.Add_Closed({ $script:remoteDlg = $null })
+    $dlg.Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+
+    $script:remoteDlg = $dlg
+    & $refreshUi
+    [void]$dlg.Show()
+}

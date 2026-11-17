@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update', '60-remote')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update', '70-qr', '60-remote')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -930,7 +930,8 @@ $xaml = @'
           <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
             <Button x:Name="BtnExport" Content="导出报告" Style="{StaticResource Mini}" Margin="0,0,8,0" MinWidth="76" ToolTip="导出当前状态到文本报告"/>
             <Button x:Name="BtnUpdate" Content="检查更新" Style="{StaticResource Mini}" Margin="0,0,8,0" MinWidth="76" ToolTip="从 GitHub 检查是否有新版本"/>
-            <Button x:Name="BtnSettings" Content="设置" Style="{StaticResource Mini}" MinWidth="56" ToolTip="阈值与路径设置"/>
+            <Button x:Name="BtnRemote" Content="手机访问" Style="{StaticResource Mini}" Margin="0,0,8,0" MinWidth="76" ToolTip="用手机查看和控制"/>
+    <Button x:Name="BtnSettings" Content="设置" Style="{StaticResource Mini}" MinWidth="56" ToolTip="阈值与路径设置"/>
           </StackPanel>
         </DockPanel>
       </Grid>
@@ -1047,6 +1048,7 @@ $btnClean   = $win.FindName('BtnClean')
 $btnLog     = $win.FindName('BtnLog')
 $btnExport  = $win.FindName('BtnExport')
 $btnSettings = $win.FindName('BtnSettings')
+$btnRemote   = $win.FindName('BtnRemote')
 $btnUpdate   = $win.FindName('BtnUpdate')
 $btnSleep    = $win.FindName('BtnSleep')
 $btnAll     = $win.FindName('BtnAll')
@@ -1355,6 +1357,7 @@ $btnClean.Add_Click({ [void](Invoke-GuardCleanup); Update-Ui })
 $btnLog.Add_Click({ if (Test-Path $LogDir) { Start-Process explorer.exe -ArgumentList $LogDir } })
 $btnExport.Add_Click({ Export-Report })
 $btnSettings.Add_Click({ Show-Settings })
+$btnRemote.Add_Click({ try { Show-RemoteDialog } catch { Write-Diag "手机访问窗口异常: $($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" } })
 $btnUpdate.Add_Click({ Invoke-UpdateCheckUI -Silent $false })
 
 $btnSleep.Add_Click({

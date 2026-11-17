@@ -77,7 +77,9 @@
 <script>
 // ---------------- MQTT 3.1.1 over WebSocket（最小实现） ----------------
 const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-const UID = (new URLSearchParams(location.search).get('u') || '').trim();
+const QS  = new URLSearchParams(location.search);
+const UID = (QS.get('u') || '').trim();
+const KEY = (QS.get('k') || '').trim();
 const TOPIC_STATE = 'mumuguard/' + UID + '/state';
 const TOPIC_CMD   = 'mumuguard/' + UID + '/cmd';
 
@@ -156,10 +158,31 @@ function connect(){
   ws.onerror = () => { setConn(false, '连接出错'); };
 }
 
-function send(cmd){
+
+let hmacKey = null;
+function hexToBytes(hex){
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i*2, 2), 16);
+  return out;
+}
+async function ensureKey(){
+  if (hmacKey || !KEY) return hmacKey;
+  hmacKey = await crypto.subtle.importKey('raw', hexToBytes(KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hmacKey;
+}
+function bufToHex(buf){
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function send(cmd){
   if (!connected) return;
-  try { ws.send(PUB(TOPIC_CMD, JSON.stringify({ cmd }))); toast('已发送'); }
-  catch(e){ toast('发送失败'); }
+  if (!KEY) { toast('缺少配对密钥，请重新扫码'); return; }
+  try {
+    const ts = Math.floor(Date.now() / 1000);
+    const key = await ensureKey();
+    const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(cmd + '|' + ts));
+    ws.send(PUB(TOPIC_CMD, JSON.stringify({ cmd, ts, sig: bufToHex(sigBuf) })));
+    toast('已发送');
+  } catch(e){ toast('发送失败'); }
 }
 
 // ---------------- 渲染 ----------------

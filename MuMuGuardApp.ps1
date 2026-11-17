@@ -228,6 +228,7 @@ $defaultCfg = [ordered]@{
     RemotePort       = 8787
     RemoteToken      = ''
     OutboundUid      = ''
+    OutboundKey      = ''
     OutboundBroker   = 'broker.emqx.io'
     OutboundPort     = 8883
     OutboundEnabled  = $false

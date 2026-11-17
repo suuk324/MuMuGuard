@@ -571,7 +571,8 @@ function Show-RemoteDialog {
 
         if ($enabled) {
             $btnPower.Content = '停止'
-            $btnRefresh.IsEnabled = $isLan
+            $btnRefresh.IsEnabled = $enabled
+            if ($isLan) { $btnRefresh.Content = '刷新令牌' } else { $btnRefresh.Content = '重新配对' }
             if ($isLan) {
                 $urls = @(Get-RemoteUrls)
                 $url = ''
@@ -627,14 +628,24 @@ function Show-RemoteDialog {
     })
     $btnRefresh.Add_Click({
         try {
-            $script:cfg.RemoteToken = New-RemoteToken
-            Save-Config
-            if ($script:cfg.RemoteEnabled) {
-                Stop-RemoteServer
-                [void](Start-RemoteServer)
+            if ($script:remoteMode -eq 'lan') {
+                $script:cfg.RemoteToken = New-RemoteToken
+                Save-Config
+                if ($script:cfg.RemoteEnabled) {
+                    Stop-RemoteServer
+                    [void](Start-RemoteServer)
+                }
+                Write-Diag '手机访问：令牌已刷新'
+            } else {
+                # 重新配对：换掉 uid 和密钥，旧二维码立刻作废
+                Stop-Outbound
+                $script:cfg.OutboundUid = New-OutboundUid
+                $script:cfg.OutboundKey = New-OutboundKey
+                Save-Config
+                if ($script:cfg.OutboundEnabled) { [void](Start-Outbound) }
+                Write-Diag '手机访问：已重新配对'
             }
-            Write-Diag '手机访问：令牌已刷新'
-        } catch { Write-Diag "刷新令牌失败: $($_.Exception.Message)" }
+        } catch { Write-Diag "刷新失败: $($_.Exception.Message)" }
         & $script:remoteRefreshUi
     })
 
@@ -644,6 +655,15 @@ function Show-RemoteDialog {
 
     $script:remoteDlg = $dlg
     & $script:remoteRefreshUi
-    [void]$dlg.Show()
+    [void]$dlg.ShowDialog()
+    # 面板是从 ShowDialog 里开的，直接 Show 容易被别的窗口压住，这里强制提到最前
+    try {
+        $dlg.Topmost = $true
+        $dlg.Activate()
+        $dlg.Focus()
+        $dlg.Topmost = $false
+        $dlg.Activate()
+    } catch { }
     try { $dlg.Activate() } catch { }
 }
+

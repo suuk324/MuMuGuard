@@ -30,17 +30,33 @@ function Get-OutboundUid {
     return $u
 }
 
+function New-OutboundKey {
+    $bytes = New-Object byte[] 16
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    return (($bytes | ForEach-Object { '{0:x2}' -f $_ }) -join '')
+}
+
+function Get-OutboundKey {
+    $k = ''
+    try { $k = [string]$script:cfg.OutboundKey } catch { }
+    if (-not $k) {
+        $k = New-OutboundKey
+        try { $script:cfg.OutboundKey = $k; Save-Config } catch { }
+    }
+    return $k
+}
+
 function Get-OutboundPageUrl {
     $base = ''
     try { $base = [string]$script:cfg.OutboundPage } catch { }
     if (-not $base) { $base = 'https://suuk324.github.io/MuMuGuard/remote/' }
     if ($base -notmatch '/$') { $base += '/' }
-    return ($base + '?u=' + (Get-OutboundUid))
+    return ($base + '?u=' + (Get-OutboundUid) + '&k=' + (Get-OutboundKey))
 }
 
 # 后台脚本：自包含，不依赖外部函数（runspace 里没有模块函数）
 $script:mqttScript = {
-    param($sync, $broker, $port, $uid, $clientId, $root)
+    param($sync, $broker, $port, $uid, $clientId, $root, $key)
 
     function Log([string]$m) {
         try { Add-Content -Path (Join-Path $root 'logs\outbound.log') -Value ('[{0:HH:mm:ss}] {1}' -f (Get-Date), $m) -Encoding UTF8 } catch { }
@@ -178,7 +194,26 @@ $script:mqttScript = {
                         if ($msg -and $msg.Topic -eq $topicCmd) {
                             $cmd = $null
                             try { $cmd = $msg.Body | ConvertFrom-Json } catch { }
+                            $valid = $false
                             if ($cmd -and $cmd.cmd) {
+                                # 校验 HMAC-SHA256(key, cmd + '|' + ts)，防止别人乱发指令
+                                try {
+                                    $expect = ''
+                                    $h = New-Object System.Security.Cryptography.HMACSHA256
+                                    $h.Key = [System.Text.Encoding]::UTF8.GetBytes($key)
+                                    $raw = [System.Text.Encoding]::UTF8.GetBytes(([string]$cmd.cmd + '|' + [string]$cmd.ts))
+                                    $expect = ([BitConverter]::ToString($h.ComputeHash($raw)) -replace '-', '').ToLower()
+                                    $h.Dispose()
+                                    $epoch = New-Object datetime 1970,1,1,0,0,0,([DateTimeKind]::Utc)
+                                    $nowTs = [double](([datetime]::UtcNow - $epoch).TotalSeconds)
+                                    $age = [Math]::Abs($nowTs - [double]$cmd.ts)
+                                    if ($expect -eq ([string]$cmd.sig).ToLower() -and $age -lt 300) { $valid = $true }
+                                } catch { }
+                            }
+                            if (-not $valid -and $cmd -and $cmd.cmd) {
+                                Log ('拒绝未签名指令: ' + $cmd.cmd)
+                            }
+                            if ($valid) {
                                 $item = [ordered]@{ cmd = "$($cmd.cmd)"; i = "$($cmd.i)"; at = (Get-Date).ToString('HH:mm:ss') }
                                 [void]$sync.RemoteQueue.Enqueue([pscustomobject]$item)
                             }
@@ -227,7 +262,7 @@ function Start-Outbound {
     $rs.Open()
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
-    [void]$ps.AddScript($script:mqttScript).AddArgument($sync).AddArgument($broker).AddArgument($port).AddArgument($uid).AddArgument($clientId).AddArgument($Root)
+    [void]$ps.AddScript($script:mqttScript).AddArgument($sync).AddArgument($broker).AddArgument($port).AddArgument($uid).AddArgument($clientId).AddArgument($Root).AddArgument((Get-OutboundKey))
     $handle = $ps.BeginInvoke()
 
     $script:mqttPs = $ps

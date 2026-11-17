@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B0E13">
+<title>MuMuGuard 远程</title>
+<style>
+  :root{--bg:#0B0E13;--card:#12161D;--line:#232A36;--text:#E8ECF2;--sub:#9BA5B4;--dim:#6B7485;--green:#3FB950;--amber:#D29922;--red:#F85149}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;padding:14px 14px 26px;max-width:640px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .brand{font-size:17px;font-weight:600}
+  .pill{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+  .dot.on{background:var(--green)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
+  .row+.row{border-top:1px solid rgba(35,42,54,.6)}
+  .name{font-size:15px}
+  .meta{font-size:12px;color:var(--sub);margin-top:2px}
+  .tag{font-size:12px;color:var(--sub);white-space:nowrap}
+  .tag.run{color:var(--green)}
+  .tag.off{color:var(--dim)}
+  .bar{height:8px;border-radius:6px;background:#1E242E;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--green);border-radius:6px;transition:width .4s}
+  .bar.hi>i{background:var(--amber)}
+  .kv{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:8px}
+  .title{font-size:12px;color:var(--dim);margin:0 0 6px 2px}
+  .ev{font-size:12px;color:var(--sub);padding:3px 0;font-variant-numeric:tabular-nums}
+  .ev b{color:var(--dim);font-weight:400;margin-right:8px}
+  .ev.warn{color:var(--amber)}.ev.err{color:var(--red)}
+  .empty{color:var(--dim);font-size:13px;padding:4px 0}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button{appearance:none;border:1px solid var(--line);background:#1A1F29;color:var(--text);border-radius:10px;padding:11px 8px;font-size:14px;font-family:inherit}
+  button:active{background:#232A36}
+  button.warn{color:var(--amber);border-color:#3A2F14}
+  button:disabled{opacity:.45}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1A1F29;border:1px solid var(--line);color:var(--text);padding:9px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  footer{text-align:center;color:var(--dim);font-size:11px;margin-top:14px}
+  .err{color:var(--red);font-size:12px;padding:6px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">MuMuGuard</div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="connText">未连接</span></div>
+</header>
+
+<div class="card" id="mainCard">
+  <div class="title">实例</div>
+  <div id="instances"><div class="empty">正在连接…</div></div>
+</div>
+
+<div class="card">
+  <div class="title">操作</div>
+  <div class="btns">
+    <button id="bGuard" disabled>看护</button>
+    <button id="bSleep" disabled>休眠</button>
+    <button id="bClean" disabled>立即清理</button>
+    <button id="bWakeAll" class="warn" disabled>全部唤醒</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="title">主机内存</div>
+  <div class="bar" id="membar"><i id="memfill" style="width:0%"></i></div>
+  <div class="kv"><span id="memUsed">--</span><span id="memTotal">--</span></div>
+</div>
+
+<div class="card"><div class="title">最近事件</div><div id="events"><div class="empty">暂无</div></div></div>
+
+<footer>通过公共中转连接 · 每 3 秒同步</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------------- MQTT 3.1.1 over WebSocket（最小实现） ----------------
+const BROKER = 'wss://broker.emqx.io:8084/mqtt';
+const UID = (new URLSearchParams(location.search).get('u') || '').trim();
+const TOPIC_STATE = 'mumuguard/' + UID + '/state';
+const TOPIC_CMD   = 'mumuguard/' + UID + '/cmd';
+
+function utf8(s){ return new TextEncoder().encode(s); }
+function mqStr(s){
+  const b = utf8(s), out = new Uint8Array(2 + b.length);
+  out[0] = (b.length >> 8) & 0xFF; out[1] = b.length & 0xFF;
+  out.set(b, 2); return out;
+}
+function encLen(n){
+  const out = [];
+  do { let b = n % 128; n = Math.floor(n / 128); if (n > 0) b |= 0x80; out.push(b); } while (n > 0);
+  return out;
+}
+function packet(type, ...parts){
+  let len = 0; parts.forEach(p => len += p.length);
+  const head = [type, ...encLen(len)];
+  const out = new Uint8Array(head.length + len);
+  out.set(head, 0);
+  let off = head.length;
+  parts.forEach(p => { out.set(p, off); off += p.length; });
+  return out;
+}
+const CONNECT = () => {
+  const cid = 'mmg-web-' + Math.random().toString(16).slice(2, 10);
+  return packet(0x10, mqStr('MQTT'), new Uint8Array([4, 2, 0, 60]), mqStr(cid));
+};
+const SUB = (id, topic) => packet(0x82, new Uint8Array([(id >> 8) & 0xFF, id & 0xFF]), mqStr(topic), new Uint8Array([0]));
+const PUB = (topic, payload) => packet(0x30, mqStr(topic), utf8(payload));
+
+let ws = null, connected = false, keepTimer = null;
+
+function setConn(ok, text){
+  connected = ok;
+  document.getElementById('dot').className = 'dot' + (ok ? ' on' : '');
+  document.getElementById('connText').textContent = text;
+  ['bGuard','bSleep','bClean','bWakeAll'].forEach(id => {
+    document.getElementById(id).disabled = !ok;
+  });
+}
+
+function connect(){
+  if (!UID) {
+    document.getElementById('instances').innerHTML = '<div class="err">缺少配对信息，请重新扫码</div>';
+    setConn(false, '未配对');
+    return;
+  }
+  try { ws = new WebSocket(BROKER, 'mqtt'); }
+  catch(e){ setConn(false, '连接失败'); return; }
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = () => {
+    const c = CONNECT();
+    ws.send(c);
+  };
+  ws.onmessage = (ev) => {
+    const d = new Uint8Array(ev.data);
+    if (!d.length) return;
+    const type = d[0] & 0xF0;
+    if (d[0] === 0x20) {                 // CONNACK
+      ws.send(SUB(1, TOPIC_STATE));
+      setConn(true, '已连接');
+      clearInterval(keepTimer);
+      keepTimer = setInterval(() => { try { ws.send(new Uint8Array([0xC0, 0])); } catch(e){} }, 30000);
+      return;
+    }
+    if (type === 0x30) {                 // PUBLISH
+      let i = 1, mult = 1, len = 0;
+      while (i < d.length) { const b = d[i++]; len += (b & 0x7F) * mult; mult *= 128; if (!(b & 0x80)) break; }
+      const tlen = (d[i] << 8) | d[i+1];
+      const topic = new TextDecoder().decode(d.slice(i+2, i+2+tlen));
+      const body = new TextDecoder().decode(d.slice(i+2+tlen, i+2+len));
+      if (topic === TOPIC_STATE) render(body);
+    }
+  };
+  ws.onclose = () => { setConn(false, '断开，重连中…'); setTimeout(connect, 3000); };
+  ws.onerror = () => { setConn(false, '连接出错'); };
+}
+
+function send(cmd){
+  if (!connected) return;
+  try { ws.send(PUB(TOPIC_CMD, JSON.stringify({ cmd }))); toast('已发送'); }
+  catch(e){ toast('发送失败'); }
+}
+
+// ---------------- 渲染 ----------------
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+let last = null;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+function render(raw){
+  let d = null;
+  try { d = JSON.parse(raw); } catch(e){ return; }
+  last = d;
+
+  const box = document.getElementById('instances');
+  if (!d.instances || !d.instances.length){
+    box.innerHTML = '<div class="empty">没有检测到实例</div>';
+  } else {
+    box.innerHTML = d.instances.map(it => {
+      let tag = '离线', cls = 'off', meta = '实例 ' + esc(it.i);
+      if (it.state === 'run'){ tag = '运行中'; cls = 'run'; if (it.extra) meta = esc(it.extra); }
+      else if (it.state === 'sleep'){ tag = it.wake ? ('休眠到 ' + it.wake) : '休眠中'; if (it.extra) meta = esc(it.extra); }
+      else if (it.state === 'unknown'){ tag = '未知'; }
+      if (it.judge && it.judge !== '正常') meta += ' · ' + esc(it.judge);
+      return '<div class="row"><div><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' +
+             '<div class="tag ' + cls + '">' + esc(tag) + '</div></div>';
+    }).join('');
+  }
+
+  const used = d.host ? d.host.used : 0, total = d.host ? d.host.total : 0;
+  const pct = total ? Math.min(100, Math.round(used / total * 100)) : 0;
+  document.getElementById('memfill').style.width = pct + '%';
+  document.getElementById('membar').className = 'bar' + (pct >= 85 ? ' hi' : '');
+  document.getElementById('memUsed').textContent = '已用 ' + (used/1024).toFixed(1) + ' GB';
+  document.getElementById('memTotal').textContent = '共 ' + (total/1024).toFixed(1) + ' GB';
+
+  const ev = document.getElementById('events');
+  if (!d.events || !d.events.length){
+    ev.innerHTML = '<div class="empty">今天还没有事件</div>';
+  } else {
+    ev.innerHTML = d.events.map(e => {
+      let cls = 'ev'; const m = String(e.m || '');
+      if (/失败|异常|掉线|未运行|错误/.test(m)) cls += ' err';
+      else if (/告警|偏高|接近|不足/.test(m)) cls += ' warn';
+      return '<div class="' + cls + '"><b>' + esc(e.t) + '</b>' + esc(m) + '</div>';
+    }).join('');
+  }
+}
+
+document.getElementById('bGuard').onclick = () => send('guard');
+document.getElementById('bSleep').onclick = () => send('sleep');
+document.getElementById('bClean').onclick = () => { if (confirm('立即清理？')) send('clean'); };
+document.getElementById('bWakeAll').onclick = () => { if (confirm('唤醒所有休眠实例？')) send('wakeall'); };
+
+connect();
+</script>
+</body>
+</html>

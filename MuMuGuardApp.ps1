@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update', '70-qr', '60-remote')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -227,6 +227,11 @@ $defaultCfg = [ordered]@{
     RemoteEnabled    = $false
     RemotePort       = 8787
     RemoteToken      = ''
+    OutboundUid      = ''
+    OutboundBroker   = 'broker.emqx.io'
+    OutboundPort     = 8883
+    OutboundEnabled  = $false
+    OutboundPage     = 'https://suuk324.github.io/MuMuGuard/remote/'
     # 自动恢复
     AutoRecover      = $true
     RecoverCheckSec  = 60
@@ -1478,6 +1483,10 @@ $remoteTimer.Add_Tick({
 })
 $remoteTimer.Start()
 
+if ($script:cfg.OutboundEnabled -eq $true) {
+    try { [void](Start-Outbound) } catch { Write-Diag "出站通道启动异常: $($_.Exception.Message)" }
+}
+
 if ($script:cfg.RemoteEnabled -eq $true) {
     try {
         if (-not (Start-RemoteServer)) { Write-Diag '远程服务未启动（详见日志）' }
@@ -1540,6 +1549,7 @@ $win.Add_Closed({
     $guardTimer.Stop()
     $recoverTimer.Stop()
     try { Stop-RemoteServer } catch { }
+    try { Stop-Outbound } catch { }
     $script:adbSync.Stop = $true
     try {
         if ($win.WindowState -eq 'Normal') {

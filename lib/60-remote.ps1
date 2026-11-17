@@ -498,7 +498,13 @@ $script:remoteXaml = @"
   </Window.Resources>
   <Viewbox Stretch="Uniform"><Border CornerRadius="12" Background="#0B0E13" BorderBrush="#232A36" BorderThickness="1" Padding="22">
     <StackPanel>
-      <TextBlock Text="手机访问" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" Margin="0,0,0,4"/>
+      <DockPanel Margin="0,0,0,6">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <Button x:Name="BtnModeLan" Content="局域网" Style="{StaticResource DlgBtn}" Padding="10,4,10,4" Margin="0,0,6,0"/>
+          <Button x:Name="BtnModeWan" Content="出门用" Style="{StaticResource DlgBtn}" Padding="10,4,10,4"/>
+        </StackPanel>
+        <TextBlock Text="手机访问" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+      </DockPanel>
       <TextBlock x:Name="TxtHint" Foreground="#6B7485" FontSize="11" TextWrapping="Wrap"
                  Width="330" HorizontalAlignment="Left" Margin="0,0,0,14"/>
       <Border x:Name="QrBox" Width="210" Height="210" Background="White" CornerRadius="8"
@@ -535,48 +541,79 @@ function Show-RemoteDialog {
     $txtUrl   = $dlg.FindName('TxtUrl')
     $btnPower = $dlg.FindName('BtnPower')
     $btnRefresh = $dlg.FindName('BtnRefresh')
+    $btnModeLan = $dlg.FindName('BtnModeLan')
+    $btnModeWan = $dlg.FindName('BtnModeWan')
+
+    $script:remoteMode = 'lan'
 
     $refreshUi = {
-        $enabled = [bool]$script:cfg.RemoteEnabled
+        $isLan = ($script:remoteMode -eq 'lan')
+        $btnModeLan.Foreground = if ($isLan) { Brush '#E8ECF2' } else { Brush '#6B7485' }
+        $btnModeWan.Foreground = if ($isLan) { Brush '#6B7485' } else { Brush '#E8ECF2' }
+
+        $enabled = if ($isLan) { [bool]$script:cfg.RemoteEnabled } else { [bool]$script:cfg.OutboundEnabled }
+        if ($isLan) {
+            $hint.Text = '手机扫下面的二维码，或直接输入网址。同一 WiFi 下即可访问。'
+        } else {
+            $hint.Text = '出门在外也能用：手机打开下面的地址（走公共中转，不需要同一 WiFi）。'
+        }
+
         if ($enabled) {
             $btnPower.Content = '停止'
-            $btnRefresh.IsEnabled = $true
-            $hint.Text = '手机扫下面的二维码，或直接输入网址。同一 WiFi 下即可访问。'
-            $urls = @(Get-RemoteUrls)
-            $url = ''
-            if ($urls.Count -gt 0) { $url = $urls[0].Url }
-            if ($url) {
+            $btnRefresh.IsEnabled = $isLan
+            if ($isLan) {
+                $urls = @(Get-RemoteUrls)
+                $url = ''
+                if ($urls.Count -gt 0) { $url = $urls[0].Url }
+                if ($url) {
+                    $txtUrl.Text = $url
+                    $qrBox.Visibility = 'Visible'
+                    try { $imgQr.Source = New-QrBitmap $url 8 3 } catch { $imgQr.Source = $null }
+                } else {
+                    $txtUrl.Text = '没有找到可用的局域网地址'
+                    $qrBox.Visibility = 'Collapsed'
+                }
+            } else {
+                $url = Get-OutboundPageUrl
                 $txtUrl.Text = $url
                 $qrBox.Visibility = 'Visible'
                 try { $imgQr.Source = New-QrBitmap $url 8 3 } catch { $imgQr.Source = $null }
-            } else {
-                $txtUrl.Text = '没有找到可用的局域网地址'
-                $qrBox.Visibility = 'Collapsed'
             }
         } else {
             $btnPower.Content = '启用'
             $btnRefresh.IsEnabled = $false
-            $hint.Text = '启用后，手机可以查看状态，并控制看护、休眠、清理。'
             $txtUrl.Text = ''
             $qrBox.Visibility = 'Collapsed'
         }
     }
 
+    $btnModeLan.Add_Click({ $script:remoteMode = 'lan'; & $refreshUi })
+    $btnModeWan.Add_Click({ $script:remoteMode = 'wan'; & $refreshUi })
     $btnPower.Add_Click({
         try {
-            if ([bool]$script:cfg.RemoteEnabled) {
-                Stop-RemoteServer
-                $script:cfg.RemoteEnabled = $false
+            if ($script:remoteMode -eq 'lan') {
+                if ([bool]$script:cfg.RemoteEnabled) {
+                    Stop-RemoteServer
+                    $script:cfg.RemoteEnabled = $false
+                } else {
+                    $script:cfg.RemoteEnabled = $true
+                    if (-not $script:cfg.RemoteToken) { $script:cfg.RemoteToken = New-RemoteToken }
+                    if (-not (Start-RemoteServer)) { $script:cfg.RemoteEnabled = $false }
+                }
             } else {
-                $script:cfg.RemoteEnabled = $true
-                if (-not $script:cfg.RemoteToken) { $script:cfg.RemoteToken = New-RemoteToken }
-                if (-not (Start-RemoteServer)) { $script:cfg.RemoteEnabled = $false }
+                if ([bool]$script:cfg.OutboundEnabled) {
+                    Stop-Outbound
+                    $script:cfg.OutboundEnabled = $false
+                } else {
+                    $script:cfg.OutboundEnabled = $true
+                    if (-not (Get-OutboundUid)) { $script:cfg.OutboundUid = New-OutboundUid }
+                    if (-not (Start-Outbound)) { $script:cfg.OutboundEnabled = $false }
+                }
             }
             Save-Config
         } catch { Write-Diag "切换手机访问失败: $($_.Exception.Message)" }
         & $refreshUi
     })
-
     $btnRefresh.Add_Click({
         try {
             $script:cfg.RemoteToken = New-RemoteToken

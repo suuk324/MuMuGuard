@@ -503,7 +503,7 @@ $script:remoteXaml = @"
           <Button x:Name="BtnModeLan" Content="局域网" Style="{StaticResource DlgBtn}" Padding="10,4,10,4" Margin="0,0,6,0"/>
           <Button x:Name="BtnModeWan" Content="出门用" Style="{StaticResource DlgBtn}" Padding="10,4,10,4"/>
         </StackPanel>
-        <TextBlock Text="手机访问" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+        <TextBlock x:Name="TxtTitle" Text="手机访问" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
       </DockPanel>
       <TextBlock x:Name="TxtHint" Foreground="#6B7485" FontSize="11" TextWrapping="Wrap"
                  Width="330" HorizontalAlignment="Left" Margin="0,0,0,14"/>
@@ -546,7 +546,18 @@ function Show-RemoteDialog {
 
     $script:remoteMode = 'lan'
 
-    $refreshUi = {
+    $script:remoteRefreshUi = {
+        $d = $script:remoteDlg
+        if (-not $d) { return }
+        $btnModeLan = $d.FindName('BtnModeLan')
+        $btnModeWan = $d.FindName('BtnModeWan')
+        $btnPower   = $d.FindName('BtnPower')
+        $btnRefresh = $d.FindName('BtnRefresh')
+        $hint       = $d.FindName('TxtHint')
+        $qrBox      = $d.FindName('QrBox')
+        $imgQr      = $d.FindName('ImgQr')
+        $txtUrl     = $d.FindName('TxtUrl')
+
         $isLan = ($script:remoteMode -eq 'lan')
         $btnModeLan.Foreground = if ($isLan) { Brush '#E8ECF2' } else { Brush '#6B7485' }
         $btnModeWan.Foreground = if ($isLan) { Brush '#6B7485' } else { Brush '#E8ECF2' }
@@ -587,8 +598,8 @@ function Show-RemoteDialog {
         }
     }
 
-    $btnModeLan.Add_Click({ $script:remoteMode = 'lan'; & $refreshUi })
-    $btnModeWan.Add_Click({ $script:remoteMode = 'wan'; & $refreshUi })
+    $btnModeLan.Add_Click({ $script:remoteMode = 'lan'; & $script:remoteRefreshUi })
+    $btnModeWan.Add_Click({ $script:remoteMode = 'wan'; & $script:remoteRefreshUi })
     $btnPower.Add_Click({
         try {
             if ($script:remoteMode -eq 'lan') {
@@ -612,7 +623,7 @@ function Show-RemoteDialog {
             }
             Save-Config
         } catch { Write-Diag "切换手机访问失败: $($_.Exception.Message)" }
-        & $refreshUi
+        & $script:remoteRefreshUi
     })
     $btnRefresh.Add_Click({
         try {
@@ -624,14 +635,15 @@ function Show-RemoteDialog {
             }
             Write-Diag '手机访问：令牌已刷新'
         } catch { Write-Diag "刷新令牌失败: $($_.Exception.Message)" }
-        & $refreshUi
+        & $script:remoteRefreshUi
     })
 
     $dlg.FindName('BtnClose').Add_Click({ $dlg.Close() })
     $dlg.Add_Closed({ $script:remoteDlg = $null })
-    $dlg.Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+    try { $dlg.FindName('TxtTitle').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } }) } catch { }
 
     $script:remoteDlg = $dlg
-    & $refreshUi
+    & $script:remoteRefreshUi
     [void]$dlg.Show()
+    try { $dlg.Activate() } catch { }
 }

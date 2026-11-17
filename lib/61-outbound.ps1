@@ -40,8 +40,12 @@ function Get-OutboundPageUrl {
 
 # 后台脚本：自包含，不依赖外部函数（runspace 里没有模块函数）
 $script:mqttScript = {
-    param($sync, $broker, $port, $uid, $clientId)
+    param($sync, $broker, $port, $uid, $clientId, $root)
 
+    function Log([string]$m) {
+        try { Add-Content -Path (Join-Path $root 'logs\outbound.log') -Value ('[{0:HH:mm:ss}] {1}' -f (Get-Date), $m) -Encoding UTF8 } catch { }
+    }
+    Log ('循环启动 ' + $broker + ':' + $port)
     $topicState = "mumuguard/$uid/state"
     $topicCmd   = "mumuguard/$uid/cmd"
 
@@ -148,6 +152,7 @@ $script:mqttScript = {
             $stream.Write($pkt, 0, $pkt.Length); $stream.Flush()
             [void](ReadPkt $stream)
 
+            Log 'CONNECT ok'
             $sync.OutboundOk = $true
             $sync.OutboundError = ''
             $lastPub = [datetime]::MinValue
@@ -185,11 +190,12 @@ $script:mqttScript = {
         } catch {
             $sync.OutboundOk = $false
             $sync.OutboundError = $_.Exception.Message
+            Log ('异常: ' + $_.Exception.Message)
         } finally {
             try { if ($ssl) { $ssl.Dispose() } } catch { }
             try { if ($client) { $client.Close() } } catch { }
         }
-        if (-not $sync.OutboundStop) { Start-Sleep -Seconds 5 }
+        if (-not $sync.OutboundStop) { Log '5 秒后重连'; Start-Sleep -Seconds 5 }
     }
     $sync.OutboundOk = $false
 }
@@ -221,7 +227,7 @@ function Start-Outbound {
     $rs.Open()
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
-    [void]$ps.AddScript($script:mqttScript).AddArgument($sync).AddArgument($broker).AddArgument($port).AddArgument($uid).AddArgument($clientId)
+    [void]$ps.AddScript($script:mqttScript).AddArgument($sync).AddArgument($broker).AddArgument($port).AddArgument($uid).AddArgument($clientId).AddArgument($Root)
     $handle = $ps.BeginInvoke()
 
     $script:mqttPs = $ps

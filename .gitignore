@@ -20,3 +20,6 @@ desktop.ini
 .vs/
 .vscode/
 *.swp
+remote-access.log
+remote-token.txt
+一键回退.ps1

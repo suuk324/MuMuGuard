@@ -356,6 +356,11 @@ Write-Host ''
 while ($true) {
     try {
         $client = $listener.AcceptTcpClient()
+        try {
+            $remote = $client.Client.RemoteEndPoint.ToString()
+            $line = '[{0:HH:mm:ss}] conn {1}' -f (Get-Date), $remote
+            [System.IO.File]::AppendAllText((Join-Path $Root 'remote-access.log'), $line + "`r`n", (New-Object System.Text.UTF8Encoding $false))
+        } catch { }
     } catch { break }
 
     try {

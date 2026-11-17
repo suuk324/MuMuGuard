@@ -82,6 +82,26 @@ function Build-RemoteState {
         }
     } catch { }
 
+    # 休眠中的实例进程已关闭，不会出现在上面的列表里，单独补进来
+    try {
+        $have = @{}
+        foreach ($x in @($list)) { $have["$($x.i)"] = $true }
+        foreach ($sl in @(Get-SleepList)) {
+            $si = "$($sl.Index)"
+            if (-not $si -or $have.ContainsKey($si)) { continue }
+            $wk = ''; $ex = ''
+            try { if ($sl.WakeAt) { $wk = ([datetime]$sl.WakeAt).ToString('HH:mm') } } catch { }
+            try { if ($sl.Upgrade) { $ex = [string]$sl.Upgrade } } catch { }
+            $sic = $null
+            try { if ($script:instanceMap -and $script:instanceMap.ContainsKey($si)) { $sic = $script:instanceMap[$si] } } catch { }
+            $nm = "实例 $si"
+            try { $dn = Get-InstanceDisplayName -Config $sic -Aliases $script:cfg.Aliases; if ($dn) { $nm = "$dn" } } catch { }
+            $list += [pscustomobject][ordered]@{
+                i = $si; name = $nm; state = 'sleep'; wake = $wk; extra = $ex; judge = '' ; mem = 0; cores = 0
+            }
+        }
+    } catch { }
+
     $hostInfo = [ordered]@{ used = 0; total = 0; avail = 0 }
     try {
         $mi = [MemInfo]::Get()

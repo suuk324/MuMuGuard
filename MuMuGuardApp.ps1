@@ -1426,7 +1426,9 @@ $timer.Add_Tick({
     $script:tickCount++
     # 通知后台采集：窗口不可见时降频
     try {
-        $script:adbSync.Idle = ($win.WindowState -eq 'Minimized') -or (-not $win.IsVisible)
+        # 开了远程（局域网或出门用）就别降频，否则手机端拿不到实例
+        $remoteOn = ($script:cfg.RemoteEnabled -eq $true) -or ($script:cfg.OutboundEnabled -eq $true)
+        $script:adbSync.Idle = (-not $remoteOn) -and (($win.WindowState -eq 'Minimized') -or (-not $win.IsVisible))
     } catch { }
     Update-Ui
     if ($script:tickCount % 6 -eq 0) {

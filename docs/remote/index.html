@@ -36,6 +36,12 @@
   button:active{background:#232A36}
   button.warn{color:var(--amber);border-color:#3A2F14}
   button:disabled{opacity:.45}
+  button.on{border-color:#2E6B45;background:#152219;color:#3FB950}
+  .sw{display:inline-flex;align-items:center;gap:7px}
+  .sw i{width:34px;height:19px;border-radius:10px;background:#2A3038;position:relative;transition:background .2s}
+  .sw i::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#6B7485;transition:transform .2s,background .2s}
+  .sw.on i{background:#1F4D30}
+  .sw.on i::after{transform:translateX(15px);background:#3FB950}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1A1F29;border:1px solid var(--line);color:var(--text);padding:9px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
   .toast.show{opacity:1}
   footer{text-align:center;color:var(--dim);font-size:11px;margin-top:14px}
@@ -48,6 +54,17 @@
   <div class="pill"><span class="dot" id="dot"></span><span id="connText">未连接</span></div>
 </header>
 
+<div class="card">
+  <div class="title">开关状态</div>
+  <div class="row">
+    <div><div class="name">看护</div><div class="meta" id="guardMeta">等待数据…</div></div>
+    <div class="sw" id="guardSw"><i></i></div>
+  </div>
+  <div class="row">
+    <div><div class="name">升级休眠</div><div class="meta" id="sleepMeta">等待数据…</div></div>
+    <div class="sw" id="sleepSw"><i></i></div>
+  </div>
+</div>
 <div class="card" id="mainCard">
   <div class="title">实例</div>
   <div id="instances"><div class="empty">正在连接…</div></div>
@@ -218,6 +235,20 @@ function render(raw){
   let d = null;
   try { d = JSON.parse(raw); } catch(e){ return; }
   last = d;
+
+  // 开关状态 + 按钮联动
+  const guardOn = !!d.guard, sleepOn = !!d.sleep;
+  document.getElementById('guardSw').className = 'sw' + (guardOn ? ' on' : '');
+  document.getElementById('guardMeta').textContent = guardOn ? '正在看护，掉线会自动重启' : '已暂停，不会自动处理';
+  document.getElementById('sleepSw').className = 'sw' + (sleepOn ? ' on' : '');
+  document.getElementById('sleepMeta').textContent = sleepOn ? '升级等待时会休眠模拟器' : '不启用休眠，一直挂着';
+  const bG = document.getElementById('bGuard'), bS = document.getElementById('bSleep');
+  bG.textContent = guardOn ? '看护 · 开' : '看护 · 关';
+  bG.className = guardOn ? 'on' : '';
+  bS.textContent = sleepOn ? '休眠 · 开' : '休眠 · 关';
+  bS.className = sleepOn ? 'on' : '';
+  const ts = d.ts ? new Date(d.ts * 1000) : null;
+  if (ts) document.getElementById('connText').textContent = '已连接 · ' + ts.toLocaleTimeString('zh-CN', {hour12:false});
 
   const box = document.getElementById('instances');
   if (!d.instances || !d.instances.length){

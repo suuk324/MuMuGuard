@@ -151,7 +151,7 @@ function connect(){
       const tlen = (d[i] << 8) | d[i+1];
       const topic = new TextDecoder().decode(d.slice(i+2, i+2+tlen));
       const body = new TextDecoder().decode(d.slice(i+2+tlen, i+2+len));
-      if (topic === TOPIC_STATE) render(body);
+      if (topic === TOPIC_STATE) onState(body);
     }
   };
   ws.onclose = () => { setConn(false, '断开，重连中…'); setTimeout(connect, 3000); };
@@ -193,6 +193,25 @@ function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+// ---- 状态校验：{"d":<原JSON>,"s":<HMAC>} ----
+let verifyChain = Promise.resolve();
+function onState(raw){
+  verifyChain = verifyChain.then(function(){ return handleState(raw); }).catch(function(){});
+}
+async function handleState(raw){
+  let env = null;
+  try { env = JSON.parse(raw); } catch(e){ return markBad(); }
+  if (!env || typeof env.d !== 'string' || typeof env.s !== 'string') return markBad();
+  const key = await ensureKey();
+  if (!key) return markBad();
+  const sig = bufToHex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(env.d)));
+  if (sig !== env.s.toLowerCase()) return markBad();
+  render(env.d);
+}
+function markBad(){
+  document.getElementById('instances').innerHTML = '<div class="err">数据校验失败：这条状态不是你的电脑发出的，已忽略</div>';
 }
 
 function render(raw){

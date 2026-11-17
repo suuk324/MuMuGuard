@@ -179,7 +179,13 @@ $script:mqttScript = {
                 if (($now - $lastPub).TotalSeconds -ge 2) {
                     $state = [string]$sync.RemoteState
                     if (-not $state) { $state = '{}' }
-                    $pkt = PubPkt $topicState $state
+                    # 状态也签名：{"d": <原状态JSON>, "s": <HMAC>}，手机端校验后才显示
+                    $h2 = New-Object System.Security.Cryptography.HMACSHA256
+                    $h2.Key = [System.Text.Encoding]::UTF8.GetBytes($key)
+                    $sig2 = ([BitConverter]::ToString($h2.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($state))) -replace '-', '').ToLower()
+                    $h2.Dispose()
+                    $env2 = '{"d":' + (ConvertTo-Json $state -Compress) + ',"s":"' + $sig2 + '"}'
+                    $pkt = PubPkt $topicState $env2
                     $stream.Write($pkt, 0, $pkt.Length); $stream.Flush()
                     $lastPub = $now
                 }

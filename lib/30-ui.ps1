@@ -182,7 +182,7 @@ function Sync-Compact($data, $hm) {
     if ($count -eq 0) {
         if (-not $script:cmpEmpty) {
             $tb = New-Object System.Windows.Controls.TextBlock
-            $tb.Text = "没有检测到 MuMu 实例`n请先确认模拟器已安装并启动过一次"
+            $tb.Text = if ($script:muMissing) { "没有找到 MuMu 安装`n请在「设置」里填写 MuMu 安装路径（例如 C:\Program Files\Netease\MuMu）" } else { "没有检测到 MuMu 实例`n请先确认模拟器已安装并启动过一次" }
             $tb.TextAlignment = "Center"
             $tb.HorizontalAlignment = "Center"
             $tb.VerticalAlignment = "Center"

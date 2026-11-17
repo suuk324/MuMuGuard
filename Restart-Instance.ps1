@@ -31,7 +31,43 @@ if (Test-Path $cfgPath) {
     } catch { }
 }
 
-$MuMuRoot = if ($cfg.MuMuRoot) { [string]$cfg.MuMuRoot } else { 'D:\Program Files\Netease\MuMu' }
+# 定位 MuMu 安装根（不假设任何盘符；找不到就返回空，不抛异常）
+function Find-MuMuRoot {
+    param([string]$Hint = '')
+    $ok = {
+        param($p)
+        if (-not $p) { return $false }
+        try {
+            $r = [System.IO.Path]::GetPathRoot($p)
+            if (-not $r -or -not (Test-Path -LiteralPath $r)) { return $false }
+            if (Test-Path -LiteralPath ([System.IO.Path]::Combine($p, 'nx_main\MuMuManager.exe'))) { return $true }
+            if ((Test-Path -LiteralPath ([System.IO.Path]::Combine($p, 'nx_device'))) -and (Test-Path -LiteralPath ([System.IO.Path]::Combine($p, 'vms')))) { return $true }
+        } catch { }
+        return $false
+    }
+    if ($Hint -and (& $ok $Hint)) { return $Hint }
+    try {
+        $ic = Join-Path $env:APPDATA 'Netease\MuMuPlayer\install_config.json'
+        if (Test-Path -LiteralPath $ic) {
+            $j = Get-Content -LiteralPath $ic -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($eng in $j.engines.PSObject.Properties) {
+                $d = [string]$eng.Value.player.install_dir
+                for ($i = 0; $i -lt 5 -and $d; $i++) {
+                    if (& $ok $d) { return $d }
+                    $d = Split-Path $d -Parent
+                }
+            }
+        }
+    } catch { }
+    $subs = @('Program Files\Netease\MuMu', 'Program Files (x86)\Netease\MuMu', 'Netease\MuMu', 'MuMu', 'Program Files\Netease\MuMuPlayer')
+    foreach ($drv in (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue)) {
+        foreach ($s in $subs) {
+            try { $p = Join-Path $drv.Root $s; if (& $ok $p) { return $p } } catch { }
+        }
+    }
+    return ''
+}
+$MuMuRoot = Find-MuMuRoot ([string]$cfg.MuMuRoot)
 $MuMuMgr  = Join-Path $MuMuRoot 'nx_main\MuMuManager.exe'
 $PkgScript = if ($cfg.PkgScript) { [string]$cfg.PkgScript } else { 'com.coc.zkqcode' }
 

@@ -177,9 +177,10 @@ $LogDir   = Join-Path $DataDir 'logs'
 $CfgPath  = Join-Path $DataDir 'config.json'
 $TrendFile = Join-Path $DataDir 'trend.json'
 $SleepFile = Join-Path $DataDir 'sleep.json'
-$MuMuRoot = 'D:\Program Files\Netease\MuMu'
-$AdbExe   = Join-Path $MuMuRoot 'nx_device\15.0\shell\adb.exe'
-$MuMuMgr  = Join-Path $MuMuRoot 'nx_main\MuMuManager.exe'
+# 安装目录留空，稍后用 Find-MuMuRoot 自动定位（不再假设 D 盘存在）
+$MuMuRoot = ''
+$AdbExe   = ''
+$MuMuMgr  = ''
 $PkgScript = 'com.coc.zkqcode'
 $PkgGame   = 'com.tencent.tmgp.supercell.clashofclans com.supercell.clashofclans'
 
@@ -233,7 +234,7 @@ $defaultCfg = [ordered]@{
     SleepMaxHours   = 168   # 最长休眠时长（小时）：CoC 升级经常几十小时，20 太小
     SleepMinHours   = 1     # 最短休眠时长（小时）：升级很快做完就别睡了，省得反复开关机
     # 路径与包名（可在设置里改）
-    MuMuRoot     = 'D:\Program Files\Netease\MuMu'
+    MuMuRoot     = ''
     PkgScript    = 'com.coc.zkqcode'
     PkgGame      = 'com.tencent.tmgp.supercell.clashofclans com.supercell.clashofclans'
     # 开机自启（可选，默认关闭）
@@ -283,10 +284,17 @@ if ($savedVer -lt $script:cfgVersion) {
 }
 
 # 用配置覆盖路径与包名
-if ($script:cfg.MuMuRoot) {
-    $MuMuRoot = [string]$script:cfg.MuMuRoot
-    if ($script:cfg.PkgScript) { $PkgScript = [string]$script:cfg.PkgScript }
-    if ($script:cfg.PkgGame)   { $PkgGame   = [string]$script:cfg.PkgGame }
+if ($script:cfg.PkgScript) { $PkgScript = [string]$script:cfg.PkgScript }
+if ($script:cfg.PkgGame)   { $PkgGame   = [string]$script:cfg.PkgGame }
+
+# 定位 MuMu：配置值 → install_config.json → 注册表 → 各真实磁盘（不会去碰不存在的盘）
+$MuMuRoot = Find-MuMuRoot ([string]$script:cfg.MuMuRoot)
+$script:muMissing = -not $MuMuRoot
+if ($MuMuRoot) {
+    if ([string]$script:cfg.MuMuRoot -ne $MuMuRoot) { $script:cfg.MuMuRoot = $MuMuRoot; Save-Config }
+    Write-Diag "MuMu 安装目录: $MuMuRoot"
+} else {
+    Write-Diag "未找到 MuMu 安装目录（配置值：'$($script:cfg.MuMuRoot)'）。请在设置里填写正确路径。"
 }
 
 # ---------------- 实例发现 ----------------

@@ -3,6 +3,88 @@
 # 实例发现与配置读取（适配多开、MuMu 12/15、自定义名称）
 # 供 MuMuGuardApp.ps1 dot-source（共享同一 $script: 作用域）
 
+# 判断某个目录是不是 MuMu 安装根（不抛异常，没有 D 盘也安全）
+function Test-MuMuRootPath {
+    param([string]$Path)
+    if (-not $Path) { return $false }
+    # 先确认盘符存在：Join-Path 对不存在的盘会抛 DriveNotFoundException
+    try {
+        $root = [System.IO.Path]::GetPathRoot($Path)
+        if (-not $root -or -not (Test-Path -LiteralPath $root)) { return $false }
+    } catch { return $false }
+    $combine = { param($a, $b) [System.IO.Path]::Combine($a, $b) }
+    try {
+        # 安装根的特征：nx_main\MuMuManager.exe，或同时存在 nx_device 与 vms
+        if (Test-Path -LiteralPath ([System.IO.Path]::Combine($Path, 'nx_main\MuMuManager.exe'))) { return $true }
+        if (Test-Path -LiteralPath ([System.IO.Path]::Combine($Path, 'MuMuManager.exe'))) { return $true }
+        $dev = Test-Path -LiteralPath ([System.IO.Path]::Combine($Path, 'nx_device'))
+        $vms = Test-Path -LiteralPath ([System.IO.Path]::Combine($Path, 'vms'))
+        if ($dev -and $vms) { return $true }
+    } catch { }
+    return $false
+}
+
+# 定位 MuMu 安装根：配置值 → install_config.json → 注册表 → 各磁盘常见位置
+# 关键：只探测真实存在的磁盘，避免「驱动器 D 不存在」这类报错
+function Find-MuMuRoot {
+    param([string]$Hint = '')
+
+    if ($Hint -and (Test-MuMuRootPath $Hint)) { return $Hint }
+
+    # 1) install_config.json 里登记的引擎路径（向上回溯找安装根）
+    try {
+        $ic = Join-Path $env:APPDATA 'Netease\MuMuPlayer\install_config.json'
+        if (Test-Path -LiteralPath $ic) {
+            $j = Get-Content -LiteralPath $ic -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($eng in $j.engines.PSObject.Properties) {
+                $p = $eng.Value.player
+                if (-not $p -or -not $p.install_dir) { continue }
+                $d = [string]$p.install_dir
+                for ($i = 0; $i -lt 5 -and $d; $i++) {
+                    if (Test-MuMuRootPath $d) { return $d }
+                    $d = Split-Path $d -Parent
+                }
+            }
+        }
+    } catch { }
+
+    # 2) 注册表卸载项（覆盖装在任意目录的情况）
+    try {
+        foreach ($k in @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        )) {
+            foreach ($e in (Get-ItemProperty $k -ErrorAction SilentlyContinue)) {
+                if ($e.DisplayName -notmatch 'MuMu') { continue }
+                $d = [string]$e.InstallLocation
+                if (-not $d) {
+                    $icon = [string]$e.DisplayIcon
+                    if ($icon) { $d = Split-Path ($icon.Trim('"')) -Parent }
+                }
+                for ($i = 0; $i -lt 5 -and $d; $i++) {
+                    if (Test-MuMuRootPath $d) { return $d }
+                    $d = Split-Path $d -Parent
+                }
+            }
+        }
+    } catch { }
+
+    # 3) 各真实磁盘上的常见位置
+    $subs = @(
+        'Program Files\Netease\MuMu', 'Program Files (x86)\Netease\MuMu',
+        'Netease\MuMu', 'MuMu', 'Program Files\Netease\MuMuPlayer',
+        'Program Files (x86)\Netease\MuMuPlayer', 'Netease\MuMuPlayer'
+    )
+    foreach ($drv in (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue)) {
+        foreach ($s in $subs) {
+            try {
+                $p = Join-Path $drv.Root $s
+                if (Test-MuMuRootPath $p) { return $p }
+            } catch { }
+        }
+    }
+    return ''
+}
 # 从 install_config.json 定位 MuMu 实际安装信息（支持 MuMu 12 / 15 等多引擎）
 function Get-MuMuInstallInfo {
     param([string]$Root)

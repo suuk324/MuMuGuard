@@ -350,10 +350,11 @@ function Invoke-AutoRecover {
                 $series = $null
                 if ($script:instanceMap -and $script:instanceMap.ContainsKey("$idx") -and $script:instanceMap["$idx"].Series) { $series = "$($script:instanceMap["$idx"].Series)" }
                 if (-not $series) {
-                    $hit = Get-ChildItem (Join-Path $MuMuRoot 'vms') -Directory -Filter ("MuMuPlayer-*-{0}" -f $idx) -ErrorAction SilentlyContinue | Select-Object -First 1
+                    $vmsPath = if ($MuMuRoot) { Join-Path $MuMuRoot 'vms' } else { '' }
+    $hit = if ($vmsPath -and (Test-Path -LiteralPath $vmsPath)) { Get-ChildItem -LiteralPath $vmsPath -Directory -Filter ("MuMuPlayer-*-{0}" -f $idx) -ErrorAction SilentlyContinue | Select-Object -First 1 } else { $null }
                     if ($hit -and $hit.Name -match 'MuMuPlayer-([\d\.]+)-') { $series = $Matches[1] } else { $series = '15.0' }
                 }
-                $cfgPath = Join-Path $MuMuRoot ("vms\MuMuPlayer-{0}-{1}\configs\vm_config.json" -f $series, $idx)
+                $cfgPath = if ($vmsPath) { Join-Path $vmsPath ("MuMuPlayer-{0}-{1}\configs\vm_config.json" -f $series, $idx) } else { '' }
                 if (Test-Path $cfgPath) {
                     $adbPort = (Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json).vm.nat.port_forward.adb.host_port
                 }

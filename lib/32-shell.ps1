@@ -482,7 +482,7 @@ function New-InstanceRowShell {
     $grid.Height = 54
     $grid.Margin = New-Object System.Windows.Thickness(12, 0, 10, 0)
 
-    foreach ($w in @('Auto', '*', 'Auto', '92', '68', '16')) {
+    foreach ($w in @('Auto', '*', 'Auto', '92', '96', '16')) {
         $cd = New-Object System.Windows.Controls.ColumnDefinition
         if ($w -eq '*') { $cd.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) }
         elseif ($w -eq 'Auto') { $cd.Width = [System.Windows.GridLength]::Auto }
@@ -582,9 +582,12 @@ function New-InstanceRowShell {
     $ts.Margin = New-Object System.Windows.Thickness(0, 1, 0, 0)
     $ts.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#6E6E78'))
     if ($IsSleep -and $Row.WakeAt) {
-        $tt.Text = $Row.WakeAt.ToString('HH:mm'); $ts.Text = '自动唤醒'
+        $wi = Get-WakeInfo $Row.WakeAt
+        $tt.Text = $wi.Main
+        $ts.Text = $wi.Sub
     } elseif ($IsOff) {
-        $tt.Text = '—'; $ts.Text = '无任务'
+        $tt.Text = '—'
+        $ts.Text = '无任务'
     } else {
         $tt.Text = $(if ($Row.UpLeft) { $Row.UpLeft -replace '^剩\s*', '' } else { '—' })
         $ts.Text = $(if ($Row.UpDone) { $Row.UpDone.ToString('HH:mm') + ' 完成' } else { '无任务' })

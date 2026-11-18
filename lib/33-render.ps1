@@ -94,6 +94,29 @@ function Initialize-Shell {
     if ($env:MMG_COMPACT -eq '1') { Set-View 'compact' } else { Set-View 'shell' }
 }
 
+
+# ---------- 唤醒时间：哪天 + 还剩多久 ----------
+function Get-WakeInfo {
+    param($WakeAt)
+    $w = $null
+    try { $w = [datetime]$WakeAt } catch { }
+    if (-not $w) { return @{ Main = '—'; Sub = '无任务' } }
+    $now = Get-Date
+    $days = [int]($w.Date - $now.Date).TotalDays
+    $hm = $w.ToString('HH:mm')
+    $main = switch ($days) {
+        0 { "今天 $hm" }
+        1 { "明天 $hm" }
+        -1 { "昨天 $hm" }
+        default { $w.ToString('M月d日 HH:mm') }
+    }
+    $span = $w - $now
+    if ($span.TotalMinutes -le 0) { $sub = '到时间了' }
+    elseif ($span.TotalHours -lt 1) { $sub = ('还有 {0} 分钟' -f [int][math]::Ceiling($span.TotalMinutes)) }
+    elseif ($span.TotalHours -lt 24) { $sub = ('还有 {0} 小时 {1} 分' -f [int][math]::Floor($span.TotalHours), $span.Minutes) }
+    else { $sub = ('还有 {0} 天 {1} 小时' -f [int][math]::Floor($span.TotalDays), $span.Hours) }
+    return @{ Main = $main; Sub = $sub }
+}
 # ---------- 小工具 ----------
 function New-ShellText {
     param([string]$Text, [double]$Size = 11, [string]$Color = '#9E9EA6', [string]$Weight = 'Normal')
@@ -300,7 +323,9 @@ function Render-ShellOverview {
     $next = $null
     if ($sleep.Count -gt 0) { $next = @($sleep | Sort-Object { [datetime]$_.WakeAt } | Select-Object -First 1) }
     $nw = $win.FindName('TxtNextWake')
-    if ($nw) { $nw.Text = $(if ($next) { ([datetime]$next[0].WakeAt).ToString('HH:mm') } else { '—' }) }
+    if ($nw) {
+        if ($next) { $wkI = Get-WakeInfo $next[0].WakeAt; $nw.Text = $wkI.Main + ' · ' + $wkI.Sub } else { $nw.Text = '—' }
+    }
     $tc = Get-TodayCounts
     $sd = $win.FindName('TxtSleepToday'); $sd2 = $win.FindName('TxtSleepToday2')
     if ($sd) { $sd.Text = "$($tc.sleep) 次" }
@@ -617,7 +642,7 @@ function Update-Ui {
             5 { Render-ShellSettings }
         }
     } catch {
-        Write-Diag ("界面刷新异常: " + $_.Exception.Message + " @ " + $_.InvocationInfo.ScriptLineNumber)
+        Write-Diag ("界面刷新异常: " + $_.Exception.Message + " @ " + $_.InvocationInfo.ScriptName + ":" + $_.InvocationInfo.ScriptLineNumber)
     }
 }
 

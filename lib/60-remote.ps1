@@ -61,6 +61,7 @@ function Build-RemoteState {
                 if ($r.PSObject.Properties.Name -contains 'Sleeping' -and $r.Sleeping) {
                     $state = 'sleep'
                     if ($r.WakeAt) { $wake = ([datetime]$r.WakeAt).ToString('HH:mm') }
+                    if ($r.WakeAt) { try { $wakeAt = ([datetime]$r.WakeAt).ToString('yyyy-MM-ddTHH:mm:ss') } catch { } }
                     if ($r.SleepUpgrade) { $extra = [string]$r.SleepUpgrade }
                 } elseif ($r.Online -eq $true) {
                     $state = 'run'
@@ -91,13 +92,14 @@ function Build-RemoteState {
             if (-not $si -or $have.ContainsKey($si)) { continue }
             $wk = ''; $ex = ''
             try { if ($sl.WakeAt) { $wk = ([datetime]$sl.WakeAt).ToString('HH:mm') } } catch { }
+            if ($sl.WakeAt) { try { $wakeAt2 = ([datetime]$sl.WakeAt).ToString('yyyy-MM-ddTHH:mm:ss') } catch { } }
             try { if ($sl.Upgrade) { $ex = [string]$sl.Upgrade } } catch { }
             $sic = $null
             try { if ($script:instanceMap -and $script:instanceMap.ContainsKey($si)) { $sic = $script:instanceMap[$si] } } catch { }
             $nm = "实例 $si"
             try { $dn = Get-InstanceDisplayName -Config $sic -Aliases $script:cfg.Aliases; if ($dn) { $nm = "$dn" } } catch { }
             $list += [pscustomobject][ordered]@{
-                i = $si; name = $nm; state = 'sleep'; wake = $wk; extra = $ex; judge = '' ; mem = 0; cores = 0
+                i = $si; name = $nm; state = 'sleep'; wake = $wk; wakeAt = "$wakeAt2"; extra = $ex; judge = '' ; mem = 0; cores = 0
             }
         }
     } catch { }
@@ -357,6 +359,29 @@ function Get-RemotePage {
 <script>
 const K = new URLSearchParams(location.search).get('k') || '';
 let lastState = null;
+function wakeInfo(it){
+  const raw = it.wakeAt || '';
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const n0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((d0 - n0) / 86400000);
+  const hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  let main;
+  if (days === 0) main = '今天 ' + hm;
+  else if (days === 1) main = '明天 ' + hm;
+  else if (days === -1) main = '昨天 ' + hm;
+  else main = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
+  const mins = Math.round((d - now) / 60000);
+  let sub;
+  if (mins <= 0) sub = '到时间了';
+  else if (mins < 60) sub = '还有 ' + mins + ' 分钟';
+  else if (mins < 1440) sub = '还有 ' + Math.floor(mins / 60) + ' 小时 ' + (mins % 60) + ' 分';
+  else sub = '还有 ' + Math.floor(mins / 1440) + ' 天 ' + Math.floor((mins % 1440) / 60) + ' 小时';
+  return { main: main, sub: sub };
+}
 const EVMAP = {CLEAN_CEF:'清理', SLEEP:'休眠', SLEEP_BG:'后台休眠', WAKE_MANUAL:'手动唤醒', WAKE_LATE:'补唤醒', AUTO_RECOVER:'自动恢复', AUTO_RESTART:'自动重启', RECOVER_OK:'恢复成功', RECOVER_FAIL:'恢复失败', LOW_MEM:'内存偏低', ALERT_MEM:'内存告警', ALERT_SCRIPT:'脚本告警', CEF_HIGH:'CEF 偏高', ROOT_FAIL:'权限失败', SLEEP_FAIL:'休眠失败'};
 function evText(s){ return String(s==null?'':s).replace(/^([A-Z][A-Z_]+)\s+/, function(x, c){ return (EVMAP[c] || c) + ' '; }); }
 
@@ -419,7 +444,7 @@ const _so = document.getElementById("statOff"); if(_so) _so.textContent = _off;
         else if(it.state === 'sleep'){ tag = '休眠'; cls = 'sleep'; if(it.extra) meta = esc(it.extra); }
         else if(it.state === 'unknown'){ tag = '未知'; cls = 'off'; }
         if(it.judge && it.judge !== '正常'){ meta += ' · ' + esc(it.judge); }
-        return '<div class="row"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' + '<div class="rt"><b>' + esc(it.state === 'sleep' ? (it.wake || '—') : (it.state === 'run' && it.extra ? String(it.extra).replace(/^剩\s*/, '') : '—')) + '</b><span>' + (it.state === 'sleep' ? '唤醒' : (it.state === 'run' ? '剩余' : '无任务')) + '</span></div>' +
+        return '<div class="row"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' + '<div class="rt"><b>' + esc(it.state === 'sleep' ? ((wakeInfo(it) || {}).main || it.wake || '—') : (it.state === 'run' && it.extra ? String(it.extra).replace(/^剩\s*/, '') : '—')) + '</b><span>' + (it.state === 'sleep' ? ((wakeInfo(it) || {}).sub || '唤醒') : (it.state === 'run' ? '剩余' : '无任务')) + '</span></div>' +
                '<div class="tag ' + cls + '">' + esc(tag) + '</div></div>';
       }).join('');
     }

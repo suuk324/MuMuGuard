@@ -229,12 +229,11 @@ function Get-ShellXaml {
           <!-- 右栏 -->
           <Grid Grid.Column="2">
             <Grid.RowDefinitions>
-              <RowDefinition Height="*"/>
-              <RowDefinition Height="*"/>
-              <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
               <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-
             <Border Grid.Row="0" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12">
               <StackPanel Margin="12,11,12,12">
                 <TextBlock Text="主机内存" FontSize="11" Foreground="{DynamicResource T_UI_T3}"/>
@@ -347,22 +346,21 @@ function Get-ShellXaml {
 
         <Grid x:Name="Page5" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
           <Border Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,14,0,0">
-            <StackPanel>
-              
-              <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="470">
-                <StackPanel x:Name="PnlSettings" Margin="16,0,16,14"/>
-              </ScrollViewer>
-              <TextBlock Text="工具" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,16,0,6"/>
-              <Border Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,14">
-                <StackPanel>
-                  <Border x:Name="BtnOpenLog" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="打开日志目录" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
-                  <Border Height="1" Background="#0DFFFFFF" Margin="14,0,14,0"/>
-                  <Border x:Name="BtnExportRep" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出诊断报告" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
-                  <Border Height="1" Background="#0DFFFFFF" Margin="14,0,14,0"/>
-                  <Border x:Name="BtnCheckUpd" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="检查更新" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
-                </StackPanel>
-              </Border>
-            </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Margin="16,14,16,20">
+                <StackPanel x:Name="PnlSettings"/>
+                <TextBlock Text="工具" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,18,0,6"/>
+                <Border Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1">
+                  <StackPanel>
+                    <Border x:Name="BtnOpenLog" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="打开日志目录" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                    <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
+                    <Border x:Name="BtnExportRep" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出诊断报告" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                    <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
+                    <Border x:Name="BtnCheckUpd" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="检查更新" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
           </Border>
         </Grid>
       </Grid>

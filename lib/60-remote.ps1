@@ -104,6 +104,27 @@ function Build-RemoteState {
         }
     } catch { }
 
+    # 把「已关机」的实例也补进列表，否则手机端总数会比桌面端少
+    try {
+        $have2 = @{}
+        foreach ($x in @($list)) { $have2["$($x.i)"] = $true }
+        $allIdx = @()
+        try { $allIdx = @($script:instanceMap.Keys) } catch { $allIdx = @() }
+        if ($allIdx.Count -eq 0) { try { $allIdx = @($script:instances | ForEach-Object { "$($_.Index)" }) } catch { } }
+        foreach ($ai in $allIdx) {
+            $as = "$ai"
+            if (-not $as -or $have2.ContainsKey($as)) { continue }
+            $anm = "实例 $as"
+            try {
+                $acf = $null
+                if ($script:instanceMap -and $script:instanceMap.ContainsKey($as)) { $acf = $script:instanceMap[$as] }
+                $dn2 = Get-InstanceDisplayName -Config $acf -Aliases $script:cfg.Aliases
+                if ($dn2) { $anm = "$dn2" }
+            } catch { }
+            $list += [pscustomobject][ordered]@{ i = $as; name = $anm; state = 'off'; wake = ''; extra = ''; judge = ''; mem = 0; cores = 0 }
+        }
+    } catch { }
+
     $hostInfo = [ordered]@{ used = 0; total = 0; avail = 0 }
     try {
         $mi = [MemInfo]::Get()
@@ -124,6 +145,9 @@ function Build-RemoteState {
                 try { $t = ([datetime]$_.Time).ToString('HH:mm:ss') } catch { $t = [string]$_.Time }
                 [pscustomobject][ordered]@{ t = $t; m = ([string]('{0} {1}' -f $_.Action, $_.Detail)).Trim() }
             })
+            # 最新的排在最前，和桌面端一致
+            $events = @($events)
+            if ($events.Count -gt 1) { [array]::Reverse($events) }
         }
     } catch { }
 

@@ -886,6 +886,22 @@ function Invoke-UiSelfTest {
         $lines += "PASS  四个弹窗配色完整"
     }
 
+    # 远程状态完整性：手机端总数必须等于桌面端实例总数
+    try {
+        $rs = Build-RemoteState
+        $ro = $rs | ConvertFrom-Json
+        $want = @($script:instanceMap.Keys).Count
+        $got = @($ro.instances).Count
+        if ($want -eq 0) { $lines += "SKIP  远程状态（还没扫到实例）" }
+        elseif ($got -lt $want) { $lines += "FAIL  远程状态实例数 $got < 桌面 $want" }
+        else { $lines += "PASS  远程状态实例数 $got = 桌面 $want" }
+        $gRun = @($ro.instances | Where-Object { $_.state -eq 'run' }).Count
+        $gSlp = @($ro.instances | Where-Object { $_.state -eq 'sleep' }).Count
+        $lines += "PASS  远程状态 运行 $gRun 休眠 $gSlp"
+    } catch {
+        $lines += "FAIL  远程状态  $($_.Exception.Message)"
+    }
+
     $lines += "===== 结束 ====="
     try { $lines | Set-Content -Path $log -Encoding UTF8 } catch { }
     $script:testNoCollect = $false

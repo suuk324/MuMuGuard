@@ -10,7 +10,7 @@ function Get-ShellXaml {
         Title="MuMuGuard" Width="1000" Height="700"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ResizeMode="CanMinimize" FontFamily="Microsoft YaHei UI" UseLayoutRounding="True" SnapsToDevicePixels="True">
+        ResizeMode="CanMinimize" FontFamily="Microsoft YaHei UI" UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display">
   <Window.Resources>
 
 
@@ -301,11 +301,12 @@ function Get-ShellXaml {
             <Grid Grid.Row="3">
               <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
               <Border Padding="0,6,0,6">
-                <StackPanel>
-                  <Grid Margin="12,7,12,7"><TextBlock Text="下一次唤醒" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtNextWake" Text="—" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
-                  <Border Height="1" Background="#0DFFFFFF" Margin="12,0,12,0"/>
-                  <Grid Margin="12,7,12,7"><TextBlock Text="今日休眠" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtSleepToday" Text="0 次" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
-                </StackPanel>
+              <StackPanel>
+                <Grid Margin="12,7,12,2"><TextBlock Text="下次唤醒" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtNextWake" Text="—" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
+                <TextBlock x:Name="TxtNextWakeSub" Text="" FontSize="9.5" Foreground="{DynamicResource T_UI_T3}" HorizontalAlignment="Right" Margin="12,0,12,6"/>
+                <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="12,0,12,0"/>
+                <Grid Margin="12,7,12,7"><TextBlock Text="今日休眠" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtSleepToday" Text="0 次" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
+              </StackPanel>
               </Border>
             </Grid>
           </Grid>
@@ -360,7 +361,7 @@ function Get-ShellXaml {
         <Grid x:Name="Page5" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
           <Grid Margin="0,14,0,0">
             <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
-              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" TextOptions.TextFormattingMode="Display">
                 <StackPanel Margin="16,14,16,20">
                   <StackPanel x:Name="PnlSettings"/>
                   <TextBlock Text="工具" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,18,0,6"/>
@@ -376,10 +377,10 @@ function Get-ShellXaml {
                         <Border x:Name="BtnExportCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出设置" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
                         <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
                         <Border x:Name="BtnResetCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="恢复默认设置" FontSize="12" Foreground="{DynamicResource T_UI_ERR}" VerticalAlignment="Center"/></Border>
-                      </StackPanel>
-                  </Grid>
                 </StackPanel>
-              </ScrollViewer>
+              </Grid>
+              </StackPanel>
+            </ScrollViewer>
           </Grid>
         </Grid>
       </Grid>

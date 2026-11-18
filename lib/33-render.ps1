@@ -325,8 +325,16 @@ function Render-ShellOverview {
     $next = $null
     if ($sleep.Count -gt 0) { $next = @($sleep | Sort-Object { [datetime]$_.WakeAt } | Select-Object -First 1) }
     $nw = $win.FindName('TxtNextWake')
+    $nws = $win.FindName('TxtNextWakeSub')
     if ($nw) {
-        if ($next) { $wkI = Get-WakeInfo $next[0].WakeAt; $nw.Text = $wkI.Main + ' · ' + $wkI.Sub } else { $nw.Text = '—' }
+        if ($next) {
+            $wkInfo = Get-WakeInfo $next[0].WakeAt
+            $nw.Text = $wkInfo.Main
+            if ($nws) { $nws.Text = $wkInfo.Sub }
+        } else {
+            $nw.Text = '—'
+            if ($nws) { $nws.Text = '' }
+        }
     }
     $tc = Get-TodayCounts
     $sd = $win.FindName('TxtSleepToday'); $sd2 = $win.FindName('TxtSleepToday2')

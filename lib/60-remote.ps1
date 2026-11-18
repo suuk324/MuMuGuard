@@ -247,7 +247,7 @@ function Get-RemotePage {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0B0E13">
+<meta name="theme-color" content="#17171A">
 <title>MuMuGuard</title>
 <style>
   :root{--bg:#17171A;--card:#2B2B30;--line:rgba(255,255,255,.10);--text:#F2F2F5;--sub:#9E9EA6;--dim:#6E6E78;--green:#34C759;--amber:#FF9F0A;--blue:#0A84FF;--red:#FF453A}
@@ -551,16 +551,16 @@ $script:remoteXaml = @"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False">
   <Window.Resources>
     <Style x:Key="DlgBtn" TargetType="Button">
-      <Setter Property="Background" Value="#1A1F29"/>
-      <Setter Property="Foreground" Value="#E8ECF2"/>
-      <Setter Property="BorderBrush" Value="#232A36"/>
+      <Setter Property="Background" Value="#2B2B30"/>
+      <Setter Property="Foreground" Value="#F2F2F5"/>
+      <Setter Property="BorderBrush" Value="#33FFFFFF"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Padding" Value="0,7,0,7"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border CornerRadius="8" Background="{TemplateBinding Background}"
+            <Border CornerRadius="9" Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
@@ -569,22 +569,22 @@ $script:remoteXaml = @"
       </Setter>
     </Style>
   </Window.Resources>
-  <Viewbox Stretch="Uniform"><Border CornerRadius="12" Background="#0B0E13" BorderBrush="#232A36" BorderThickness="1" Padding="22">
+  <Viewbox Stretch="Uniform"><Border CornerRadius="14" Background="#232327" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="22">
     <StackPanel>
       <DockPanel Margin="0,0,0,6">
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
           <Button x:Name="BtnModeLan" Content="局域网" Style="{StaticResource DlgBtn}" Padding="10,4,10,4" Margin="0,0,6,0"/>
           <Button x:Name="BtnModeWan" Content="出门用" Style="{StaticResource DlgBtn}" Padding="10,4,10,4"/>
         </StackPanel>
-        <TextBlock x:Name="TxtTitle" Text="手机访问" Foreground="#E8ECF2" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+        <TextBlock x:Name="TxtTitle" Text="手机访问" Foreground="#F2F2F5" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
       </DockPanel>
-      <TextBlock x:Name="TxtHint" Foreground="#6B7485" FontSize="11" TextWrapping="Wrap"
+      <TextBlock x:Name="TxtHint" Foreground="#6E6E78" FontSize="11" TextWrapping="Wrap"
                  Width="330" HorizontalAlignment="Left" Margin="0,0,0,14"/>
       <Border x:Name="QrBox" Width="210" Height="210" Background="White" CornerRadius="8"
               HorizontalAlignment="Center" Margin="0,0,0,12">
         <Image x:Name="ImgQr" Width="186" Height="186" Stretch="Uniform"/>
       </Border>
-      <TextBlock x:Name="TxtUrl" Foreground="#9BA5B4" FontSize="10" TextWrapping="Wrap"
+      <TextBlock x:Name="TxtUrl" Foreground="#9E9EA6" FontSize="10" TextWrapping="Wrap"
                  Width="330" TextAlignment="Center" Margin="0,0,0,14"/>
       <Grid>
         <Grid.ColumnDefinitions>
@@ -632,8 +632,8 @@ function Show-RemoteDialog {
         $txtUrl     = $d.FindName('TxtUrl')
 
         $isLan = ($script:remoteMode -eq 'lan')
-        $btnModeLan.Foreground = if ($isLan) { Brush '#E8ECF2' } else { Brush '#6B7485' }
-        $btnModeWan.Foreground = if ($isLan) { Brush '#6B7485' } else { Brush '#E8ECF2' }
+        $btnModeLan.Foreground = if ($isLan) { Brush '#F2F2F5' } else { Brush '#6E6E78' }
+        $btnModeWan.Foreground = if ($isLan) { Brush '#6E6E78' } else { Brush '#F2F2F5' }
 
         $enabled = if ($isLan) { [bool]$script:cfg.RemoteEnabled } else { [bool]$script:cfg.OutboundEnabled }
         if ($isLan) {

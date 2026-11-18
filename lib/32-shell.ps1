@@ -249,28 +249,22 @@ function Get-ShellXaml {
             </Grid>
 
           <!-- 右栏 -->
-          <StackPanel Grid.Column="2">
-            <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1">
+          <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,0,0,12">
               <StackPanel Margin="12,11,12,12">
                 <TextBlock Text="主机内存" FontSize="11" Foreground="{StaticResource T3}"/>
                 <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                   <TextBlock x:Name="TxtMemUsed" Text="0.0" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource T1}"/>
                   <TextBlock x:Name="TxtMemTotal" Text="/ 0 GB" FontSize="11" Foreground="{StaticResource T3}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
                 </StackPanel>
-                <Viewbox Height="46" Stretch="Fill" Margin="0,6,0,0">
-                  <Canvas Width="240" Height="46" ClipToBounds="True">
-                    <Path x:Name="TrendFill" Opacity="0.28">
-                      <Path.Fill>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                          <GradientStop Color="#0A84FF" Offset="0"/>
-                          <GradientStop Color="#000A84FF" Offset="1"/>
-                        </LinearGradientBrush>
-                      </Path.Fill>
-                    </Path>
-                    <Path x:Name="TrendLine" Stroke="{StaticResource Blue}" StrokeThickness="1.6"/>
-                  </Canvas>
-                </Viewbox>
-                <Border Height="5" CornerRadius="3" Background="#24FFFFFF" Margin="0,6,0,0">
+                <Border Height="5" CornerRadius="3" Background="#24FFFFFF" Margin="0,8,0,0">
                   <Border x:Name="MemBar" Width="0" Height="5" CornerRadius="3" Background="{StaticResource Blue}" HorizontalAlignment="Left"/>
                 </Border>
                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -282,10 +276,10 @@ function Get-ShellXaml {
               </StackPanel>
             </Border>
 
-            <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,12,0,0">
-              <StackPanel>
-                <TextBlock Text="快捷操作" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="12,10,12,8"/>
-                <Grid Margin="12,0,12,10">
+            <Border Grid.Row="1" Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,0,0,12">
+              <StackPanel Margin="0,12,0,12">
+                <TextBlock Text="快捷操作" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="12,0,12,8"/>
+                <Grid Margin="12,0,12,0">
                   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <Border x:Name="BtnGuardRun" Grid.Row="0" Grid.Column="0" CornerRadius="9" Background="#F2F2F5" Padding="0,9" Cursor="Hand">
@@ -304,30 +298,31 @@ function Get-ShellXaml {
               </StackPanel>
             </Border>
 
-            <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,12,0,0">
-              <StackPanel>
-                <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="12,14,12,0"/>
-                <Grid Margin="12,10,12,14">
+            <Border Grid.Row="2" Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,0,0,12">
+              <StackPanel Margin="0,12,0,12">
+                <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="12,0,12,8"/>
+                <Grid Margin="12,0,12,0">
                   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
                   <Border x:Name="HealthDot" Grid.Column="0" Width="26" Height="26" CornerRadius="13" Background="#2934C759" VerticalAlignment="Center">
                     <TextBlock x:Name="HealthGlyph" Text="✓" FontSize="13" Foreground="{StaticResource Green}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                    <TextBlock x:Name="TxtHealthTitle" Text="检查通过" FontSize="12.5" Foreground="{StaticResource T1}"/>
-                    <TextBlock x:Name="TxtHealthSub" Text="系统服务与资源状态正常" FontSize="10" Foreground="{StaticResource T3}" Margin="0,1,0,0"/>
+                    <TextBlock x:Name="TxtHealthTitle" Text="检查通过" FontSize="12" Foreground="{StaticResource T1}"/>
+                    <TextBlock x:Name="TxtHealthSub" Text="系统服务与资源状态正常" FontSize="9.5" Foreground="{StaticResource T3}" Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>
                   </StackPanel>
                   <TextBlock Grid.Column="2" Text="›" FontSize="12" Foreground="#40FFFFFF" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                 </Grid>
               </StackPanel>
             </Border>
-            <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,12,0,0">
-              <StackPanel>
-                <Grid Margin="12,9,12,9"><TextBlock Text="下一次唤醒" FontSize="11" Foreground="{StaticResource T2}"/><TextBlock x:Name="TxtNextWake" Text="—" FontSize="11" Foreground="{StaticResource T1}" HorizontalAlignment="Right"/></Grid>
+
+            <Border Grid.Row="3" Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1">
+              <StackPanel Margin="0,6,0,6">
+                <Grid Margin="12,7,12,7"><TextBlock Text="下一次唤醒" FontSize="11" Foreground="{StaticResource T2}"/><TextBlock x:Name="TxtNextWake" Text="—" FontSize="11" Foreground="{StaticResource T1}" HorizontalAlignment="Right"/></Grid>
                 <Border Height="1" Background="#0DFFFFFF" Margin="12,0,12,0"/>
-                <Grid Margin="12,9,12,9"><TextBlock Text="今日休眠" FontSize="11" Foreground="{StaticResource T2}"/><TextBlock x:Name="TxtSleepToday" Text="0 次" FontSize="11" Foreground="{StaticResource T1}" HorizontalAlignment="Right"/></Grid>
+                <Grid Margin="12,7,12,7"><TextBlock Text="今日休眠" FontSize="11" Foreground="{StaticResource T2}"/><TextBlock x:Name="TxtSleepToday" Text="0 次" FontSize="11" Foreground="{StaticResource T1}" HorizontalAlignment="Right"/></Grid>
               </StackPanel>
             </Border>
-          </StackPanel>
+          </Grid>
           </Grid>
         </Grid>
 
@@ -376,7 +371,9 @@ function Get-ShellXaml {
           <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,14,0,0">
             <StackPanel>
               
-              <StackPanel x:Name="PnlSettings" Margin="16,0,16,14"/>
+              <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="470">
+                <StackPanel x:Name="PnlSettings" Margin="16,0,16,14"/>
+              </ScrollViewer>
               <TextBlock Text="工具" FontSize="10.5" Foreground="{StaticResource T3}" Margin="2,16,0,6"/>
               <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,0,0,14">
                 <StackPanel>

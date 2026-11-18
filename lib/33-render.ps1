@@ -84,6 +84,7 @@ function Initialize-Shell {
     if ($up) { $up.Add_MouseLeftButtonUp({ try { Invoke-UpdateCheckUI -Silent $false } catch { } }) }
     $rb = $Win.FindName('BtnRemoteOpen')
     if ($rb) { $rb.Add_MouseLeftButtonUp({ try { Show-RemoteDialog } catch { Write-Diag "手机访问窗口异常: $($_.Exception.Message)" } }) }
+    $na = $Win.FindName('NavAnnounce2'); if ($na) { $na.Add_MouseLeftButtonUp({ try { Show-Announcement -Force } catch { } }) }
     $root = $Win.FindName('Root')
     if ($root) { $root.Add_MouseLeftButtonDown({ try { $Win.DragMove() } catch { } }) }
 
@@ -254,6 +255,9 @@ function Render-ShellOverview {
     # 健康摘要
     $items = @(Get-Health $hm)
     $bad = @($items | Where-Object { -not $_.Ok })
+    $hl = $win.FindName('TxtHealthLine'); $hd = $win.FindName('HealthDot2')
+    if ($hl) { $hl.Text = '系统健康 · ' + $(if ($bad.Count -eq 0) { '检查通过' } else { "$($bad.Count) 项需处理" }) }
+    if ($hd) { $hd.Fill = Brush $(if ($bad.Count -eq 0) { '#34C759' } else { '#FF9F0A' }) }
     $gl = $win.FindName('HealthGlyph'); $ht = $win.FindName('TxtHealthTitle'); $hs = $win.FindName('TxtHealthSub')
     if ($ht) { $ht.Text = $(if ($bad.Count -eq 0) { '检查通过' } else { "$($bad.Count) 项需处理" }) }
     if ($hs) { $hs.Text = $(if ($bad.Count -eq 0) { '系统服务与资源状态正常' } else { ($bad | ForEach-Object { $_.Name }) -join '、' }) }
@@ -467,60 +471,94 @@ function Render-ShellSettings {
     $pnl.Children.Clear()
 
     $defs = @(
-        @{ K = 'AutoSleep';         L = '自动休眠';              T = 'bool' }
-        @{ K = 'SleepBackground';   L = '游戏切后台时也休眠';     T = 'bool' }
-        @{ K = 'SleepIdleMin';      L = '后台空闲判定';          T = 'min' }
-        @{ K = 'SleepLeadMin';      L = '提前唤醒';              T = 'min' }
-        @{ K = 'SleepMaxHours';     L = '最长休眠';              T = 'hour' }
-        @{ K = 'AutoRecover';       L = '掉线自动恢复';          T = 'bool' }
-        @{ K = 'RecoverCheckSec';   L = '检测间隔';              T = 'sec' }
-        @{ K = 'RecoverFailCount';  L = '连续几次判定掉线';       T = 'time' }
+        @{ K = 'AutoSleep';        L = '自动休眠';        D = '脚本在等升级时关掉模拟器省内存，升级前自动唤醒'; T = 'bool' }
+        @{ K = 'SleepBackground';  L = '后台也休眠';      D = '游戏退到后台时也允许休眠';                     T = 'bool' }
+        @{ K = 'SleepIdleMin';     L = '后台空闲判定';    D = '游戏退到后台多少分钟后才算「在等升级」';        T = 'min' }
+        @{ K = 'SleepLeadMin';     L = '提前唤醒';        D = '升级完成前多少分钟把模拟器打开';               T = 'min' }
+        @{ K = 'SleepMinHours';    L = '最短休眠';        D = '剩余时间短于这个值就不睡，省得反复开关机';      T = 'hour' }
+        @{ K = 'SleepMaxHours';    L = '最长休眠';        D = '剩余时间超过这个值就不睡（比如两天以上）';      T = 'hour' }
+        @{ K = 'AutoRecover';      L = '掉线自动恢复';    D = '脚本或游戏掉线时自动重启实例并重新拉起脚本';    T = 'bool' }
+        @{ K = 'RecoverCheckSec';  L = '检测间隔';        D = '每隔多少秒检查一次实例是否掉线';               T = 'sec' }
+        @{ K = 'RecoverFailCount'; L = '连续几次判定掉线'; D = '连续失败这么多次才重启，避免误判';              T = 'time' }
+        @{ K = 'CefAlert';         L = 'CEF 告警阈值';    D = '单个实例的 CEF 进程超过这个数就清理';           T = 'cnt' }
+        @{ K = 'LogKeepDays';      L = '日志保留';        D = '超过这个天数的日志会自动删除';                 T = 'day' }
     )
+
+    $first = $true
     foreach ($d in $defs) {
-        $g = New-Object System.Windows.Controls.Grid
-        $g.Height = 42
-        $cd0 = New-Object System.Windows.Controls.ColumnDefinition
-        $cd0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-        [void]$g.ColumnDefinitions.Add($cd0)
-        $cd1 = New-Object System.Windows.Controls.ColumnDefinition
-        $cd1.Width = [System.Windows.GridLength]::Auto
-        [void]$g.ColumnDefinitions.Add($cd1)
-        [void]$g.Children.Add((New-ShellText $d.L 12 '#F2F2F5'))
+        $row = New-Object System.Windows.Controls.Grid
+        $row.Height = 52
+        $row.Background = [System.Windows.Media.Brushes]::Transparent
+        $c0 = New-Object System.Windows.Controls.ColumnDefinition
+        $c0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+        $c1 = New-Object System.Windows.Controls.ColumnDefinition
+        $c1.Width = [System.Windows.GridLength]::Auto
+        [void]$row.ColumnDefinitions.Add($c0)
+        [void]$row.ColumnDefinitions.Add($c1)
+
+        $left = New-Object System.Windows.Controls.StackPanel
+        $left.VerticalAlignment = 'Center'
+        [void]$left.Children.Add((New-ShellText $d.L 12 '#F2F2F5'))
+        $sub = New-ShellText $d.D 9.5 '#6E6E78'
+        $sub.Margin = New-Object System.Windows.Thickness(0, 2, 0, 0)
+        [void]$left.Children.Add($sub)
+        [void]$row.Children.Add($left)
 
         $v = $script:cfg[$d.K]
+        $key = $d.K; $label = $d.L; $desc = $d.D
         if ($d.T -eq 'bool') {
             $on = [bool]$v
             $pill = New-Object System.Windows.Controls.Border
-            $pill.Width = 36; $pill.Height = 20
-            $pill.CornerRadius = [System.Windows.CornerRadius]::new(10)
+            $pill.Width = 38; $pill.Height = 22
+            $pill.CornerRadius = [System.Windows.CornerRadius]::new(11)
             $pill.Background = Brush $(if ($on) { '#34C759' } else { '#3A3A42' })
             $knob = New-Object System.Windows.Shapes.Ellipse
-            $knob.Width = 16; $knob.Height = 16
+            $knob.Width = 18; $knob.Height = 18
             $knob.Fill = Brush '#FFFFFF'
             $knob.HorizontalAlignment = $(if ($on) { 'Right' } else { 'Left' })
             $knob.Margin = New-Object System.Windows.Thickness(2, 0, 2, 0)
             $pill.Child = $knob
+            $pill.Cursor = 'Hand'
             [System.Windows.Controls.Grid]::SetColumn($pill, 1)
-            [void]$g.Children.Add($pill)
+            $pill.Add_MouseLeftButtonUp({
+                $script:cfg[$key] = -not [bool]$script:cfg[$key]
+                Save-Config
+                Update-Ui
+            })
+            [void]$row.Children.Add($pill)
         } else {
             $txt = switch ($d.T) {
                 'min'  { "$v 分钟" }
                 'hour' { "$v 小时" }
                 'sec'  { "$v 秒" }
+                'cnt'  { "$v 个" }
+                'day'  { "$v 天" }
                 default { "$v 次" }
             }
-            $t = New-ShellText $txt 12 '#6E6E78'
-            [System.Windows.Controls.Grid]::SetColumn($t, 1)
-            [void]$g.Children.Add($t)
+            $btn = New-Object System.Windows.Controls.Border
+            $btn.CornerRadius = [System.Windows.CornerRadius]::new(7)
+            $btn.Padding = New-Object System.Windows.Thickness(9, 4, 9, 4)
+            $btn.Background = Brush '#1AFFFFFF'
+            $btn.Cursor = 'Hand'
+            $btn.VerticalAlignment = 'Center'
+            $bt = New-ShellText $txt 11.5 '#E6E6EC'
+            $btn.Child = $bt
+            [System.Windows.Controls.Grid]::SetColumn($btn, 1)
+            $unit = switch ($d.T) { 'min' { '分钟' } 'hour' { '小时' } 'sec' { '秒' } 'cnt' { '个' } 'day' { '天' } default { '次' } }
+            $btn.Add_MouseLeftButtonUp({
+                Show-SettingInput -Key $key -Label $label -Desc $desc -Value $script:cfg[$key] -Unit $unit
+            })
+            [void]$row.Children.Add($btn)
         }
-        [void]$pnl.Children.Add($g)
+
+        [void]$pnl.Children.Add($row)
         $sep = New-Object System.Windows.Controls.Border
         $sep.Height = 1; $sep.Background = Brush '#0DFFFFFF'
         [void]$pnl.Children.Add($sep)
     }
 
     $foot = New-ShellText ("MuMu 安装目录：{0}    版本 {1}" -f $MuMuRoot, $script:appVersion) 10 '#6E6E78'
-    $foot.Margin = New-Object System.Windows.Thickness(0, 8, 0, 0)
+    $foot.Margin = New-Object System.Windows.Thickness(0, 10, 0, 0)
     [void]$pnl.Children.Add($foot)
 }
 
@@ -722,4 +760,64 @@ function Invoke-UiSelfTest {
     $lines += "===== 结束 ====="
     try { $lines | Set-Content -Path $log -Encoding UTF8 } catch { }
     $script:testNoCollect = $false
+}
+
+
+# ---------- 设置项编辑对话框 ----------
+function Show-SettingInput {
+    param([string]$Key, [string]$Label, [string]$Desc, $Value, [string]$Unit)
+
+    $cur = "$Value"
+    $xaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="修改" Width="360" Height="196"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Border x:Name="Root" CornerRadius="14" Background="#232327" BorderBrush="#33FFFFFF" BorderThickness="1">
+    <StackPanel Margin="20,18,20,16">
+      <TextBlock x:Name="Ttl" Text="修改" FontSize="14" FontWeight="SemiBold" Foreground="#F2F2F5"/>
+      <TextBlock x:Name="Dsc" Text="" FontSize="10.5" Foreground="#6E6E78" TextWrapping="Wrap" Margin="0,4,0,12"/>
+      <Border Background="#1A1A1E" CornerRadius="9" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="10,8">
+        <TextBox x:Name="Inp" Text="" FontSize="13" Foreground="#F2F2F5" Background="Transparent" BorderThickness="0"/>
+      </Border>
+      <TextBlock x:Name="Err" Text="" FontSize="10" Foreground="#FF6B6B" Margin="2,6,0,0"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+        <Border x:Name="BtnCancel" Background="#1AFFFFFF" CornerRadius="8" Padding="14,7" Margin="0,0,8,0" Cursor="Hand">
+          <TextBlock Text="取消" FontSize="11.5" Foreground="#E6E6EC"/>
+        </Border>
+        <Border x:Name="BtnOk" Background="#F2F2F5" CornerRadius="8" Padding="14,7" Cursor="Hand">
+          <TextBlock Text="保存" FontSize="11.5" Foreground="#1B1B1F" FontWeight="SemiBold"/>
+        </Border>
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>
+'@
+    $dlg = [Windows.Markup.XamlReader]::Parse($xaml)
+    $dlg.FindName('Ttl').Text = $Label
+    $dlg.FindName('Dsc').Text = $Desc
+    $dlg.FindName('Inp').Text = $cur
+    $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+    $dlg.FindName('BtnCancel').Add_MouseLeftButtonUp({ $dlg.Close() })
+    $dlg.FindName('BtnOk').Add_MouseLeftButtonUp({
+        $raw = $dlg.FindName('Inp').Text
+        $isNum = ($Value -ne $null) -and ("$($Value.GetType().Name)" -match 'Int|Double|Decimal')
+        $ok = $true; $v = $null
+        if ($isNum) {
+            $n = 0.0
+            if ([double]::TryParse($raw, [ref]$n)) { $v = $n } else { $ok = $false }
+        } else {
+            if ($raw -ne '') { $v = $raw } else { $ok = $false }
+        }
+        if (-not $ok) { $dlg.FindName('Err').Text = '请输入有效数字'; return }
+        try {
+            $script:cfg.$Key = $v
+            Save-Config
+            $dlg.Close()
+            Update-Ui
+        } catch { $dlg.FindName('Err').Text = "保存失败：$($_.Exception.Message)" }
+    }.GetNewClosure())
+    if ($script:shellWin) { try { $dlg.Owner = $script:shellWin } catch { } }
+    [void]$dlg.ShowDialog()
 }

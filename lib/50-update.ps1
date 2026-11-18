@@ -140,7 +140,7 @@ function Start-UpdateInstall([string]$NewFile, [string]$NewVersion = '') {
 
 # 检查更新（带界面提示）
 function Invoke-UpdateCheckUI([bool]$Silent) {
-    if (-not $Silent) { $txtInfo.Text = '正在检查更新…' }
+    if (-not $Silent) { try { if ($txtInfo) { $txtInfo.Text = '正在检查更新…' } } catch { } }
 
     $r = Test-UpdateAvailable
     if ($r.Error) {
@@ -179,7 +179,7 @@ function Invoke-UpdateCheckUI([bool]$Silent) {
     }
 
     try {
-        $txtInfo.Text = '正在下载更新…'
+    try { if ($txtInfo) { $txtInfo.Text = '正在下载更新…' } } catch { }
         $file = Save-UpdatePackage $r.Info
         Start-UpdateInstall $file $r.Remote
     } catch {

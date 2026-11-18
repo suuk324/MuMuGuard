@@ -86,6 +86,9 @@ function New-Tray {
     $miShow = New-Object System.Windows.Forms.ToolStripMenuItem('显示面板')
     $miShow.Add_Click({ Show-Panel })
 
+
+    $miAnnounce = New-Object System.Windows.Forms.ToolStripMenuItem('公告')
+    $miAnnounce.Add_Click({ try { Show-Announcement -Force } catch { } })
     # 分组标题：开关类
     $miGroupSwitch = New-Object System.Windows.Forms.ToolStripMenuItem('  开关')
     $miGroupSwitch.Enabled = $false
@@ -123,6 +126,7 @@ function New-Tray {
 
     [void]$menu.Items.Add($miTitle)
     [void]$menu.Items.Add($miShow)
+[void]$menu.Items.Add($miAnnounce)
     [void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
     [void]$menu.Items.Add($miGroupSwitch)
     [void]$menu.Items.Add($miGuard)

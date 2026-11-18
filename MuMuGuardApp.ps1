@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -262,6 +262,7 @@ $defaultCfg = [ordered]@{
     AutoUpdateCheck  = $true
     LastUpdateCheck  = ''
     SkippedVersion   = ''
+    AnnounceMuteDate = ''
     WindowLeft   = $null
     WindowTop    = $null
 }
@@ -909,6 +910,9 @@ $win.Add_Loaded({
     Update-Ui
     if ($script:viewMode -eq 'detail') { Sync-Trend }
     # 有休眠任务就确保唤醒进程在跑；错过时间的立即补唤醒
+    try {
+        if (Test-AnnounceDue) { Show-Announcement } else { Write-Diag '公告：今天已提醒过' }
+    } catch { Write-Diag "公告调用失败: $($_.Exception.Message)" }
     Invoke-CatchUpWake
     # 恢复上次的看护状态
     if ($script:cfg.GuardRunning -eq $true) {

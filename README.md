@@ -1,27 +1,31 @@
-<img src="icon.png" width="72" align="left" style="margin-right:12px" alt="MuMuGuard">
+<img src="icon.png" width="80" align="left" style="margin-right:14px" alt="MuMuGuard">
 
-# MuMuGuard · MuMu 模拟器看护面板
+# MuMuGuard
 
-给 MuMu 模拟器多开用的轻量监控与自动化工具。**打开就用，关掉即走**，不留后台服务。
+**MuMu 模拟器多开看护面板。** 盯着你的每一个实例，掉线自动重启，等升级期间自动休眠省内存，醒来自己接着跑。
 
-![版本](https://img.shields.io/badge/version-1.5.1-3DDC84)
-![CI](https://github.com/suuk324/MuMuGuard/actions/workflows/ci.yml/badge.svg)
+![版本](https://img.shields.io/badge/version-1.6.3-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
+![QQ 群](https://img.shields.io/badge/QQ%E7%BE%A4-1128379535-12B7F5)
+
+<br clear="left">
 
 ---
 
-## 界面
+## 长什么样
 
-**紧凑视图**（平时挂在角落，只占一小块）
+**概览** — 打开就是全部实例的状态
 
-![紧凑视图](docs/screenshots/compact.png)
+![概览](docs/screenshots/shell-live.png)
 
-实例多于一屏时自动切成列表。环的填充是内存占用，环里的大字是百分比，休眠中的实例显示唤醒时间。
+**紧凑视图** — 挂角落里，只占 344×182
 
-**详情视图**
+![紧凑视图](docs/screenshots/live-compact.png)
 
-![详情视图](docs/screenshots/detail.png)
+**手机上也能看**
+
+<img src="docs/screenshots/remote-phone.png" width="330" alt="手机页面">
 
 ---
 
@@ -29,15 +33,16 @@
 
 | 功能 | 说明 |
 |---|---|
-| **多开监控** | 自动发现所有实例，显示内存占用、CPU、CEF 进程数 |
-| **掉线自恢复** | 脚本或游戏掉线时自动重启实例并重新拉起脚本 |
-| **空转识别** | 脚本在跑但一直空转时标记出来 |
-| **CEF 泄漏清理** | 清理堆积的 `CefViewWing.exe`，释放被吃掉的几个 GB |
-| **升级休眠** | 脚本只是在等建筑升级时，自动关掉模拟器省内存，升级前自动唤醒 |
-| **健康自检** | 主机内存/提交内存/实例内存偏低时预警 |
-| **托盘常驻** | 收起后只在托盘留一个图标，唤醒器独立运行 |
+| **多开监控** | 自动发现所有实例，显示内存、CEF 进程数、脚本与游戏状态 |
+| **掉线自恢复** | 脚本或游戏掉了，自动重启实例并重新拉起脚本 |
+| **空转识别** | 脚本在跑但一直空转，标记出来 |
+| **CEF 泄漏清理** | 清掉堆积的 `CefViewWing.exe`，能还回几个 GB |
+| **升级休眠** | 脚本只是在等建筑升级时关掉模拟器省内存，升级前自动唤醒 |
+| **健康自检** | 内存压缩、SysMain、Mem Reduct、页面文件、CEF、权限，六项体检 |
+| **手机看状态** | 局域网直连，或公网中转，在外面也能看一眼 |
+| **托盘常驻** | 收起只留托盘图标，唤醒器独立运行 |
 
-**它不做什么**：不联网（除了检查更新）、不上传数据、不常驻服务、不修改 MuMu 本体。
+**它不做什么**：不上传你的数据、不常驻后台服务、不改 MuMu 本体、不动你的 6GB/6 核配置。
 
 ---
 
@@ -45,209 +50,129 @@
 
 ### 方式一：下载 exe（推荐）
 
-1. 到 [Releases](../../releases) 下载最新 `MuMuGuard.exe`
-2. 放到任意文件夹（建议不要放 `C:\Program Files`，避免权限问题）
+1. 到 [Releases](../../releases) 下载最新的 `MuMuGuard.exe`
+2. 放到任意文件夹（**别放 `C:\Program Files`**，会有权限问题）
 3. 双击运行
 
-首次启动会在同目录生成 `config.json`，并自动检测 MuMu 安装位置。
+首次启动会在同目录生成 `config.json`，并自动找到 MuMu 安装位置。
 
 ### 方式二：源码运行
 
 ```powershell
 git clone https://github.com/suuk324/MuMuGuard.git
 cd MuMuGuard
-# 双击 启动面板.vbs，或：
 powershell -STA -NoProfile -ExecutionPolicy Bypass -File .\MuMuGuardApp.ps1
 ```
 
-需要 PowerShell 5.1（Windows 10/11 自带）。
+需要 PowerShell 5.1（Windows 10/11 自带），不需要装任何东西。
+
+---
+
+## 第一次打开会看到公告
+
+每天第一次打开时弹一次，写着最近的改动和联系方式。
+
+- **关闭** — 关掉，下次打开还会出现
+- **今日不提醒** — 今天不再弹，明天恢复
+
+想再看一次：托盘图标右键 → **公告**。
+
+![公告](docs/screenshots/announce.png)
 
 ---
 
 ## 使用
 
-1. 先启动 MuMu 和要玩的脚本
-2. 打开 MuMuGuard，点 **启动看护**
-3. 点 **详情** 看每个实例的状态
-4. 不用了点 **停止看护**，或直接关窗口（会收进托盘）
+1. 先启动 MuMu 和你的脚本
+2. 打开 MuMuGuard，点侧栏的 **实例管理**，确认实例都被认出来了
+3. 点右上角开始看护
+4. 平时挂 **紧凑视图** 就行，要看细节点回完整面板
 
-> 看护是**手动开启**的。程序从不自动启动看护，也不写开机自启（除非你在设置里自己勾）。
+> 看护是**手动开启**的。程序从不自动启动看护，也不写开机自启（除非你在设置里自己打开）。
 
 ---
 
 ## 界面说明
 
+### 五个页面
+
+| 页面 | 放什么 |
+|---|---|
+| **概览** | 统计、实例列表、最近事件、主机内存曲线、健康摘要、今日统计 |
+| **实例管理** | 每个实例的检测开关，以及启动 / 唤醒 / 重启 |
+| **健康检查** | 六项系统体检，异常会标出来 |
+| **事件记录** | 完整日志，可按「告警 / 休眠」筛选 |
+| **设置** | 休眠规则、守护参数、告警阈值、路径 |
+
 ### 紧凑视图
 
-实例少时显示环形图：
+五个环一行排开：
 
-- **环的填充** = 该实例内存 / 它的内存上限
-- **环里的大字** = 内存百分比；休眠中的实例显示唤醒时间
-- **虚线圈** = 已暂停检测或休眠中
+- **蓝色进度环** = 运行中，中间是内存占用百分比
+- **琥珀色圈 + 睡** = 休眠中，脚注显示几点唤醒
+- **灰圈 + 关** = 已关机
 
-实例超过 5 个自动切成列表模式，每行显示名称、内存条、状态。
+### 手机页面
 
-### 详情视图
+| 方式 | 用途 |
+|---|---|
+| 局域网 | 手机和电脑同一个 Wi-Fi，扫码直接连，数据不出内网 |
+| 公网中转 | 不在家也能看，走 MQTT 中转，内容用 HMAC 签名，别人伪造不了 |
 
-每个实例一张卡片：
-
-- 紫孔雀 / 游戏 的运行状态
-- 剩余升级时间（如果能读到）
-- 判断结果：正常 / 脚本停止 / 空转 / CEF 泄漏 / 内存偏高
-- 单个实例的重启、检测开关
-
-底部是事件流、健康检查、内存趋势、全局开关和批量操作。
+四个按钮对应真实动作：看护开关、休眠开关、立即清理、全部唤醒。
 
 ---
 
 ## 配置
 
-首次运行自动生成 `config.json`，也可以点界面右下角 **设置** 修改。
+`config.json` 里常用的一项一行，也可以在 **设置** 页改。
 
-| 配置项 | 默认值 | 说明 |
+| 配置项 | 默认 | 说明 |
 |---|---|---|
 | `MemAlertMB` | 9216 | 实例内存告警阈值（读不到实例配置时的兜底） |
-| `CefAlert` | 20 | CEF 进程数超过这个值触发清理 |
+| `CefAlert` | 20 | CEF 进程数超过就触发清理 |
 | `CefStaleMin` | 10 | 只清理存在超过 N 分钟的 CEF |
-| `CpuAlert` | 4.0 | CPU 核数超过这个值标记为「CPU 偏高」 |
+| `CpuAlert` | 4.0 | CPU 核数超过标记「CPU 偏高」 |
 | `GuardMinute` | 5 | 看护清理间隔（分钟） |
 | `AutoRecover` | true | 掉线自动恢复 |
-| `AutoSleep` | false | 升级休眠（默认关闭，需要自己在设置里开） |
+| `RecoverCheckSec` | 60 | 掉线检测间隔（秒） |
+| `RecoverFailCount` | 2 | 连续几次判定掉线 |
+| `AutoSleep` | false | 升级休眠（默认关，需要自己开） |
+| `SleepBackground` | true | 游戏切到后台时也允许休眠 |
+| `SleepIdleMin` | 10 | 后台空闲多少分钟才判定在等升级 |
 | `SleepLeadMin` | 10 | 升级完成前多少分钟唤醒 |
-| `PkgScript` | `com.coc.zkqcode` | 你的脚本包名 |
-| `UpdateRepo` | `suuk324/MuMuGuard` | 检查更新用的仓库 |
-| `Theme` | `auto` | 界面主题：`auto` 跟随系统 / `dark` 深色 / `light` 浅色 |
-
-各实例的内存刻度会优先读 MuMu 自己的配置（`vms\...\vm_config.json` 的 `vm.memory`），所以 4G 和 6G 的实例刻度各自正确。
-
----
-
-## 需要 root 吗
-
-**不需要，但有了更好。**
-
-| 功能 | 无 root | 有 root |
-|---|---|---|
-| 内存 / CPU / 进程监控 | ✅ | ✅ |
-| 掉线恢复 | ✅ | ✅ |
-| CEF 清理 | ✅ | ✅ |
-| 升级剩余时间 | ❌ | ✅ |
-| 升级休眠 | ❌ | ✅ |
-
-升级时间是从游戏脚本写的 `memory.json` 里读的，需要读 `/storage/emulated/0/` 下的文件，所以要 root（KernelSU / Magisk 都行）。
+| `SleepMinHours` | 1 | 最短休眠时长，太短就不睡 |
+| `SleepMaxHours` | 168 | 最长休眠时长 |
+| `DetectOff` | [] | 不检测的实例号 |
+| `LogKeepDays` | 7 | 日志保留天数 |
+| `Theme` | auto | `auto` 跟随系统 / `dark` / `light` |
+| `UpdateRepo` | suuk324/MuMuGuard | 检查更新用的仓库 |
 
 ---
 
-## 杀软误报（重要，请先看这一段）
+## 常见问题
 
-程序会**结束进程**、**关闭模拟器**、**写注册表**（仅在你开启开机自启时）。这些行为可能被安全软件拦截，属于正常现象。
+**为什么读不到升级时间？**
+需要游戏在跑、脚本是 coc 的常用脚本（默认包名 `com.coc.zkqcode`）。配置里 `PkgScript` 改成你自己的包名。
 
-**为什么会误报**：exe 是用 PS2EXE 把 PowerShell 脚本封装成可执行文件。这个封装方式历史上被恶意软件用过，所以会被启发式扫描盯上。程序本身不上传任何数据，除了检查更新（只访问 GitHub）。
+**休眠后唤醒失败？**
+检查 MuMu 是不是以管理员身份运行、而面板不是——权限不一致会导致控制失效。健康检查页的「权限」会标出来，两边都管理员运行即可。
 
-### 遇到这三种情况，按下面的做
+**任务栏图标变成 PowerShell 的？**
+用 exe 启动就有独立图标；用脚本启动会显示 PowerShell 图标，正常。
 
-**1. 浏览器提示「已阻止不安全文件」**
-
-点「保留」→「仍然保留」。Edge / Chrome 都会这么提示。
-
-**2. 运行时弹出「Windows 已保护你的电脑」**
-
-点 **更多信息** → **仍要运行**。
-
-**3. Defender / 360 / 火绒 报毒并隔离**
-
-把 exe 所在文件夹加入白名单即可。以 Windows Defender 为例：
-
-```
-设置 → 隐私和安全性 → Windows 安全中心 → 病毒和威胁防护
-→ 病毒和威胁防护设置 → 管理设置 → 排除项 → 添加或删除排除项
-→ 添加文件夹 → 选择 MuMuGuard 所在目录
-```
-
-### 校验下载的文件是否完整
-
-每个版本都附带 `MuMuGuard.exe.sha256`。下载后在同一个文件夹打开 PowerShell：
-
-```powershell
-Get-FileHash .\MuMuGuard.exe -Algorithm SHA256
-```
-
-把结果和 `MuMuGuard.exe.sha256` 里的值对比，一致说明文件没有被篡改或损坏。
-
-**如果还是不放心**：可以直接跑源码（见[方式二](#方式二源码运行)），所有代码都在仓库里，能逐行检查。
----
-
-## 自动更新
-
-程序启动后会静默检查 GitHub Releases（24 小时一次），也可以从托盘菜单手动检查。
-
-发现新版本 → 下载 → 校验 SHA256 → 关闭程序 → 替换 → 重启。替换失败会自动回滚到 `.bak`。
-
-> 如果你在国内访问 GitHub 慢，可以在 `config.json` 里设 `UpdateMirror`，填一个加速前缀（如 `https://ghproxy.net/`）。
+**数据存在哪？**
+exe 同目录：`config.json`、`sleep.json`、`logs\`。不上传任何地方。
 
 ---
 
-## 已知限制
+## 反馈
 
-- **只支持 MuMu**（12 / 15 已测试），其它模拟器不识别
-- **Windows 10/11 only**，Win7 不支持
-- **实例名**读自 MuMu 的 `extra_config.json`，在 MuMu 多开器里改名后会跟着变
-- **CEF 泄漏本身是 MuMu 的问题**，本工具只能定期清理，治不了根
-- 10 个以上实例时，adb 采集会错峰轮询，数据有几秒到几十秒延迟
-
----
-
-## 开发
-
-```powershell
-# 检查编码（PS 5.1 需要 UTF-8 BOM）与语法
-.\Check-BOM.ps1
-.\Check-BOM.ps1 -Fix
-
-# 单元测试
-.\tests\Run-Tests.ps1
-
-# 打包（生成 exe + 源码包 + SHA256）
-.\build\release.ps1 -Version 1.0.1
-```
-
-### 文件结构
-
-```
-MuMuGuardApp.ps1     入口：配置、界面、事件绑定、定时器
-lib\90-pure.ps1      纯函数（可单测）
-lib\00-common.ps1    日志、配置、辅助脚本定位
-lib\05-instances.ps1 实例发现与配置读取
-lib\10-data.ps1      数据采集
-lib\20-actions.ps1   清理、恢复、休眠、批量操作
-lib\30-ui.ps1        界面渲染
-lib\40-tray.ps1      托盘与退出
-lib\50-update.ps1    检查更新
-Waker.ps1            独立唤醒进程
-Restart-Instance.ps1 重启实例并拉起脚本
-Update-Helper.ps1    更新替换助手
-build\               打包脚本
-tests\               单元测试
-```
-
-> **注意**：所有 `.ps1` 必须带 UTF-8 BOM。PowerShell 5.1 会把无 BOM 的文件按 GBK 解析，中文全乱、程序起不来。改完代码跑一次 `Check-BOM.ps1`。
+- 提 issue：[github.com/suuk324/MuMuGuard/issues](https://github.com/suuk324/MuMuGuard/issues)
+- QQ 群：**1128379535**（用久了有想法、想加功能，直接群里说）
 
 ---
 
 ## 许可
 
-[MIT](LICENSE)
-
-## 更新日志
-
-每个版本的改动见 [CHANGELOG.md](CHANGELOG.md)。
-
-## 分享给朋友
-
-直接发这个链接就行：`https://github.com/suuk324/MuMuGuard/releases/latest`
-
-群公告 / 安装说明 / 常见问题的话术已经写好：[docs/群公告.md](docs/群公告.md)
-
-## 致谢
-
-给紫孔雀脚本用户做的，但不限于此。欢迎提 issue 和 PR。
+MIT

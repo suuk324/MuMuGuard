@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    width:1000px;height:700px;overflow:hidden;
+    background:#07090D;color:#E8ECF2;
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    padding:24px;display:flex;flex-direction:column;
+  }
+  .num{font-family:Consolas,"Cascadia Mono",monospace;font-variant-numeric:tabular-nums}
+
+  header{display:flex;align-items:center;gap:12px;padding-bottom:16px}
+  h1{font-size:16px;font-weight:600;letter-spacing:.4px}
+  .ver{font-size:11px;color:#4E5666}
+  .spacer{flex:1}
+  .btn{height:30px;padding:0 14px;border-radius:8px;border:1px solid #232A36;
+       color:#9BA5B4;font-size:11px;display:flex;align-items:center}
+  .btn.on{background:#E8ECF2;border-color:#E8ECF2;color:#07090D;font-weight:600}
+
+  main{flex:1;display:grid;grid-template-columns:1fr 280px;gap:24px;min-height:0}
+
+  .card{
+    position:relative;background:#0E1218;border-radius:12px;padding:14px 16px 14px 22px;
+    margin-bottom:8px;overflow:hidden;
+  }
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#8E9AAA}
+  .card.live::before{background:#3FB950;box-shadow:0 0 16px rgba(63,185,80,.55)}
+  .card.off{opacity:.55}
+  .card.off .row2 .op{color:#6B7485;background:transparent;border-color:#232A36}
+  .card:last-child{margin-bottom:0}
+
+  .row1{display:flex;align-items:center;gap:8px}
+  .row1 .n{font-size:16px;font-weight:600}
+  .row1 .st{margin-left:auto;font-size:11px;color:#6B7485}
+  .card.live .row1 .st{color:#3FB950;font-weight:600}
+
+  .row2{display:flex;align-items:baseline;gap:12px;margin-top:6px}
+  .row2 .t{font-size:24px;font-weight:600;line-height:1;letter-spacing:-.5px}
+  .row2 .t.sleep{color:#B8C1CE}
+  .row2 .u{font-size:11px;color:#9BA5B4}
+  .row2 .op{margin-left:auto;font-size:11px;color:#6B7485;border:1px solid #232A36;
+            border-radius:8px;padding:5px 10px}
+  .card.live .row2 .op{color:#07090D;background:#E8ECF2;border-color:#E8ECF2;font-weight:600}
+
+  /* 右侧 */
+  .side{display:flex;flex-direction:column;gap:16px}
+  .panel{background:#0E1218;border-radius:12px;padding:16px}
+  .k{font-size:11px;color:#4E5666}
+  .v{font-size:24px;font-weight:600;line-height:1.1;margin-top:6px}
+  .v span{font-size:11px;font-weight:400;color:#4E5666;margin-left:4px}
+  .bar{height:4px;border-radius:2px;background:#1A1F28;margin-top:10px;overflow:hidden}
+  .bar i{display:block;height:100%;width:33%;background:#3FB950;box-shadow:0 0 12px rgba(63,185,80,.6)}
+  .health{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .h{font-size:11px;color:#9BA5B4;background:#141922;border-radius:8px;padding:3px 8px}
+  .h.bad{color:#F85149;background:#1E1114}
+
+  .ev{margin-top:12px;overflow:hidden}
+  .ev .l{display:flex;gap:10px;font-size:11px;padding:4px 0;border-bottom:1px solid #141922}
+  .ev time{color:#3E4652;font-family:Consolas,monospace;flex:0 0 42px}
+  .ev .t{color:#9BA5B4}
+  .ev .t.err{color:#F85149}
+</style></head>
+<body>
+  <header>
+    <h1>MuMuGuard</h1><span class="ver">v1.6.3</span>
+    <div class="spacer"></div>
+    <div class="btn">手机访问</div>
+    <div class="btn">设置</div>
+  </header>
+
+  <main>
+    <section>
+      <div class="card live">
+        <div class="row1"><span class="n">国服 微信</span><span class="st">运行中</span></div>
+        <div class="row2">
+          <span class="t num">2h 38m</span>
+          <span class="u">建筑大师训练营 Lv.11 · 22:23 完成</span>
+          <span class="op">检测中</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row1"><span class="n">国际服</span><span class="st">休眠中</span></div>
+        <div class="row2">
+          <span class="t num sleep">05:45</span>
+          <span class="u">部落城堡 Lv.2 · 自动唤醒</span>
+          <span class="op">唤醒</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row1"><span class="n">国服QQ</span><span class="st">休眠中</span></div>
+        <div class="row2">
+          <span class="t num sleep">11:17</span>
+          <span class="u">箭塔 Lv.13 · 自动唤醒</span>
+          <span class="op">唤醒</span>
+        </div>
+      </div>
+
+      <div class="card off">
+        <div class="row1"><span class="n">MuMu安卓设备-2</span><span class="st">已关机</span></div>
+        <div class="row2">
+          <span class="t num sleep">—</span>
+          <span class="u">没有升级任务</span>
+          <span class="op">启动</span>
+        </div>
+      </div>
+
+      <div class="card off">
+        <div class="row1"><span class="n">MuMu安卓设备-4</span><span class="st">已关机</span></div>
+        <div class="row2">
+          <span class="t num sleep">—</span>
+          <span class="u">没有升级任务</span>
+          <span class="op">启动</span>
+        </div>
+      </div>
+
+      <div class="ev">
+        <div class="k" style="margin-bottom:6px">事件</div>
+        <div class="l"><time>22:52</time><span class="t">内存检查通过，可用 2.9 GB</span></div>
+        <div class="l"><time>22:50</time><span class="t">清理 CEF 回收 0 个 ×24</span></div>
+        <div class="l"><time>22:41</time><span class="t">实例5 采集正常，adb 通道 mumu</span></div>
+        <div class="l"><time>22:21</time><span class="t">实例3 关机休眠，11:17 唤醒</span></div>
+        <div class="l"><time>22:20</time><span class="t">实例5 升级 建筑大师训练营 Lv.11，剩 2h38m</span></div>
+        <div class="l"><time>22:10</time><span class="t err">实例3 未运行，连续 1/2</span></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="panel">
+        <div class="k">主机内存</div>
+        <div class="v num">5.2<span>/ 15.7 GB</span></div>
+        <div class="bar"><i></i></div>
+      </div>
+      <div class="panel">
+        <div class="k">提交内存</div>
+        <div class="v num">21.5<span>GB</span></div>
+      </div>
+      <div class="panel">
+        <div class="k">健康检查</div>
+        <div class="health">
+          <span class="h">内存压缩</span><span class="h">SysMain</span>
+          <span class="h">Mem Reduct</span><span class="h">页面文件</span>
+          <span class="h">CEF 泄漏</span><span class="h">权限</span>
+        </div>
+      </div>
+    </aside>
+  </main>
+</body></html>

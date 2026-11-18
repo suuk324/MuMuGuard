@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    width:1000px;height:700px;overflow:hidden;
+    background:#0B0E13;color:#E8ECF2;
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    padding:24px;display:flex;flex-direction:column;
+  }
+  .num{font-family:Consolas,"Cascadia Mono",monospace;font-variant-numeric:tabular-nums}
+
+  /* 顶栏 */
+  header{display:flex;align-items:baseline;gap:12px;padding-bottom:16px;border-bottom:1px solid #232A36}
+  h1{font-size:16px;font-weight:600;letter-spacing:.3px}
+  .ver{font-size:11px;color:#6B7485}
+  .spacer{flex:1}
+  .actions{display:flex;gap:8px}
+  .btn{
+    height:28px;padding:0 12px;border-radius:8px;border:1px solid #232A36;
+    background:transparent;color:#9BA5B4;font-size:11px;font-family:inherit;
+    display:flex;align-items:center;cursor:default;
+  }
+  .btn.primary{background:#E8ECF2;border-color:#E8ECF2;color:#0B0E13;font-weight:600}
+
+  /* 主体：左表 + 右侧信息 */
+  main{flex:1;display:grid;grid-template-columns:1fr 300px;gap:24px;padding-top:16px;min-height:0}
+
+  .colhead{display:grid;grid-template-columns:16px 1fr 150px 90px 64px;gap:12px;
+           padding:0 0 8px;font-size:11px;color:#6B7485}
+  .row{display:grid;grid-template-columns:16px 1fr 150px 90px 64px;gap:12px;
+       align-items:center;padding:20px 0;border-bottom:1px solid #232A36}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .dot.ok{background:#3FB950;box-shadow:0 0 0 3px rgba(63,185,80,.12)}
+  .dot.sleep{background:#8E9AAA}
+  .dot.idle{background:#3A4250}
+  .row.off .name{color:#8B94A3}
+  .row.off .up{color:#4E5666}
+  .row.off .time{color:#4E5666}
+  .name{font-size:13px;color:#E8ECF2}
+  .sub{font-size:11px;color:#6B7485;margin-top:2px}
+  .up{font-size:13px;color:#9BA5B4}
+  .time{font-size:13px;color:#E8ECF2;text-align:right}
+  .time small{display:block;font-size:11px;color:#6B7485;margin-top:2px}
+  .op{font-size:11px;color:#9BA5B4;text-align:right}
+
+  /* 右侧 */
+  .side{display:flex;flex-direction:column;gap:24px}
+  .metric .k{font-size:11px;color:#6B7485}
+  .metric .v{font-size:24px;font-weight:600;line-height:1.1;margin-top:4px}
+  .metric .v span{font-size:11px;font-weight:400;color:#6B7485;margin-left:4px}
+  .bar{height:4px;border-radius:2px;background:#1D2430;margin-top:8px;overflow:hidden}
+  .bar i{display:block;height:100%;width:33%;background:#3FB950}
+  .health{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-top:8px}
+  .h{display:flex;align-items:center;gap:6px;font-size:11px;color:#9BA5B4}
+  .h i{width:5px;height:5px;border-radius:50%;background:#3FB950}
+
+  /* 事件 */
+  .events{margin-top:24px;border-top:1px solid #232A36;padding-top:12px;flex:0 0 auto}
+  .ehead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .ehead b{font-size:13px;font-weight:600}
+  .ehead .f{font-size:11px;color:#6B7485;margin-left:auto}
+  .ev{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:4px 0;font-size:11px}
+  .ev time{color:#4E5666;font-family:Consolas,monospace}
+  .ev .t{color:#9BA5B4}
+  .ev.err .t{color:#F85149}
+  .ev .n{color:#4E5666}
+</style></head>
+<body>
+  <header>
+    <h1>MuMuGuard</h1><span class="ver">v1.6.3</span>
+    <div class="spacer"></div>
+    <div class="actions">
+      <div class="btn">检查更新</div>
+      <div class="btn">手机访问</div>
+      <div class="btn">设置</div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="colhead"><span></span><span>实例</span><span>升级</span><span style="text-align:right">时间</span><span style="text-align:right">状态</span></div>
+
+      <div class="row">
+        <i class="dot ok"></i>
+        <div><div class="name">国服 微信</div><div class="sub">紫孔雀运行中 · 游戏运行中</div></div>
+        <div class="up">建筑大师训练营 Lv.11</div>
+        <div class="time">2h 38m<small>22:23 完成</small></div>
+        <div class="op">检测中</div>
+      </div>
+
+      <div class="row">
+        <i class="dot sleep"></i>
+        <div><div class="name">国际服</div><div class="sub">内存已释放</div></div>
+        <div class="up">部落城堡 Lv.2</div>
+        <div class="time" style="color:#8E9AAA">05:45<small>自动唤醒</small></div>
+        <div class="op">唤醒</div>
+      </div>
+
+      <div class="row">
+        <i class="dot sleep"></i>
+        <div><div class="name">国服QQ</div><div class="sub">内存已释放</div></div>
+        <div class="up">箭塔 Lv.13</div>
+        <div class="time" style="color:#8E9AAA">11:17<small>自动唤醒</small></div>
+        <div class="op">唤醒</div>
+      </div>
+      <div class="row off">
+        <i class="dot idle"></i>
+        <div><div class="name">MuMu安卓设备-2</div><div class="sub">已关机</div></div>
+        <div class="up">—</div>
+        <div class="time">—</div>
+        <div class="op">启动</div>
+      </div>
+
+      <div class="row off">
+        <i class="dot idle"></i>
+        <div><div class="name">MuMu安卓设备-4</div><div class="sub">已关机</div></div>
+        <div class="up">—</div>
+        <div class="time">—</div>
+        <div class="op">启动</div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="metric">
+        <div class="k">主机内存</div>
+        <div class="v num">5.2<span>/ 15.7 GB</span></div>
+        <div class="bar"><i></i></div>
+      </div>
+      <div class="metric">
+        <div class="k">提交内存</div>
+        <div class="v num">21.5<span>GB</span></div>
+      </div>
+      <div>
+        <div class="k" style="font-size:11px;color:#6B7485">健康检查</div>
+        <div class="health">
+          <div class="h"><i></i>内存压缩</div>
+          <div class="h"><i></i>SysMain</div>
+          <div class="h"><i></i>Mem Reduct</div>
+          <div class="h"><i></i>页面文件</div>
+          <div class="h"><i></i>CEF 泄漏</div>
+          <div class="h"><i></i>权限</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="events">
+    <div class="ehead"><b>事件</b><span class="f">近 30 条 · 同类合并</span></div>
+    <div class="ev"><time>22:52</time><span class="t">内存检查通过，可用 2.9 GB</span></div>
+    <div class="ev"><time>22:50</time><span class="t">清理 CEF 回收 0 个 <span class="n">×24</span></span></div>
+    <div class="ev"><time>22:41</time><span class="t">实例5 采集正常，adb 通道 mumu</span></div>
+    <div class="ev"><time>22:21</time><span class="t">实例3 关机休眠，11:17 唤醒（箭塔 Lv.13）</span></div>
+    <div class="ev"><time>22:20</time><span class="t">实例5 升级 建筑大师训练营 Lv.11，剩 2h38m</span></div>
+    <div class="ev err"><time>22:10</time><span class="t">实例3 未运行，连续 1/2</span></div>
+    <div class="ev err"><time>22:09</time><span class="t">实例3 自动重启</span></div>
+  </div>
+</body></html>

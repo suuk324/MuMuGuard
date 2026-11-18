@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --win:#232327; --side:#26262A; --panel:#2B2B30; --panel2:#303035;
+    --line:rgba(255,255,255,.075);
+    --t1:#F2F2F5; --t2:#9E9EA6; --t3:#6E6E78;
+    --green:#34C759; --amber:#FF9F0A; --blue:#0A84FF; --red:#FF453A;
+  }
+  body{
+    width:1000px;height:700px;overflow:hidden;
+    font-family:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif;
+    background:linear-gradient(145deg,#2A2A2E 0%,#1D1D20 60%,#191919 100%);
+    padding:14px;
+  }
+  .num{font-variant-numeric:tabular-nums}
+
+  .win{
+    width:100%;height:100%;border-radius:14px;overflow:hidden;display:flex;
+    background:linear-gradient(160deg,#26262B 0%,#1F1F23 100%);
+    border:1px solid rgba(255,255,255,.07);
+    box-shadow:0 24px 60px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+  }
+
+  /* 侧栏 */
+  .side{
+    width:186px;flex:0 0 186px;background:rgba(38,38,42,.9);
+    border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;
+  }
+  .lights{display:flex;gap:7px;margin:0 0 18px 6px}
+  .lights i{width:11px;height:11px;border-radius:50%}
+  .lights i:nth-child(1){background:#FF5F57}
+  .lights i:nth-child(2){background:#FEBC2E}
+  .lights i:nth-child(3){background:#28C840}
+
+  .brand{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:22px}
+  .brand .tile{width:52px;height:52px;border-radius:14px;
+    background:linear-gradient(#3A3A40,#2A2A30);border:1px solid rgba(255,255,255,.12);
+    display:flex;align-items:center;justify-content:center;font-size:20px;color:#E8E8EE;
+    box-shadow:0 6px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12)}
+  .brand b{font-size:15px;font-weight:600;letter-spacing:.2px}
+  .brand span{font-size:10.5px;color:var(--t3)}
+
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav a{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:8px;
+         font-size:12.5px;color:var(--t2);text-decoration:none}
+  .nav a.on{background:rgba(255,255,255,.09);color:var(--t1);font-weight:500}
+  .nav .g{width:15px;text-align:center;font-size:12px;opacity:.8}
+
+  /* 主区 */
+  .main{flex:1;padding:18px 20px 16px;display:flex;flex-direction:column;min-width:0}
+  .head{display:flex;align-items:flex-start;margin-bottom:14px}
+  .head h1{font-size:22px;font-weight:600;letter-spacing:.2px}
+  .head p{font-size:11.5px;color:var(--t3);margin-top:3px}
+  .head .sp{flex:1}
+  .hbtn{width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.06);
+        border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;
+        color:var(--t2);font-size:13px;margin-left:8px}
+
+  /* 统计卡 */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+  .stat{position:relative;overflow:hidden;border-radius:11px;padding:11px 12px;height:74px;
+        background:linear-gradient(160deg,#303036,#2A2A2F);border:1px solid var(--line)}
+  .stat .ic{width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+            font-size:11px;background:rgba(255,255,255,.09);color:#D8D8E0;margin-bottom:5px}
+  .stat .k{font-size:10.5px;color:var(--t3)}
+  .stat .v{font-size:19px;font-weight:600;line-height:1.1}
+  .stat::after{content:"";position:absolute;right:-34px;bottom:-44px;width:150px;height:96px;border-radius:50%;
+               background:radial-gradient(closest-side,rgba(130,175,255,.16),transparent 72%);transform:rotate(-12deg)}
+
+  /* 内容两栏 */
+  .body{flex:1;display:grid;grid-template-columns:1fr 246px;gap:12px;min-height:0}
+  .col{display:flex;flex-direction:column;gap:12px;min-height:0}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden}
+  .card .ct{display:flex;align-items:center;padding:9px 12px 7px}
+  .card .ct b{font-size:12.5px;font-weight:600}
+  .card .ct .sp{flex:1}
+  .card .ct .more{color:var(--t3);font-size:14px;letter-spacing:1px}
+
+  /* 实例行 */
+  .row{display:flex;align-items:center;gap:9px;padding:7px 12px;position:relative}
+  .row+.row::before{content:"";position:absolute;left:12px;right:12px;top:0;height:1px;background:rgba(255,255,255,.05)}
+  .ava{width:26px;height:26px;border-radius:8px;flex:0 0 26px;display:flex;align-items:center;justify-content:center;
+       font-size:12px;font-weight:600;color:#0C0C0D}
+  .ava.g{background:#3FD07A}.ava.b{background:#4FA8F5;color:#08121C}
+  .ava.p{background:#8E7BEF;color:#fff}.ava.d{background:#3A3A42;color:#9E9EA6}
+  .who{flex:1;min-width:0}
+  .who b{display:block;font-size:12.5px;font-weight:500;color:var(--t1)}
+  .who span{display:block;font-size:10.5px;color:var(--t3);margin-top:1px}
+  .pill{font-size:10px;padding:2px 8px;border-radius:20px;flex:0 0 auto}
+  .pill.run{background:rgba(52,199,89,.16);color:var(--green)}
+  .pill.sleep{background:rgba(255,159,10,.16);color:var(--amber)}
+  .pill.off{background:rgba(255,255,255,.08);color:var(--t2)}
+  .mem{width:86px;flex:0 0 86px}
+  .mem b{display:block;font-size:10.5px;color:var(--t2);margin-bottom:3px}
+  .mb{height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+  .mb i{display:block;height:100%;background:var(--blue);border-radius:2px}
+  .mb i.zero{width:0}
+  .tm{width:62px;flex:0 0 62px;text-align:right}
+  .tm b{display:block;font-size:12px;color:var(--t1)}
+  .tm span{display:block;font-size:9.5px;color:var(--t3);margin-top:1px}
+  .chev{color:rgba(255,255,255,.25);font-size:12px}
+
+  /* 内存卡 */
+  .memcard{padding:11px 12px 12px}
+  .memcard .k{font-size:11px;color:var(--t3)}
+  .memcard .v{font-size:24px;font-weight:600;margin-top:3px}
+  .memcard .v em{font-style:normal;font-size:11px;font-weight:400;color:var(--t3);margin-left:3px}
+  .spark{margin-top:6px;height:44px}
+  .track{height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:6px}
+  .track i{display:block;height:100%;width:33%;background:var(--blue);border-radius:3px}
+  .legend{display:flex;gap:12px;margin-top:8px;font-size:9.5px;color:var(--t3)}
+  .legend i{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:4px;vertical-align:middle}
+
+  /* 健康卡 */
+  .health{display:flex;align-items:center;gap:10px;padding:10px 12px 12px}
+  .health .ok{width:26px;height:26px;border-radius:50%;background:rgba(52,199,89,.18);color:var(--green);
+              display:flex;align-items:center;justify-content:center;font-size:13px}
+  .health b{display:block;font-size:12.5px;font-weight:500}
+  .health span{display:block;font-size:10px;color:var(--t3);margin-top:1px}
+  .health .chev{margin-left:auto}
+
+  .mini{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:11px;color:var(--t2)}
+  .mini+.mini{border-top:1px solid rgba(255,255,255,.05)}
+  .mini b{margin-left:auto;color:var(--t1);font-weight:500}
+
+  /* 事件 */
+  .ev{padding:2px 0 6px}
+  .e{display:flex;align-items:center;gap:9px;padding:5px 12px;font-size:11px;color:var(--t2)}
+  .e time{flex:0 0 40px;color:var(--t3);font-size:10.5px}
+  .e i{width:5px;height:5px;border-radius:50%;flex:0 0 5px}
+  .e.g i{background:var(--green)}.e.a i{background:var(--amber)}.e.r i{background:var(--red)}.e.n i{background:#5A5A64}
+  .e.r span{color:#FF8078}
+</style></head>
+<body>
+<div class="win">
+  <aside class="side">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="brand">
+      <div class="tile">◎</div>
+      <b>MuMuGuard</b>
+      <span>v1.6.3</span>
+    </div>
+    <nav class="nav">
+      <a class="on"><span class="g">▤</span>概览</a>
+      <a><span class="g">☰</span>实例管理</a>
+      <a><span class="g">♡</span>健康检查</a>
+      <a><span class="g">≡</span>事件记录</a>
+      <a><span class="g">⚙</span>设置</a>
+    </nav>
+  </aside>
+
+  <section class="main">
+    <div class="head">
+      <div>
+        <h1>晚上好</h1>
+        <p>5 个实例 · 1 个运行 · 2 个休眠</p>
+      </div>
+      <div class="sp"></div>
+      <div class="hbtn">↻</div>
+      <div class="hbtn">⋯</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="ic">▤</div><div class="k">实例总数</div><div class="v num">5</div></div>
+      <div class="stat"><div class="ic">▷</div><div class="k">运行中</div><div class="v num">1</div></div>
+      <div class="stat"><div class="ic">☾</div><div class="k">休眠中</div><div class="v num">2</div></div>
+      <div class="stat"><div class="ic">⏻</div><div class="k">已关闭</div><div class="v num">2</div></div>
+    </div>
+
+    <div class="body">
+      <div class="col">
+        <div class="card">
+          <div class="ct"><b>实例监控</b><div class="sp"></div><span class="more">⋯</span></div>
+
+          <div class="row">
+            <div class="ava g">微</div>
+            <div class="who"><b>国服 微信</b><span>紫孔雀运行中 · 游戏运行中</span></div>
+            <span class="pill run">运行中</span>
+            <div class="mem"><b class="num">1.8 GB</b><div class="mb"><i style="width:56%"></i></div></div>
+            <div class="tm"><b class="num">2:38</b><span>22:23 完成</span></div>
+            <span class="chev">›</span>
+          </div>
+
+          <div class="row">
+            <div class="ava b">际</div>
+            <div class="who"><b>国际服</b><span>内存已释放</span></div>
+            <span class="pill sleep">休眠</span>
+            <div class="mem"><b class="num">0.6 GB</b><div class="mb"><i class="zero"></i></div></div>
+            <div class="tm"><b class="num">05:45</b><span>自动唤醒</span></div>
+            <span class="chev">›</span>
+          </div>
+
+          <div class="row">
+            <div class="ava p">Q</div>
+            <div class="who"><b>国服QQ</b><span>内存已释放</span></div>
+            <span class="pill sleep">休眠</span>
+            <div class="mem"><b class="num">0.7 GB</b><div class="mb"><i class="zero"></i></div></div>
+            <div class="tm"><b class="num">11:17</b><span>自动唤醒</span></div>
+            <span class="chev">›</span>
+          </div>
+
+          <div class="row">
+            <div class="ava d">2</div>
+            <div class="who"><b>MuMu安卓设备-2</b><span>已关机</span></div>
+            <span class="pill off">关闭</span>
+            <div class="mem"><b class="num">—</b><div class="mb"><i class="zero"></i></div></div>
+            <div class="tm"><b>—</b><span>无任务</span></div>
+            <span class="chev">›</span>
+          </div>
+
+          <div class="row">
+            <div class="ava d">4</div>
+            <div class="who"><b>MuMu安卓设备-4</b><span>已关机</span></div>
+            <span class="pill off">关闭</span>
+            <div class="mem"><b class="num">—</b><div class="mb"><i class="zero"></i></div></div>
+            <div class="tm"><b>—</b><span>无任务</span></div>
+            <span class="chev">›</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ct"><b>事件记录</b><div class="sp"></div><span class="more" style="font-size:10.5px">查看全部 ›</span></div>
+          <div class="ev">
+            <div class="e g"><time>22:52</time><i></i><span>内存检查通过，可用 2.9 GB</span></div>
+            <div class="e n"><time>22:50</time><i></i><span>清理 CEF 回收 0 个（今日 24 次）</span></div>
+            <div class="e a"><time>22:21</time><i></i><span>实例 3 关机休眠，11:17 唤醒</span></div>
+            <div class="e r"><time>22:10</time><i></i><span>实例 3 未运行，连续 1/2</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card">
+          <div class="memcard">
+            <div class="k">主机内存</div>
+            <div class="v num">5.2<em>/ 15.7 GB</em></div>
+            <svg class="spark" viewBox="0 0 220 44" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#0A84FF" stop-opacity=".38"/>
+                  <stop offset="1" stop-color="#0A84FF" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M0,34 C18,30 30,20 48,22 C66,24 76,34 96,30 C116,26 126,12 148,14 C170,16 184,8 220,4 L220,44 L0,44 Z" fill="url(#sg)"/>
+              <path d="M0,34 C18,30 30,20 48,22 C66,24 76,34 96,30 C116,26 126,12 148,14 C170,16 184,8 220,4" fill="none" stroke="#0A84FF" stroke-width="1.6"/>
+            </svg>
+            <div class="track"><i></i></div>
+            <div class="legend">
+              <span><i style="background:#0A84FF"></i>已用 5.2 GB</span>
+              <span><i style="background:#6E6E78"></i>可用 10.5 GB</span>
+            </div>
+          </div>
+          <div class="mini"><span>提交内存</span><b class="num">21.5 GB</b></div>
+        </div>
+
+        <div class="card">
+          <div class="ct"><b>系统健康</b></div>
+          <div class="health">
+            <div class="ok">✓</div>
+            <div><b>检查通过</b><span>系统服务与资源状态正常</span></div>
+            <span class="chev">›</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="mini"><span>下一次唤醒</span><b class="num">05:45</b></div>
+          <div class="mini"><span>今日休眠</span><b class="num">2 次</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</body></html>

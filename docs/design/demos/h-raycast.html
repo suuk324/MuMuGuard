@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0C0C0D; --panel:#161617; --line:#2A2A2E; --sel:#232326;
+    --t1:#EDEDEF; --t2:#9A9AA0; --t3:#6E6E73;
+  }
+  body{
+    width:1000px;height:700px;overflow:hidden;color:var(--t1);
+    font-family:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif;
+    padding:26px 28px 0;display:flex;flex-direction:column;
+    background:
+      radial-gradient(90% 60% at 6% -12%, #261B13 0%, rgba(38,27,19,0) 56%),
+      radial-gradient(60% 45% at 102% -4%, #131A21 0%, rgba(19,26,33,0) 58%),
+      var(--bg);
+  }
+  .mono{font-family:Consolas,"Cascadia Mono",monospace;font-variant-numeric:tabular-nums}
+
+  .top{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(#3A3A3E,#232326);
+        border:1px solid #34343A;display:flex;align-items:center;justify-content:center;font-size:12px;color:#C9C9CE}
+  h1{font-size:14px;font-weight:600;letter-spacing:.2px}
+  .ver{font-size:11px;color:var(--t3)}
+  .sp{flex:1}
+  .hint{font-size:11px;color:var(--t3);display:flex;align-items:center;gap:4px}
+  .cap{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;
+       border-radius:5px;background:#232326;border:1px solid #34343A;color:#A1A1A6;font-size:10px}
+
+  main{flex:1;display:grid;grid-template-columns:1fr 302px;gap:14px;min-height:0}
+  .col{display:flex;flex-direction:column;gap:14px;min-height:0}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .ph{padding:9px 14px 7px;font-size:11px;color:var(--t3);letter-spacing:.3px}
+
+  .row{display:flex;align-items:center;gap:11px;padding:8px 11px;margin:1px 6px;border-radius:8px;height:62px}
+  .row.sel{background:var(--sel)}
+  .ico{width:26px;height:26px;border-radius:7px;flex:0 0 26px;display:flex;align-items:center;justify-content:center;
+       font-size:12px;font-weight:600;color:#0C0C0D}
+  .ico.green{background:#59D499}
+  .ico.blue{background:#52A9FF}
+  .ico.purple{background:#8A63F5;color:#fff}
+  .ico.gray{background:#33333A;color:#9A9AA0}
+  .nm{flex:1;min-width:0}
+  .nm b{display:block;font-size:13px;font-weight:500}
+  .nm span{display:block;font-size:11.5px;color:var(--t2);margin-top:2px}
+  .rt{display:flex;align-items:center;gap:9px}
+  .rt .v{font-size:12.5px;text-align:right}
+  .rt .v small{display:block;font-size:10.5px;color:var(--t3);margin-top:1px}
+  .rt .v.dim{color:#6E6E73}
+  .dot{width:6px;height:6px;border-radius:50%}
+
+  .kv{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;font-size:11.5px;color:var(--t2)}`n  .panel .kv{justify-content:flex-start;gap:14px}`n  .panel .kv > span:first-child{flex:0 0 42px}
+  .kv + .kv{border-top:1px solid #212125}
+  .kv b{font-weight:500;color:var(--t1)}
+  .kv .bad{color:#FF7A6B}
+
+  .mem{padding:11px 14px 13px}
+  .mem .k{font-size:11px;color:var(--t3)}
+  .mem .v{font-size:22px;font-weight:600;margin-top:5px}
+  .mem .v em{font-style:normal;font-size:11px;font-weight:400;color:var(--t3);margin-left:4px}
+  .bar{height:5px;border-radius:3px;background:#26262A;margin-top:9px;overflow:hidden;display:flex}
+  .bar i{height:100%}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;padding:1px 12px 12px}
+  .chip{font-size:11px;color:#A1A1A6;background:#1F1F22;border:1px solid #2C2C31;border-radius:6px;padding:3px 8px}
+
+  .foot{height:38px;margin:14px -28px 0;padding:0 22px;display:flex;align-items:center;gap:8px;
+        background:#101011;border-top:1px solid var(--line);font-size:11px;color:var(--t3)}
+  .foot b{color:#C7C7CC;font-weight:500}
+  .foot .r{margin-left:auto;display:flex;align-items:center;gap:5px}
+</style></head>
+<body>
+  <div class="top">
+    <div class="logo">◎</div>
+    <h1>MuMuGuard</h1><span class="ver">1.6.3</span>
+    <div class="sp"></div>
+    <span class="hint">全部 <span class="cap">⌘</span><span class="cap">A</span></span>
+    <span class="hint" style="margin-left:12px">设置 <span class="cap">⌘</span><span class="cap">,</span></span>
+  </div>
+
+  <main>
+    <div class="col">
+      <div class="panel">
+        <div class="ph">实例 · 5 个 · 1 运行 / 2 休眠</div>
+
+        <div class="row sel">
+          <div class="ico green">微</div>
+          <div class="nm"><b>国服 微信</b><span>紫孔雀运行中 · 游戏运行中</span></div>
+          <div class="rt"><div class="v mono">2:38<small>22:23 完成</small></div>
+            <span class="dot" style="background:#59D499"></span></div>
+        </div>
+
+        <div class="row">
+          <div class="ico blue">际</div>
+          <div class="nm"><b>国际服</b><span>内存已释放 · 自动唤醒</span></div>
+          <div class="rt"><div class="v mono">05:45<small>部落城堡 Lv.2</small></div>
+            <span class="dot" style="background:#FFC531"></span></div>
+        </div>
+
+        <div class="row">
+          <div class="ico purple">Q</div>
+          <div class="nm"><b>国服QQ</b><span>内存已释放 · 自动唤醒</span></div>
+          <div class="rt"><div class="v mono">11:17<small>箭塔 Lv.13</small></div>
+            <span class="dot" style="background:#FFC531"></span></div>
+        </div>
+
+        <div class="row">
+          <div class="ico gray">2</div>
+          <div class="nm"><b>MuMu安卓设备-2</b><span>已关机</span></div>
+          <div class="rt"><div class="v mono dim">—<small>没有升级任务</small></div>
+            <span class="dot" style="background:#33333A"></span></div>
+        </div>
+
+        <div class="row">
+          <div class="ico gray">4</div>
+          <div class="nm"><b>MuMu安卓设备-4</b><span>已关机</span></div>
+          <div class="rt"><div class="v mono dim">—<small>没有升级任务</small></div>
+            <span class="dot" style="background:#33333A"></span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">最近事件</div><style>.evr{display:flex;gap:14px;padding:9px 14px;font-size:11.5px;color:var(--t2);border-top:1px solid #212125}.evr>span:first-child{flex:0 0 42px;color:#6E6E73}.evr .bad{color:#FF7A6B}</style>
+        <div class="evr"><span class="mono">22:52</span><span>内存检查通过，可用 2.9 GB</span></div>
+        <div class="evr"><span class="mono">22:50</span><span>清理 CEF 回收 0 个（今日 24 次）</span></div>
+        <div class="evr"><span class="mono">22:21</span><span>实例 3 关机休眠，11:17 唤醒</span></div>
+        <div class="evr"><span class="mono">22:10</span><span class="bad">实例 3 未运行，连续 1/2</span></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="panel">
+        <div class="mem">
+          <div class="k">主机内存</div>
+          <div class="v mono">5.2<em>/ 15.7 GB</em></div>
+          <div class="bar"><i style="width:31%;background:#52A9FF"></i><i style="width:4%;background:#FF9F0A"></i></div>
+        </div>
+        <div class="kv"><span>提交内存</span><b class="mono">21.5 GB</b></div>
+        <div class="kv"><span>下次唤醒</span><b class="mono">05:45</b></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">健康检查 · 6 项正常</div>
+        <div class="chips">
+          <span class="chip">内存压缩</span><span class="chip">SysMain</span><span class="chip">Mem Reduct</span>
+          <span class="chip">页面文件</span><span class="chip">CEF 泄漏</span><span class="chip">权限</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="foot">
+    <b>看护运行中</b><span>· 5 个实例 · 今日休眠 2 次</span>
+    <div class="r"><span>唤醒</span><span class="cap">↵</span><span style="margin-left:9px">设置</span><span class="cap">⌘</span><span class="cap">,</span></div>
+  </div>
+</body></html>

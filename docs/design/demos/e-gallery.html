@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  /* 画廊：纯黑、无卡片、极致留白、只有一个巨大的数字 */
+  body{
+    width:1000px;height:700px;overflow:hidden;background:#000;color:#EDEAE4;
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    padding:48px 56px;display:flex;flex-direction:column;
+  }
+  header{display:flex;align-items:baseline;gap:16px}
+  h1{font-size:13px;font-weight:400;letter-spacing:3px;color:#C9C4BA}
+  .ver{font-size:9px;color:#3E3C39;letter-spacing:2px}
+  .sp{flex:1}
+  .act{font-size:9px;color:#565450;letter-spacing:2px}
+
+  .stage{display:flex;align-items:flex-end;gap:28px;padding:44px 0 8px}
+  .big{font-family:Bahnschrift,"Segoe UI Light",sans-serif;font-weight:200;font-size:104px;line-height:.82;letter-spacing:-4px;color:#F5F2EC}
+  .unit{font-size:9px;color:#4E4B47;letter-spacing:2.5px;padding-bottom:10px}
+  .side{margin-left:auto;text-align:right;font-size:9px;color:#4E4B47;letter-spacing:2px;line-height:2.6}
+
+  .list{margin-top:auto}
+  .row{display:flex;align-items:baseline;gap:24px;padding:20px 0;border-top:1px solid rgba(255,255,255,.07)}
+  .row .nm{font-size:12px;letter-spacing:.8px;color:#D6D1C7;flex:0 0 190px}
+  .row .st{font-size:9px;letter-spacing:2px;color:#5A5751;flex:0 0 80px}
+  .row .st.live{color:#C8A96A}
+  .row .up{font-size:10px;color:#6D6A64;flex:1;letter-spacing:.5px}
+  .row .tm{font-family:Bahnschrift,sans-serif;font-size:18px;font-weight:300;color:#B8B3A9;letter-spacing:.5px}
+  .row .tm.dim{color:#3E3C39}
+
+  footer{display:flex;gap:56px;margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,.07)}
+  .ev{flex:1}
+  .ev .h{font-size:8px;letter-spacing:2.5px;color:#3E3C39;margin-bottom:10px}
+  .ev .l{display:flex;gap:18px;font-size:9px;color:#6D6A64;padding:2px 0;letter-spacing:.8px}
+  .ev time{color:#3E3C39;font-family:Bahnschrift,sans-serif;flex:0 0 44px}
+  .ev .bad{color:#93604C}
+</style></head>
+<body>
+  <header><h1>MUMUGUARD</h1><span class="ver">1.6.3</span><div class="sp"></div>
+    <span class="act">手机访问</span><span class="act">设置</span></header>
+
+  <div class="stage">
+    <div class="big">5.2</div><div class="unit">GB 已用 · 共 15.7</div>
+    <div class="side">提交 21.5 GB<br>5 实例<br>1 在跑 · 2 休眠</div>
+  </div>
+
+  <div class="list">
+    <div class="row">
+      <div class="nm">国服 微信</div><div class="st live">运行中</div>
+      <div class="up">建筑大师训练营 Lv.11</div><div class="tm">2h 38m</div>
+    </div>
+    <div class="row">
+      <div class="nm">国际服</div><div class="st">休眠</div>
+      <div class="up">部落城堡 Lv.2</div><div class="tm">05:45</div>
+    </div>
+    <div class="row">
+      <div class="nm">国服QQ</div><div class="st">休眠</div>
+      <div class="up">箭塔 Lv.13</div><div class="tm">11:17</div>
+    </div>
+    <div class="row">
+      <div class="nm">MuMu安卓设备-2</div><div class="st">关机</div>
+      <div class="up">—</div><div class="tm dim">—</div>
+    </div>
+    <div class="row">
+      <div class="nm">MuMu安卓设备-4</div><div class="st">关机</div>
+      <div class="up">—</div><div class="tm dim">—</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="ev">
+      <div class="h">事件</div>
+      <div class="l"><time>22:52</time><span>内存检查通过，可用 2.9 GB</span></div>
+      <div class="l"><time>22:50</time><span>清理 CEF 回收 0 个 ×24</span></div>
+      <div class="l"><time>22:10</time><span class="bad">实例3 未运行，连续 1/2</span></div>
+    </div>
+    <div class="ev" style="max-width:230px">
+      <div class="h">健康检查</div>
+      <div class="l"><span>内存压缩 · SysMain · Mem Reduct</span></div><div class="l"><span>页面文件 · CEF 泄漏 · 权限</span></div>
+    </div>
+  </footer>
+</body></html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    width:1000px;height:700px;overflow:hidden;
+    background:#0B0E13;color:#E8ECF2;
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    padding:32px 32px 24px;display:flex;flex-direction:column;
+  }
+  .num{font-family:Consolas,"Cascadia Mono",monospace;font-variant-numeric:tabular-nums}
+
+  header{display:flex;align-items:baseline;gap:12px}
+  h1{font-size:16px;font-weight:600}
+  .ver{font-size:11px;color:#6B7485}
+  .spacer{flex:1}
+  .btn{height:30px;padding:0 14px;border-radius:8px;border:1px solid #232A36;
+       color:#9BA5B4;font-size:11px;display:flex;align-items:center}
+  .btn.on{background:#E8ECF2;border-color:#E8ECF2;color:#0B0E13;font-weight:600}
+
+  .top{margin-top:24px;display:flex;align-items:flex-end;gap:16px}
+  .big{font-size:64px;font-weight:600;line-height:1;letter-spacing:-1px}
+  .big span{font-size:16px;font-weight:400;color:#6B7485;letter-spacing:0;margin-left:6px}
+  .top .k{font-size:11px;color:#6B7485;margin-bottom:8px}
+  .top .meta{margin-left:auto;text-align:right;font-size:11px;color:#6B7485;line-height:1.8}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
+  .card{background:#12161D;border-radius:12px;padding:24px;display:flex;flex-direction:column;min-height:146px;justify-content:space-between}
+  .card .n{font-size:16px;font-weight:600}
+  .card .s{font-size:11px;color:#6B7485;margin-top:4px}
+  .card .mid{margin-top:12px}
+  .card .t{font-size:24px;font-weight:600;line-height:1.1}
+  .card .t small{font-size:11px;font-weight:400;color:#6B7485;margin-left:4px}
+  .card .t span{font-size:11px;font-weight:400;color:#6B7485;margin-left:6px;letter-spacing:0}
+  .card .u{font-size:11px;color:#9BA5B4;margin-top:4px}
+  .tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#9BA5B4;margin-top:16px}
+  .tag i{width:6px;height:6px;border-radius:50%;background:#3FB950}
+  .tag.sleep i{background:#8E9AAA}
+  .tag.off i{background:#3A4250}
+  .card.off .n{color:#8B94A3}
+  .card.off .t{color:#4E5666}
+
+  footer{margin-top:auto;display:flex;gap:24px;align-items:flex-start;border-top:1px solid #232A36;padding-top:16px}
+  .ev{flex:1}
+  .ev .h{font-size:11px;color:#6B7485;margin-bottom:8px}
+  .ev .l{display:flex;gap:12px;font-size:11px;padding:3px 0}
+  .ev time{color:#4E5666;font-family:Consolas,monospace;flex:0 0 44px}
+  .ev .t{color:#9BA5B4}
+  .ev .t.err{color:#F85149}
+  .ok{width:150px;font-size:11px;color:#6B7485;line-height:1.9}
+  .ok b{display:block;font-size:13px;color:#3FB950;font-weight:600;margin-bottom:2px}
+</style></head>
+<body>
+  <header>
+    <h1>MuMuGuard</h1><span class="ver">v1.6.3</span>
+    <div class="spacer"></div>
+    <div class="btn">手机访问</div>
+    <div class="btn">设置</div>
+  </header>
+
+  <div class="top">
+    <div>
+      <div class="k">主机内存</div>
+      <div class="big num">5.2<span>/ 15.7 GB</span></div>
+    </div>
+    <div class="meta">提交内存 21.5 GB<br>3 个实例 · 1 运行 / 2 休眠</div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="n">国服 微信</div>
+      <div class="s">紫孔雀运行中 · 游戏运行中</div>
+      <div class="mid">
+        <div class="t num">2h 38m<span>后完成</span></div>
+        <div class="u">建筑大师训练营 Lv.11</div>
+      </div>
+      <div class="tag"><i></i>检测中</div>
+    </div>
+
+    <div class="card">
+      <div class="n">国际服</div>
+      <div class="s">内存已释放</div>
+      <div class="mid">
+        <div class="t num">05:45<span>唤醒</span></div>
+        <div class="u">部落城堡 Lv.2</div>
+      </div>
+      <div class="tag sleep"><i></i>休眠中</div>
+    </div>
+
+    <div class="card">
+      <div class="n">国服QQ</div>
+      <div class="s">内存已释放</div>
+      <div class="mid">
+        <div class="t num">11:17<span>唤醒</span></div>
+        <div class="u">箭塔 Lv.13</div>
+      </div>
+      <div class="tag sleep"><i></i>休眠中</div>
+    </div>
+    <div class="card off">
+      <div class="n">MuMu安卓设备-2</div>
+      <div class="s">已关机</div>
+      <div class="mid">
+        <div class="t num">—</div>
+        <div class="u">没有升级任务</div>
+      </div>
+      <div class="tag off"><i></i>未运行</div>
+    </div>
+
+    <div class="card off">
+      <div class="n">MuMu安卓设备-4</div>
+      <div class="s">已关机</div>
+      <div class="mid">
+        <div class="t num">—</div>
+        <div class="u">没有升级任务</div>
+      </div>
+      <div class="tag off"><i></i>未运行</div>
+    </div>
+  </div>
+  <footer>
+    <div class="ev">
+      <div class="h">事件</div>
+      <div class="l"><time>22:52</time><span class="t">内存检查通过，可用 2.9 GB</span></div>
+      <div class="l"><time>22:50</time><span class="t">清理 CEF 回收 0 个（今日 24 次）</span></div>
+      <div class="l"><time>22:41</time><span class="t">实例5 采集正常，adb 通道 mumu</span></div>
+      <div class="l"><time>22:21</time><span class="t">实例3 关机休眠，11:17 唤醒</span></div>
+      <div class="l"><time>22:10</time><span class="t err">实例3 未运行，连续 1/2</span></div>
+      <div class="l"><time>22:09</time><span class="t err">实例3 自动重启</span></div>
+    </div>
+    <div class="ok">
+      <b>6 项全部正常</b>
+      内存压缩 · SysMain · Mem Reduct<br>页面文件 · CEF 泄漏 · 权限
+    </div>
+  </footer>
+</body></html>

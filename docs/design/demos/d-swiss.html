@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    width:1000px;height:700px;overflow:hidden;background:#0A0A0B;color:#F0EFED;
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    padding:36px 40px;display:flex;flex-direction:column;
+  }
+  /* 瑞士：直角、发丝线、极端字号反差、几乎零彩色 */
+  header{display:flex;align-items:baseline;gap:14px;padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,.09)}
+  h1{font-size:15px;font-weight:600;letter-spacing:.6px}
+  .ver{font-size:10px;color:#5C5C5E;letter-spacing:1px}
+  .sp{flex:1}
+  .act{font-size:10px;color:#7A7A7C;letter-spacing:1px}
+
+  .hero{display:flex;align-items:flex-end;gap:20px;padding:28px 0 24px}
+  .hero .n{font-family:Bahnschrift,"Segoe UI Light",sans-serif;font-weight:300;font-size:64px;line-height:.9;letter-spacing:-2px}
+  .hero .u{font-size:10px;color:#6A6A6C;letter-spacing:1.5px;padding-bottom:6px}
+  .hero .r{margin-left:auto;text-align:right;font-size:10px;color:#6A6A6C;letter-spacing:1px;line-height:2}
+
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;font-weight:400;color:#5C5C5E;letter-spacing:1.5px;text-align:left;padding:0 0 10px}
+  th.r{text-align:right}
+  td{padding:18px 0;border-top:1px solid rgba(255,255,255,.07);vertical-align:middle}
+  td.nm{font-size:13px;letter-spacing:.2px}
+  td.nm span{display:block;font-size:10px;color:#5C5C5E;margin-top:4px;letter-spacing:1px}
+  td.up{font-size:11px;color:#8A8A8C}
+  td.tm{text-align:right;font-family:Bahnschrift,sans-serif;font-size:22px;font-weight:300;letter-spacing:0}
+  td.tm.sleep{color:#6A6A6C}
+  td.tm.off{color:#3A3A3C}
+  td.st{text-align:right;font-size:10px;letter-spacing:1px;color:#5C5C5E}
+  .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#B9B6AE;vertical-align:middle;margin-right:7px}
+  .dot.live{background:#C8A96A}
+
+  footer{margin-top:auto;display:flex;gap:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,.09)}
+  .ev{flex:1}
+  .ev .h{font-size:10px;color:#5C5C5E;letter-spacing:1.5px;margin-bottom:10px}
+  .ev .l{display:flex;gap:16px;font-size:10px;color:#8A8A8C;padding:3px 0;letter-spacing:.3px}
+  .ev time{color:#4A4A4C;font-family:Bahnschrift,sans-serif;flex:0 0 46px}
+  .ev .bad{color:#B06A4E}
+  .hl{width:190px;font-size:10px;color:#6A6A6C;line-height:2;letter-spacing:1px}
+  .hl b{display:block;font-size:12px;color:#B9B6AE;font-weight:400;letter-spacing:.5px;margin-bottom:4px}
+</style></head>
+<body>
+  <header><h1>MuMuGuard</h1><span class="ver">1.6.3</span><div class="sp"></div>
+    <span class="act">检查更新</span><span class="act">手机访问</span><span class="act">设置</span></header>
+
+  <div class="hero">
+    <div class="n">5.2</div><div class="u">GB 已用 · 共 15.7</div>
+    <div class="r">提交内存 21.5 GB<br>5 实例 · 1 在跑 · 2 休眠</div>
+  </div>
+
+  <table>
+    <tr><th>实例</th><th>升级</th><th class="r">时间</th><th class="r">状态</th></tr>
+    <tr><td class="nm"><i class="dot live"></i>国服 微信<span>紫孔雀运行中</span></td><td class="up">建筑大师训练营 Lv.11</td><td class="tm">2h 38m</td><td class="st">检测中</td></tr>
+    <tr><td class="nm"><i class="dot"></i>国际服<span>内存已释放</span></td><td class="up">部落城堡 Lv.2</td><td class="tm sleep">05:45</td><td class="st">休眠</td></tr>
+    <tr><td class="nm"><i class="dot"></i>国服QQ<span>内存已释放</span></td><td class="up">箭塔 Lv.13</td><td class="tm sleep">11:17</td><td class="st">休眠</td></tr>
+    <tr><td class="nm"><i class="dot"></i>MuMu安卓设备-2<span>已关机</span></td><td class="up">—</td><td class="tm off">—</td><td class="st">启动</td></tr>
+    <tr><td class="nm"><i class="dot"></i>MuMu安卓设备-4<span>已关机</span></td><td class="up">—</td><td class="tm off">—</td><td class="st">启动</td></tr>
+  </table>
+
+  <footer>
+    <div class="ev">
+      <div class="h">事件</div>
+      <div class="l"><time>22:52</time><span>内存检查通过，可用 2.9 GB</span></div>
+      <div class="l"><time>22:50</time><span>清理 CEF 回收 0 个 ×24</span></div>
+      <div class="l"><time>22:21</time><span>实例3 关机休眠，11:17 唤醒</span></div>
+      <div class="l"><time>22:10</time><span class="bad">实例3 未运行，连续 1/2</span></div>
+    </div>
+    <div class="hl"><b>6 项正常</b>内存压缩 · SysMain · Mem Reduct<br>页面文件 · CEF 泄漏 · 权限</div>
+  </footer>
+</body></html>

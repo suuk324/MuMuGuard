@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  /* 硬件面板：暖炭底、丝印标签、琥珀读数、方角+内高光、细微网纹 */
+  body{
+    width:1000px;height:700px;overflow:hidden;color:#D8D2C6;
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    padding:28px 32px;display:flex;flex-direction:column;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px),
+      radial-gradient(120% 80% at 18% 0%, #211C16 0%, #16130F 46%, #100E0B 100%);
+  }
+  header{display:flex;align-items:center;gap:14px;padding-bottom:18px;border-bottom:1px solid #2A2520}
+  h1{font-size:13px;font-weight:600;letter-spacing:3.5px;color:#CFC6B4}
+  .ver{font-size:9px;letter-spacing:1.5px;color:#5E574C}
+  .sp{flex:1}
+  .btn{
+    height:26px;padding:0 12px;font-size:10px;letter-spacing:1.5px;color:#8A8172;
+    border:1px solid #332D26;background:linear-gradient(#1C1813,#171410);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .btn.on{color:#1A1610;background:linear-gradient(#D9C79E,#C3AE84);border-color:#E2D3AF;box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+
+  main{flex:1;display:grid;grid-template-columns:1fr 286px;gap:26px;padding-top:20px;min-height:0;align-items:start}
+
+  .panel{
+    background:linear-gradient(#1A1611,#14110D);
+    border:1px solid #2A2520;border-radius:3px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.045), 0 1px 0 rgba(0,0,0,.6);
+    padding:14px 16px;
+  }
+
+  .row{display:flex;align-items:center;gap:14px;padding:12px 2px;border-bottom:1px solid #221E19}
+  .row:last-child{border-bottom:0}
+  .lamp{width:7px;height:7px;border-radius:50%;background:#4A4238;box-shadow:inset 0 0 2px #000;flex:0 0 7px}
+  .lamp.live{background:#D9A85C;box-shadow:0 0 6px rgba(217,168,92,.55),inset 0 0 2px rgba(0,0,0,.4)}
+  .nm{font-size:12px;letter-spacing:.5px;color:#D3CBBB;flex:0 0 132px}
+  .nm span{display:block;font-size:9px;letter-spacing:1.5px;color:#6A6154;margin-top:3px}
+  .up{flex:1;font-size:10px;color:#7E7566;letter-spacing:.5px}
+  .rd{font-family:Bahnschrift,"Segoe UI",sans-serif;font-weight:300;font-size:20px;color:#E3B872;letter-spacing:.5px;
+      text-shadow:0 0 10px rgba(227,184,114,.18)}
+  .rd.dim{color:#6A6255;text-shadow:none}
+  .tag{font-size:9px;letter-spacing:1.5px;color:#6A6154;flex:0 0 52px;text-align:right}
+
+  .side{display:flex;flex-direction:column;gap:14px}
+  .k{font-size:9px;letter-spacing:2px;color:#6A6154}
+  .v{font-family:Bahnschrift,sans-serif;font-weight:300;font-size:34px;color:#E8DCC2;line-height:1.05;margin-top:8px;letter-spacing:.5px}
+  .v em{font-style:normal;font-size:11px;color:#6A6154;margin-left:5px;letter-spacing:1px}
+  .segs{display:flex;gap:2px;margin-top:10px}
+  .segs i{flex:1;height:7px;background:#241F19;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  .segs i.on{background:linear-gradient(#D9A85C,#B98A45)}
+  .health{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .h{font-size:9px;letter-spacing:1px;color:#8A8172;border:1px solid #2A2520;background:#171410;padding:3px 7px;border-radius:2px}
+  .h.bad{color:#C07A55;border-color:#3A2A20}
+
+  .ev{margin-top:14px}
+  .ev .l{display:flex;gap:12px;font-size:9px;color:#7E7566;padding:4px 0;letter-spacing:.5px;border-bottom:1px solid #1C1813}
+  .ev time{color:#574F44;font-family:Bahnschrift,sans-serif;flex:0 0 42px}
+  .ev .bad{color:#C07A55}
+</style></head>
+<body>
+  <header><h1>MUMUGUARD</h1><span class="ver">1.6.3</span><div class="sp"></div>
+    <div class="btn">检查更新</div><div class="btn">手机访问</div><div class="btn">设置</div></header>
+
+  <main>
+    <div class="panel">
+      <div class="row"><i class="lamp live"></i><div class="nm">国服 微信<span>运行中</span></div>
+        <div class="up">建筑大师训练营 Lv.11</div><div class="rd">2:38</div><div class="tag">检测</div></div>
+      <div class="row"><i class="lamp"></i><div class="nm">国际服<span>休眠</span></div>
+        <div class="up">部落城堡 Lv.2</div><div class="rd dim">05:45</div><div class="tag">唤醒</div></div>
+      <div class="row"><i class="lamp"></i><div class="nm">国服QQ<span>休眠</span></div>
+        <div class="up">箭塔 Lv.13</div><div class="rd dim">11:17</div><div class="tag">唤醒</div></div>
+      <div class="row"><i class="lamp"></i><div class="nm">MuMu安卓设备-2<span>已关机</span></div>
+        <div class="up">没有升级任务</div><div class="rd dim">--:--</div><div class="tag">启动</div></div>
+      <div class="row"><i class="lamp"></i><div class="nm">MuMu安卓设备-4<span>已关机</span></div>
+        <div class="up">没有升级任务</div><div class="rd dim">--:--</div><div class="tag">启动</div></div>
+
+      <div class="ev">
+        <div class="k" style="margin:6px 0 6px">事件</div>
+        <div class="l"><time>22:52</time><span>内存检查通过，可用 2.9 GB</span></div>
+        <div class="l"><time>22:50</time><span>清理 CEF 回收 0 个 ×24</span></div>
+        <div class="l"><time>22:10</time><span class="bad">实例3 未运行，连续 1/2</span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <div class="k">主机内存</div>
+        <div class="v">5.2<em>/ 15.7 GB</em></div>
+        <div class="segs">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="k">提交内存</div>
+        <div class="v">21.5<em>GB</em></div>
+      </div>
+      <div class="panel">
+        <div class="k">健康检查</div>
+        <div class="health">
+          <span class="h">内存压缩</span><span class="h">SysMain</span><span class="h">Mem Reduct</span>
+          <span class="h">页面文件</span><span class="h">CEF 泄漏</span><span class="h">权限</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</body></html>

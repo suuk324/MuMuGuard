@@ -59,6 +59,9 @@
   .btn{height:40px;border-radius:11px;background:var(--card);border:1px solid var(--line);
        display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;color:var(--t1)}
   .btn.primary{background:#F2F2F5;border-color:#F2F2F5;color:#17171A;font-weight:600}
+  .btn.on{color:var(--t1)}
+  .btn .dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:0 0 6px}
+  .btn .dot.amber{background:var(--amber)}
 
   /* 内存 */
   .memcard{background:var(--card);border-radius:12px;border:1px solid var(--line);padding:10px 12px;margin-bottom:12px}
@@ -133,10 +136,10 @@
 
     <div class="cap">操作</div>
     <div class="acts">
-      <div class="btn primary">唤醒全部</div>
-      <div class="btn">全部休眠</div>
+      <div class="btn on"><i class="dot"></i>看护中</div>
+      <div class="btn on"><i class="dot amber"></i>自动休眠 开</div>
       <div class="btn">清理内存</div>
-      <div class="btn">重新配对</div>
+      <div class="btn primary">唤醒全部</div>
     </div>
 
     <div class="cap">主机</div>

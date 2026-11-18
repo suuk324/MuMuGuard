@@ -286,14 +286,7 @@ $xaml = @'
                 <StackPanel>
                   <TextBlock Text="全部实例" FontSize="10.5" Foreground="{StaticResource T3}" VerticalAlignment="Center"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                  <Border Background="#1AFFFFFF" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
-                    <TextBlock Text="全部启动" FontSize="11" Foreground="{StaticResource T1}"/>
-                  </Border>
-                  <Border Background="#1AFFFFFF" CornerRadius="8" Padding="12,6">
-                    <TextBlock Text="全部休眠" FontSize="11" Foreground="{StaticResource T1}"/>
-                  </Border>
-                </StackPanel>
+                
               </Grid>
 
               <Border Height="1" Background="#0DFFFFFF"/>
@@ -484,25 +477,14 @@ $xaml = @'
                 </Border>
               </Grid>
             </Border>
-            <Border Grid.Row="4" Grid.Column="0" Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1">
+            <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1">
               <Grid Margin="14,12,14,12">
                 <StackPanel VerticalAlignment="Center">
-                  <TextBlock Text="管理员权限" FontSize="12.5" Foreground="{StaticResource T1}"/>
-                  <TextBlock Text="MuMu 以管理员运行，面板不是" FontSize="10.5" Foreground="{StaticResource T3}" Margin="0,3,0,0"/>
+                  <TextBlock Text="权限" FontSize="12.5" Foreground="{StaticResource T1}"/>
+                  <TextBlock Text="MuMu 以管理员运行，面板不是，重启与休眠会失败" FontSize="10.5" Foreground="{StaticResource T3}" Margin="0,3,0,0"/>
                 </StackPanel>
                 <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#29FF453A" CornerRadius="20" Padding="9,3">
-                  <TextBlock Text="建议修复" FontSize="10" Foreground="{StaticResource Red}"/>
-                </Border>
-              </Grid>
-            </Border>
-            <Border Grid.Row="4" Grid.Column="2" Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1">
-              <Grid Margin="14,12,14,12">
-                <StackPanel VerticalAlignment="Center">
-                  <TextBlock Text="adb 通道" FontSize="12.5" Foreground="{StaticResource T1}"/>
-                  <TextBlock Text="5 个实例全部连接正常" FontSize="10.5" Foreground="{StaticResource T3}" Margin="0,3,0,0"/>
-                </StackPanel>
-                <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#2934C759" CornerRadius="20" Padding="9,3">
-                  <TextBlock Text="正常" FontSize="10" Foreground="{StaticResource Green}"/>
+                  <TextBlock Text="需管理员" FontSize="10" Foreground="{StaticResource Red}"/>
                 </Border>
               </Grid>
             </Border>
@@ -614,6 +596,9 @@ $xaml = @'
                   <Border Height="1" Background="#0DFFFFFF" Margin="14,0,14,0"/>
                   <Grid Margin="14,0,14,0" Height="44"><TextBlock Text="最长休眠" FontSize="12" Foreground="{StaticResource T1}" VerticalAlignment="Center"/>
                     <TextBlock Text="168 小时" FontSize="12" Foreground="{StaticResource T3}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
+                  <Border Height="1" Background="#0DFFFFFF" Margin="14,0,14,0"/>
+                  <Grid Margin="14,0,14,0" Height="44"><TextBlock Text="最短休眠" FontSize="12" Foreground="{StaticResource T1}" VerticalAlignment="Center"/>
+                    <TextBlock Text="1 小时" FontSize="12" Foreground="{StaticResource T3}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
                 </StackPanel>
               </Border>
 
@@ -630,6 +615,20 @@ $xaml = @'
                   <Border Height="1" Background="#0DFFFFFF" Margin="14,0,14,0"/>
                   <Grid Margin="14,0,14,0" Height="44"><TextBlock Text="连续几次判定掉线" FontSize="12" Foreground="{StaticResource T1}" VerticalAlignment="Center"/>
                     <TextBlock Text="2 次" FontSize="12" Foreground="{StaticResource T3}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
+                </StackPanel>
+              </Border>
+
+              <TextBlock Text="告警与日志" FontSize="10.5" Foreground="{StaticResource T3}" Margin="4,16,0,6"/>
+              <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                <StackPanel>
+                  <Grid Margin="14,0,14,0" Height="44"><TextBlock Text="CEF 告警阈值" FontSize="12" Foreground="{StaticResource T1}" VerticalAlignment="Center"/>
+                    <TextBlock Text="600 MB" FontSize="12" Foreground="{StaticResource T3}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
+                  <Border Height="1" Background="#0DFFFFFF" Margin="14,0,14,0"/>
+                  <Grid Margin="14,0,14,0" Height="44"><TextBlock Text="日志保留" FontSize="12" Foreground="{StaticResource T1}" VerticalAlignment="Center"/>
+                    <TextBlock Text="14 天" FontSize="12" Foreground="{StaticResource T3}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
+                  <Border Height="1" Background="#0DFFFFFF" Margin="14,0,14,0"/>
+                  <Grid Margin="14,0,14,0" Height="44"><TextBlock Text="不检测的实例" FontSize="12" Foreground="{StaticResource T1}" VerticalAlignment="Center"/>
+                    <TextBlock Text="无" FontSize="12" Foreground="{StaticResource T3}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
                 </StackPanel>
               </Border>
 

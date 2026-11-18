@@ -29,7 +29,7 @@ function Get-RemoteToken {
 }
 
 function Get-RemoteUrls {
-    $port = 8787
+    $port = 8790
     try { if ($script:cfg.RemotePort) { $port = [int]$script:cfg.RemotePort } } catch { }
     $token = Get-RemoteToken
     $urls = @()
@@ -144,14 +144,18 @@ $script:remoteServerScript = {
     param($sync, $port, $token, $root)
 
     $listener = $null
-    try {
-        $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $port)
-        $listener.Start()
-        $sync.ServerError = ''
-    } catch {
-        $sync.ServerError = $_.Exception.Message
-        return
+    $bound = $false
+    for ($tryPort = $port; $tryPort -lt ($port + 10); $tryPort++) {
+        try {
+            $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $tryPort)
+            $listener.Start()
+            $sync.RemotePort = $tryPort
+            $sync.ServerError = ''
+            $bound = $true
+            break
+        } catch { $sync.ServerError = $_.Exception.Message }
     }
+    if (-not $bound) { return }
 
     function Read-Req($client) {
         $stream = $client.GetStream()
@@ -491,7 +495,7 @@ setInterval(tick, 2000);
 # ---------------- 启停 ----------------
 function Start-RemoteServer {
     if ($script:remoteHandle) { return $true }
-    $port = 8787
+    $port = 8790
     try { if ($script:cfg.RemotePort) { $port = [int]$script:cfg.RemotePort } } catch { }
     $token = Get-RemoteToken
 
@@ -521,7 +525,10 @@ function Start-RemoteServer {
         Stop-RemoteServer
         return $false
     }
-    Write-Diag "远程服务已启动，端口 $port"
+    # 端口被占用时服务端会往后找一个可用端口，这里把实际端口写回配置，二维码/网址才对得上
+    $realPort = $port
+    try { if ($sync.RemotePort -and [int]$sync.RemotePort -ne $port) { $realPort = [int]$sync.RemotePort; $script:cfg.RemotePort = $realPort; Save-Config } } catch { }
+    Write-Diag "远程服务已启动，端口 $realPort"
     return $true
 }
 

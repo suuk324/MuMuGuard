@@ -146,15 +146,29 @@ foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', 
     else { throw "缺少模块: $p" }
 }
 
- # 数据目录：程序目录可写就放旁边，否则（如放在 Program Files）退回 LOCALAPPDATA
+# 数据目录：优先复用已有数据，保证「脚本版」和「exe 版」看到同一份实例与设置
+#   1) _dist（用户实际运行的 exe 目录）有配置就用它
+#   2) 程序目录有配置就用它
+#   3) LOCALAPPDATA 有配置就用它（装在 Program Files 的情况）
+#   4) 都没有：程序目录可写就放旁边，否则退回 LOCALAPPDATA
 $DataDir = $Root
-try {
-    $probe = Join-Path $Root '.write_test'
-    [System.IO.File]::WriteAllText($probe, 'x')
-    Remove-Item $probe -Force -ErrorAction SilentlyContinue
-} catch {
-    $DataDir = Join-Path $env:LOCALAPPDATA 'MuMuGuard'
-    if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir -Force | Out-Null }
+$subDist = Join-Path $Root '_dist'
+$appDataDir = Join-Path $env:LOCALAPPDATA 'MuMuGuard'
+$existingCfg = @()
+if (Test-Path (Join-Path $subDist 'config.json')) { $existingCfg += $subDist }
+if (Test-Path (Join-Path $Root 'config.json')) { $existingCfg += $Root }
+if (Test-Path (Join-Path $appDataDir 'config.json')) { $existingCfg += $appDataDir }
+if ($existingCfg.Count -gt 0) {
+    $DataDir = $existingCfg[0]
+} else {
+    try {
+        $probe = Join-Path $Root '.write_test'
+        [System.IO.File]::WriteAllText($probe, 'x')
+        Remove-Item $probe -Force -ErrorAction SilentlyContinue
+    } catch {
+        $DataDir = $appDataDir
+        if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir -Force | Out-Null }
+    }
 }
 
 # ---------------- 图标资源 ----------------
@@ -225,7 +239,7 @@ $defaultCfg = [ordered]@{
     # 自动恢复
     # 远程访问
     RemoteEnabled    = $false
-    RemotePort       = 8787
+    RemotePort       = 8790
     RemoteToken      = ''
     OutboundUid      = ''
     OutboundKey      = ''

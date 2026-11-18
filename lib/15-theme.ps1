@@ -194,14 +194,17 @@ function Get-ThemedHex([string]$hex, [string]$theme) {
 
 # 把 XAML 里的硬编码色值换成 DynamicResource 引用
 function Convert-XamlTheme([string]$xaml) {
+    # Color 属性（渐变、画笔内部）必须保持真实色值，换成 Brush 资源会解析失败
+    $xaml = [regex]::Replace($xaml, 'Color="(#[0-9A-Fa-f]{6,8})"', 'COLORKEEP_$1')
     foreach ($hex in $script:PaletteDark.Keys) {
         $token = $hex
         $val = $script:PaletteDark[$hex]
-        # 只替换带引号的色值，避免误伤其它文本
+        # 只替换完整引号包起来的色值，避免误伤其它文本
         $xaml = $xaml.Replace('"' + $val + '"', '"{DynamicResource ' + $token + '}"')
         $xaml = $xaml.Replace('"' + $val.ToUpper() + '"', '"{DynamicResource ' + $token + '}"')
         $xaml = $xaml.Replace('"' + $val.ToLower() + '"', '"{DynamicResource ' + $token + '}"')
     }
+    $xaml = [regex]::Replace($xaml, 'COLORKEEP_(#[0-9A-Fa-f]{6,8})', 'Color="$1"')
     return $xaml
 }
 

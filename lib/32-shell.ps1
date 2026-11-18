@@ -141,8 +141,8 @@ function Get-ShellXaml {
             <Border Grid.Column="0" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Height="94" Background="{DynamicResource T_UI_CARD}">
               
               <Grid Margin="12,11,12,12">
-                <Border Width="22" Height="22" CornerRadius="7" Background="#18FFFFFF" VerticalAlignment="Top" HorizontalAlignment="Left">
-                  <TextBlock Text="▤" FontSize="11" Foreground="#D8D8E0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Border Width="22" Height="22" CornerRadius="7" Background="{DynamicResource T_UI_CHIP}" VerticalAlignment="Top" HorizontalAlignment="Left">
+                  <TextBlock Text="▤" FontSize="11" Foreground="{DynamicResource T_UI_ICON}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel VerticalAlignment="Bottom">
                   <TextBlock Text="实例总数" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}"/>
@@ -154,8 +154,8 @@ function Get-ShellXaml {
             <Border Grid.Column="2" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Height="94" Background="{DynamicResource T_UI_CARD}">
               
               <Grid Margin="12,11,12,12">
-                <Border Width="22" Height="22" CornerRadius="7" Background="#18FFFFFF" VerticalAlignment="Top" HorizontalAlignment="Left">
-                  <TextBlock Text="▷" FontSize="11" Foreground="#D8D8E0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Border Width="22" Height="22" CornerRadius="7" Background="{DynamicResource T_UI_CHIP}" VerticalAlignment="Top" HorizontalAlignment="Left">
+                  <TextBlock Text="▷" FontSize="11" Foreground="{DynamicResource T_UI_ICON}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel VerticalAlignment="Bottom">
                   <TextBlock Text="运行中" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}"/>
@@ -167,8 +167,8 @@ function Get-ShellXaml {
             <Border Grid.Column="4" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Height="94" Background="{DynamicResource T_UI_CARD}">
               
               <Grid Margin="12,11,12,12">
-                <Border Width="22" Height="22" CornerRadius="7" Background="#18FFFFFF" VerticalAlignment="Top" HorizontalAlignment="Left">
-                  <TextBlock Text="☾" FontSize="11" Foreground="#D8D8E0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Border Width="22" Height="22" CornerRadius="7" Background="{DynamicResource T_UI_CHIP}" VerticalAlignment="Top" HorizontalAlignment="Left">
+                  <TextBlock Text="☾" FontSize="11" Foreground="{DynamicResource T_UI_ICON}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel VerticalAlignment="Bottom">
                   <TextBlock Text="休眠中" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}"/>
@@ -180,8 +180,8 @@ function Get-ShellXaml {
             <Border Grid.Column="6" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Height="94" Background="{DynamicResource T_UI_CARD}">
               
               <Grid Margin="12,11,12,12">
-                <Border Width="22" Height="22" CornerRadius="7" Background="#18FFFFFF" VerticalAlignment="Top" HorizontalAlignment="Left">
-                  <TextBlock Text="⏻" FontSize="11" Foreground="#D8D8E0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Border Width="22" Height="22" CornerRadius="7" Background="{DynamicResource T_UI_CHIP}" VerticalAlignment="Top" HorizontalAlignment="Left">
+                  <TextBlock Text="⏻" FontSize="11" Foreground="{DynamicResource T_UI_ICON}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel VerticalAlignment="Bottom">
                   <TextBlock Text="已关闭" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}"/>
@@ -260,7 +260,7 @@ function Get-ShellXaml {
                   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <Border x:Name="BtnGuardRun" Grid.Row="0" Grid.Column="0" CornerRadius="9" Background="#F2F2F5" Padding="0,9" Cursor="Hand">
-                    <TextBlock x:Name="TxtGuardRun" Text="开始看护" FontSize="11.5" FontWeight="SemiBold" Foreground="#1B1B1F" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="TxtGuardRun" Text="开始看护" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_ON_ACC}" HorizontalAlignment="Center"/>
                   </Border>
                   <Border x:Name="BtnSleepRun" Grid.Row="0" Grid.Column="2" CornerRadius="9" Background="#1AFFFFFF" Padding="0,9" Cursor="Hand">
                     <TextBlock x:Name="TxtSleepRun" Text="自动休眠 关" FontSize="11.5" Foreground="#9E9EA6" HorizontalAlignment="Center"/>
@@ -280,14 +280,14 @@ function Get-ShellXaml {
                 <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="12,0,12,8"/>
                 <Grid Margin="12,0,12,0">
                   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
-                  <Border x:Name="HealthDot" Grid.Column="0" Width="26" Height="26" CornerRadius="13" Background="#2934C759" VerticalAlignment="Center">
+                  <Border x:Name="HealthDot" Grid.Column="0" Width="26" Height="26" CornerRadius="13" Background="{DynamicResource T_UI_OKBG2}" VerticalAlignment="Center">
                     <TextBlock x:Name="HealthGlyph" Text="✓" FontSize="13" Foreground="{DynamicResource T_UI_OK}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                     <TextBlock x:Name="TxtHealthTitle" Text="检查通过" FontSize="12" Foreground="{DynamicResource T_UI_T1}"/>
                     <TextBlock x:Name="TxtHealthSub" Text="系统服务与资源状态正常" FontSize="9.5" Foreground="{DynamicResource T_UI_T3}" Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>
                   </StackPanel>
-                  <TextBlock Grid.Column="2" Text="›" FontSize="12" Foreground="#40FFFFFF" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="2" Text="›" FontSize="12" Foreground="{DynamicResource T_UI_ARROW}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                 </Grid>
               </StackPanel>
             </Border>
@@ -491,7 +491,7 @@ function New-InstanceRowShell {
     # 图标
     $tile = New-Object System.Windows.Controls.Border
     $tile.Width = 26; $tile.Height = 26; $tile.CornerRadius = [System.Windows.CornerRadius]::new(8)
-    $tile.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#00000000'))
+    $tile.Background = Brush '#00000000'
     $tile.VerticalAlignment = 'Center'
     $img = New-Object System.Windows.Controls.Image
     $img.Width = 26; $img.Height = 26
@@ -508,10 +508,10 @@ function New-InstanceRowShell {
     $sp.VerticalAlignment = 'Center'
     $nm = New-Object System.Windows.Controls.TextBlock
     $nm.Text = "$($Row.Name)"; $nm.FontSize = 12.5
-    $nm.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#F2F2F5'))
+    $nm.Foreground = Brush '#F2F2F5'
     $sub = New-Object System.Windows.Controls.TextBlock
     $sub.Text = "$($Row.Judge)"; $sub.FontSize = 10.5
-    $sub.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#6E6E78'))
+    $sub.Foreground = Brush '#6E6E78'
     $sub.Margin = New-Object System.Windows.Thickness(0, 1, 0, 0)
     [void]$sp.Children.Add($nm); [void]$sp.Children.Add($sub)
     [System.Windows.Controls.Grid]::SetColumn($sp, 1)
@@ -525,16 +525,16 @@ function New-InstanceRowShell {
     $pt = New-Object System.Windows.Controls.TextBlock
     $pt.FontSize = 10
     if ($IsSleep -and $Row.WakeAt) {
-        $pill.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#29FF9F0A'))
-        $pt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#FF9F0A'))
+        $pill.Background = Brush '#29FF9F0A'
+        $pt.Foreground = Brush '#FF9F0A'
         $pt.Text = '休眠'
     } elseif ($IsOff) {
-        $pill.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#14FFFFFF'))
-        $pt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#9E9EA6'))
+        $pill.Background = Brush '#14FFFFFF'
+        $pt.Foreground = Brush '#9E9EA6'
         $pt.Text = '关闭'
     } else {
-        $pill.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#2934C759'))
-        $pt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#34C759'))
+        $pill.Background = Brush '#2934C759'
+        $pt.Foreground = Brush '#34C759'
         $pt.Text = '运行中'
     }
     $pill.Child = $pt
@@ -548,15 +548,15 @@ function New-InstanceRowShell {
     $mt = New-Object System.Windows.Controls.TextBlock
     $mt.Text = $(if ($IsOff -or $IsSleep) { '—' } else { ('{0:N1} GB' -f ($Row.Private / 1024.0)) })
     $mt.FontSize = 10.5
-    $mt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#9E9EA6'))
+    $mt.Foreground = Brush '#9E9EA6'
     $track = New-Object System.Windows.Controls.Border
     $track.Height = 3; $track.CornerRadius = [System.Windows.CornerRadius]::new(2)
-    $track.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#22FFFFFF'))
+    $track.Background = Brush '#22FFFFFF'
     $track.Margin = New-Object System.Windows.Thickness(0, 4, 0, 0)
     if (-not $IsOff -and $Row.Private -gt 0) {
         $fill = New-Object System.Windows.Controls.Border
         $fill.Height = 3; $fill.CornerRadius = [System.Windows.CornerRadius]::new(2)
-        $fill.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#0A84FF'))
+        $fill.Background = Brush '#0A84FF'
         $fill.HorizontalAlignment = 'Left'
         $pct = [math]::Min(100, [math]::Max(4, ($Row.Private / 6144.0) * 100))
         $fill.Width = 56 * $pct / 100
@@ -573,12 +573,12 @@ function New-InstanceRowShell {
     $tt = New-Object System.Windows.Controls.TextBlock
     $tt.FontSize = 12
     $tt.HorizontalAlignment = 'Right'
-    $tt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#F2F2F5'))
+    $tt.Foreground = Brush '#F2F2F5'
     $ts = New-Object System.Windows.Controls.TextBlock
     $ts.FontSize = 9.5
     $ts.HorizontalAlignment = 'Right'
     $ts.Margin = New-Object System.Windows.Thickness(0, 1, 0, 0)
-    $ts.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#6E6E78'))
+    $ts.Foreground = Brush '#6E6E78'
     if ($IsSleep -and $Row.WakeAt) {
         $wi = Get-WakeInfo $Row.WakeAt
         $tt.Text = $wi.Main
@@ -597,7 +597,7 @@ function New-InstanceRowShell {
     # 箭头
     $ch = New-Object System.Windows.Controls.TextBlock
     $ch.Text = '›'; $ch.FontSize = 12
-    $ch.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#40FFFFFF'))
+    $ch.Foreground = Brush '#40FFFFFF'
     $ch.VerticalAlignment = 'Center'; $ch.HorizontalAlignment = 'Right'
     [System.Windows.Controls.Grid]::SetColumn($ch, 5)
     [void]$grid.Children.Add($ch)
@@ -619,19 +619,19 @@ function New-EventRowShell {
     }
     $t = New-Object System.Windows.Controls.TextBlock
     $t.Text = $Time; $t.FontSize = 10.5; $t.VerticalAlignment = 'Center'
-    $t.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#6E6E78'))
+    $t.Foreground = Brush '#6E6E78'
     [System.Windows.Controls.Grid]::SetColumn($t, 0); [void]$g.Children.Add($t)
 
     $dotColor = switch ($Level) { 'ok' { '#34C759' } 'warn' { '#FF9F0A' } 'err' { '#FF453A' } default { '#5A5A64' } }
     $e = New-Object System.Windows.Shapes.Ellipse
     $e.Width = 5; $e.Height = 5; $e.VerticalAlignment = 'Center'; $e.HorizontalAlignment = 'Left'
-    $e.Fill = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($dotColor))
+    $e.Fill = Brush $dotColor
     [System.Windows.Controls.Grid]::SetColumn($e, 1); [void]$g.Children.Add($e)
 
     $x = New-Object System.Windows.Controls.TextBlock
     $x.Text = $Text; $x.FontSize = 11; $x.VerticalAlignment = 'Center'
     $x.TextTrimming = 'CharacterEllipsis'
-    $x.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($(if ($Level -eq 'err') { '#FF8078' } else { '#9E9EA6' })))
+    $x.Foreground = Brush $(if ($Level -eq 'err') { '#FF8078' } else { '#9E9EA6' })
     [System.Windows.Controls.Grid]::SetColumn($x, 2); [void]$g.Children.Add($x)
     return $g
 }

@@ -41,7 +41,7 @@ function Show-Announcement {
     $esc = { param($s) $s -replace '&', '&amp;' -replace '<', '&lt;' -replace '>', '&gt;' }
     $body = ''
     foreach ($ln in $c.Lines) {
-        $body += '<TextBlock Text="' + (& $esc $ln) + '" FontSize="12" Foreground="#B9B9C2" TextWrapping="Wrap" Margin="0,0,0,8"/>'
+        $body += '<TextBlock Text="' + (& $esc $ln) + '" FontSize="12" Foreground="{DynamicResource T_UI_TXT_L}" TextWrapping="Wrap" Margin="0,0,0,8"/>'
     }
 
     $xaml = @'
@@ -67,7 +67,7 @@ function Show-Announcement {
       </Grid.RowDefinitions>
 
       <StackPanel Grid.Row="0" Orientation="Horizontal">
-        <Border Width="34" Height="34" CornerRadius="10" Background="#2F2F36">
+        <Border Width="34" Height="34" CornerRadius="10" Background="{DynamicResource T_UI_SUB}">
           <Image x:Name="AnLogo" Stretch="UniformToFill"/>
         </Border>
         <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
@@ -78,13 +78,13 @@ function Show-Announcement {
 
       <StackPanel Grid.Row="1" Margin="0,14,0,0">
         <StackPanel x:Name="AnBody"/>
-        <Border Background="#1A1A1E" CornerRadius="10" BorderBrush="#22FFFFFF" BorderThickness="1" Margin="0,4,0,0">
+        <Border Background="#1A1A1E" CornerRadius="10" BorderBrush="{DynamicResource T_UI_CHIP2}" BorderThickness="1" Margin="0,4,0,0">
           <StackPanel Margin="12,10,12,10">
             <Grid x:Name="AnRepoRow" Background="Transparent" Margin="0,0,0,6">
-              <TextBlock x:Name="AnRepo" Text="GitHub" FontSize="11.5" Foreground="#6FA8FF"/>
+              <TextBlock x:Name="AnRepo" Text="GitHub" FontSize="11.5" Foreground="{DynamicResource T_UI_LINK}"/>
             </Grid>
             <Grid x:Name="AnQQRow" Background="Transparent">
-              <TextBlock x:Name="AnQQ" Text="QQ 群" FontSize="11.5" Foreground="#B9B9C2"/>
+              <TextBlock x:Name="AnQQ" Text="QQ 群" FontSize="11.5" Foreground="{DynamicResource T_UI_TXT_L}"/>
             </Grid>
           </StackPanel>
         </Border>
@@ -94,10 +94,10 @@ function Show-Announcement {
         <TextBlock x:Name="AnHint" Text="" FontSize="10" Foreground="#6E6E78" VerticalAlignment="Center"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
           <Border x:Name="BtnLater" Style="{StaticResource Plain}" Background="#1AFFFFFF" Margin="0,0,8,0">
-            <TextBlock Text="关闭" FontSize="12" Foreground="#E6E6EC"/>
+            <TextBlock Text="关闭" FontSize="12" Foreground="{DynamicResource T_UI_TXT_B}"/>
           </Border>
           <Border x:Name="BtnMute" Style="{StaticResource Plain}" Background="#F2F2F5">
-            <TextBlock Text="今日不提醒" FontSize="12" Foreground="#1B1B1F" FontWeight="SemiBold"/>
+            <TextBlock Text="今日不提醒" FontSize="12" Foreground="{DynamicResource T_UI_ON_ACC}" FontWeight="SemiBold"/>
           </Border>
         </StackPanel>
       </Grid>

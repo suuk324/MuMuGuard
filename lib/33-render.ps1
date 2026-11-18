@@ -862,13 +862,13 @@ function Show-SettingInput {
       <Border Background="#1A1A1E" CornerRadius="9" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="10,8">
         <TextBox x:Name="Inp" Text="" FontSize="13" Foreground="#F2F2F5" Background="Transparent" BorderThickness="0"/>
       </Border>
-      <TextBlock x:Name="Err" Text="" FontSize="10" Foreground="#FF6B6B" Margin="2,6,0,0"/>
+      <TextBlock x:Name="Err" Text="" FontSize="10" Foreground="{DynamicResource T_UI_ERR3}" Margin="2,6,0,0"/>
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
         <Border x:Name="BtnCancel" Background="#1AFFFFFF" CornerRadius="8" Padding="14,7" Margin="0,0,8,0" Cursor="Hand">
-          <TextBlock Text="取消" FontSize="11.5" Foreground="#E6E6EC"/>
+          <TextBlock Text="取消" FontSize="11.5" Foreground="{DynamicResource T_UI_TXT_B}"/>
         </Border>
         <Border x:Name="BtnOk" Background="#F2F2F5" CornerRadius="8" Padding="14,7" Cursor="Hand">
-          <TextBlock Text="保存" FontSize="11.5" Foreground="#1B1B1F" FontWeight="SemiBold"/>
+          <TextBlock Text="保存" FontSize="11.5" Foreground="{DynamicResource T_UI_ON_ACC}" FontWeight="SemiBold"/>
         </Border>
       </StackPanel>
     </StackPanel>
@@ -923,23 +923,23 @@ function Show-ClearMemoryDialog {
       <TextBlock Text="清除记忆" FontSize="15" FontWeight="SemiBold" Foreground="#F2F2F5"/>
       <TextBlock Text="彻底删除以下内容，不可恢复：" FontSize="11" Foreground="#6E6E78" Margin="0,6,0,10"/>
       <StackPanel Margin="0,0,0,6">
-        <TextBlock Text="· 全部休眠任务（正在休眠的实例不会再自动唤醒）" FontSize="11.5" Foreground="#B9B9C2" TextWrapping="Wrap" Margin="0,0,0,4"/>
-        <TextBlock Text="· 内存趋势、今日统计、事件记录" FontSize="11.5" Foreground="#B9B9C2" TextWrapping="Wrap" Margin="0,0,0,4"/>
-        <TextBlock Text="· 所有日志与已导出的报告" FontSize="11.5" Foreground="#B9B9C2" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <TextBlock Text="· 全部休眠任务（正在休眠的实例不会再自动唤醒）" FontSize="11.5" Foreground="{DynamicResource T_UI_TXT_L}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <TextBlock Text="· 内存趋势、今日统计、事件记录" FontSize="11.5" Foreground="{DynamicResource T_UI_TXT_L}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <TextBlock Text="· 所有日志与已导出的报告" FontSize="11.5" Foreground="{DynamicResource T_UI_TXT_L}" TextWrapping="Wrap" Margin="0,0,0,4"/>
         <TextBlock Text="· 设置项会保留，不用重配" FontSize="11.5" Foreground="#6E6E78" TextWrapping="Wrap"/>
       </StackPanel>
       <Border x:Name="ChkRow" Background="Transparent" Padding="0,10,0,0" Cursor="Hand">
         <StackPanel Orientation="Horizontal">
           <Border x:Name="ChkBox" Width="16" Height="16" CornerRadius="4" BorderBrush="#33FFFFFF" BorderThickness="1" Background="Transparent" VerticalAlignment="Center">
-            <TextBlock x:Name="ChkMark" Text="" FontSize="10" Foreground="#1B1B1F" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock x:Name="ChkMark" Text="" FontSize="10" Foreground="{DynamicResource T_UI_ON_ACC}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
-          <TextBlock x:Name="ChkText" Text="同时停止看护" FontSize="11.5" Foreground="#E6E6EC" Margin="8,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="ChkText" Text="同时停止看护" FontSize="11.5" Foreground="{DynamicResource T_UI_TXT_B}" Margin="8,0,0,0" VerticalAlignment="Center"/>
         </StackPanel>
       </Border>
       <TextBlock x:Name="Hint" Text="" FontSize="10" Foreground="#6E6E78" Margin="0,8,0,0"/>
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
         <Border x:Name="BtnNo" Background="#1AFFFFFF" CornerRadius="9" Padding="16,8" Margin="0,0,8,0" Cursor="Hand">
-          <TextBlock Text="取消" FontSize="11.5" Foreground="#E6E6EC"/>
+          <TextBlock Text="取消" FontSize="11.5" Foreground="{DynamicResource T_UI_TXT_B}"/>
         </Border>
         <Border x:Name="BtnYes" Background="#FF453A" CornerRadius="9" Padding="16,8" Cursor="Hand">
           <TextBlock Text="彻底清除" FontSize="11.5" Foreground="#FFFFFF" FontWeight="SemiBold"/>

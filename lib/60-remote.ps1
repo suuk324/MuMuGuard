@@ -636,7 +636,7 @@ $script:remoteXaml = @"
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <TextBlock x:Name="TxtUrl" Foreground="#9E9EA6" FontSize="10.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
           <Border x:Name="BtnCopy" Grid.Column="1" Background="#1AFFFFFF" CornerRadius="6" Padding="8,3" Margin="8,0,0,0" Cursor="Hand">
-            <TextBlock Text="复制" FontSize="10" Foreground="#E6E6EC"/>
+            <TextBlock Text="复制" FontSize="10" Foreground="{DynamicResource T_UI_TXT_B}"/>
           </Border>
         </Grid>
       </Border>
@@ -649,7 +649,7 @@ $script:remoteXaml = @"
         </Grid.ColumnDefinitions>
         <Button x:Name="BtnPower" Grid.Column="0" Style="{StaticResource FlatBtn}"/>
         <Button x:Name="BtnRefresh" Grid.Column="2" Content="刷新令牌" Style="{StaticResource FlatBtn}"/>
-        <Button x:Name="BtnClose" Grid.Column="4" Content="关闭" Style="{StaticResource FlatBtn}" Background="#F2F2F5" Foreground="#1B1B1F"/>
+        <Button x:Name="BtnClose" Grid.Column="4" Content="关闭" Style="{StaticResource FlatBtn}" Background="#F2F2F5" Foreground="{DynamicResource T_UI_ON_ACC}"/>
       </Grid>
     </StackPanel>
   </Border>

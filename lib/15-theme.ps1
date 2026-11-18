@@ -53,6 +53,25 @@ $script:PaletteDark = [ordered]@{
     'T_UI_FILL2'   = '#24FFFFFF' # 选中块
     'T_UI_FILL3'   = '#14FFFFFF' # 按钮底
     'T_UI_DIV'     = '#0DFFFFFF' # 分隔线
+    # —— 2.0 补充：之前漏掉的叠加色与语义色 ——
+    'T_UI_CHIP'    = '#18FFFFFF'
+    'T_UI_CHIP2'   = '#22FFFFFF'
+    'T_UI_SOFT'    = '#10FFFFFF'
+    'T_UI_ARROW'   = '#40FFFFFF'
+    'T_UI_ICON'    = '#D8D8E0'
+    'T_UI_TXT_L'   = '#B9B9C2'
+    'T_UI_TXT_B'   = '#E6E6EC'
+    'T_UI_TXT_D'   = '#4A4A52'
+    'T_UI_TXT_E'   = '#5A5A64'
+    'T_UI_SUB'     = '#2F2F36'
+    'T_UI_ON_ACC'  = '#1B1B1F'
+    'T_UI_LINK'    = '#6FA8FF'
+    'T_UI_ERR2'    = '#FF8078'
+    'T_UI_ERR3'    = '#FF6B6B'
+    'T_UI_OKBG'    = '#1E3A2A'
+    'T_UI_WARNBG'  = '#2A2415'
+    'T_UI_OKBG2'   = '#2934C759'
+    'T_UI_WARNBG2' = '#29FF9F0A'
 }
 
 # 浅色：保持同样的层级关系，只是明暗翻转
@@ -102,6 +121,24 @@ $script:PaletteLight = [ordered]@{
     'T_UI_FILL2'   = '#14000000'
     'T_UI_FILL3'   = '#0D000000'
     'T_UI_DIV'     = '#0D000000'
+    'T_UI_CHIP'    = '#14000000'
+    'T_UI_CHIP2'   = '#1A000000'
+    'T_UI_SOFT'    = '#0A000000'
+    'T_UI_ARROW'   = '#59000000'
+    'T_UI_ICON'    = '#3A3A42'
+    'T_UI_TXT_L'   = '#4A4A52'
+    'T_UI_TXT_B'   = '#1C1C1E'
+    'T_UI_TXT_D'   = '#C7C7CE'
+    'T_UI_TXT_E'   = '#B4B4BC'
+    'T_UI_SUB'     = '#E4E4E9'
+    'T_UI_ON_ACC'  = '#FFFFFF'
+    'T_UI_LINK'    = '#0A6BD6'
+    'T_UI_ERR2'    = '#CF222E'
+    'T_UI_ERR3'    = '#CF222E'
+    'T_UI_OKBG'    = '#E6F4EB'
+    'T_UI_WARNBG'  = '#FBF3E2'
+    'T_UI_OKBG2'   = '#2E1A7F37'
+    'T_UI_WARNBG2' = '#2E9A6700'
 }
 
 # 色值 -> token 反查表

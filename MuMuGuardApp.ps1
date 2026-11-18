@@ -693,6 +693,11 @@ $workerHandle = $workerPs.BeginInvoke()
 
 # ---------------- 主界面 XAML ----------------
 
+# 试验：软件渲染（硬件合成在 150% 缩放下可能丢字顶像素）
+if ($env:MMG_SOFTWARE -eq '1') {
+    try { [System.Windows.Media.RenderOptions]::ProcessRenderMode = [System.Windows.Interop.RenderMode]::SoftwareOnly } catch { }
+}
+$script:cfg.SoftwareRender = ($env:MMG_SOFTWARE -eq '1')
 $xaml = Convert-XamlTheme (Get-ShellXaml)
 
 $xaml = Convert-XamlTheme $xaml

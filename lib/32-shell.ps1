@@ -10,7 +10,7 @@ function Get-ShellXaml {
         Title="MuMuGuard" Width="1000" Height="700"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ResizeMode="CanMinimize" FontFamily="Microsoft YaHei UI">
+        ResizeMode="CanMinimize" FontFamily="Microsoft YaHei UI" UseLayoutRounding="True" SnapsToDevicePixels="True">
   <Window.Resources>
 
 
@@ -234,49 +234,56 @@ function Get-ShellXaml {
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Border Grid.Row="0" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12" Padding="12,11,12,12">
-              <StackPanel>
-                <TextBlock Text="主机内存" FontSize="11" Foreground="{DynamicResource T_UI_T3}"/>
-                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                  <TextBlock x:Name="TxtMemUsed" Text="0.0" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}"/>
-                  <TextBlock x:Name="TxtMemTotal" Text="/ 0 GB" FontSize="11" Foreground="{DynamicResource T_UI_T3}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+              <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+              <Border Padding="12,11,12,12">
+                <StackPanel>
+                  <TextBlock Text="主机内存" FontSize="11" Foreground="{DynamicResource T_UI_T3}"/>
+                  <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                    <TextBlock x:Name="TxtMemUsed" Text="0.0" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}"/>
+                    <TextBlock x:Name="TxtMemTotal" Text="/ 0 GB" FontSize="11" Foreground="{DynamicResource T_UI_T3}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+                  </StackPanel>
+                  <Border Height="5" CornerRadius="3" Background="#24FFFFFF" Margin="0,8,0,0">
+                    <Border x:Name="MemBar" Width="0" Height="5" CornerRadius="3" Background="{DynamicResource T_UI_INFO}" HorizontalAlignment="Left"/>
+                  </Border>
+                  <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Ellipse Width="5" Height="5" Fill="{DynamicResource T_UI_INFO}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TxtMemUsedLg" Text="已用 0 GB" FontSize="9.5" Foreground="{DynamicResource T_UI_T3}" Margin="4,0,12,0"/>
+                    <Ellipse Width="5" Height="5" Fill="{DynamicResource T_UI_T3}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TxtMemFreeLg" Text="可用 0 GB" FontSize="9.5" Foreground="{DynamicResource T_UI_T3}" Margin="4,0,0,0"/>
+                  </StackPanel>
                 </StackPanel>
-                <Border Height="5" CornerRadius="3" Background="#24FFFFFF" Margin="0,8,0,0">
-                  <Border x:Name="MemBar" Width="0" Height="5" CornerRadius="3" Background="{DynamicResource T_UI_INFO}" HorizontalAlignment="Left"/>
-                </Border>
-                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                  <Ellipse Width="5" Height="5" Fill="{DynamicResource T_UI_INFO}" VerticalAlignment="Center"/>
-                  <TextBlock x:Name="TxtMemUsedLg" Text="已用 0 GB" FontSize="9.5" Foreground="{DynamicResource T_UI_T3}" Margin="4,0,12,0"/>
-                  <Ellipse Width="5" Height="5" Fill="{DynamicResource T_UI_T3}" VerticalAlignment="Center"/>
-                  <TextBlock x:Name="TxtMemFreeLg" Text="可用 0 GB" FontSize="9.5" Foreground="{DynamicResource T_UI_T3}" Margin="4,0,0,0"/>
+              </Border>
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,0,0,12">
+              <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+              <Border Padding="0,12,0,12">
+                <StackPanel>
+                  <TextBlock Text="快捷操作" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="12,0,12,8"/>
+                  <Grid Margin="12,0,12,0">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border x:Name="BtnGuardRun" Grid.Row="0" Grid.Column="0" CornerRadius="9" Background="#F2F2F5" Padding="0,9" Cursor="Hand">
+                      <TextBlock x:Name="TxtGuardRun" Text="开始看护" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_ON_ACC}" HorizontalAlignment="Center"/>
+                    </Border>
+                    <Border x:Name="BtnSleepRun" Grid.Row="0" Grid.Column="2" CornerRadius="9" Background="#1AFFFFFF" Padding="0,9" Cursor="Hand">
+                      <TextBlock x:Name="TxtSleepRun" Text="自动休眠 关" FontSize="11.5" Foreground="#9E9EA6" HorizontalAlignment="Center"/>
+                    </Border>
+                    <Border x:Name="BtnCleanNow" Grid.Row="2" Grid.Column="0" CornerRadius="9" Background="#1AFFFFFF" Padding="0,9" Cursor="Hand">
+                      <TextBlock Text="清理内存" FontSize="11.5" Foreground="#F2F2F5" HorizontalAlignment="Center"/>
+                    </Border>
+                    <Border x:Name="BtnRemoteOpen" Grid.Row="2" Grid.Column="2" CornerRadius="9" Background="#1AFFFFFF" Padding="0,9" Cursor="Hand">
+                      <TextBlock Text="手机访问" FontSize="11.5" Foreground="#F2F2F5" HorizontalAlignment="Center"/>
+                    </Border>
+                  </Grid>
                 </StackPanel>
-              </StackPanel>
-            </Border>
+              </Border>
+            </Grid>
 
-            <Border Grid.Row="1" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12" Padding="0,12,0,12">
-              <StackPanel>
-                <TextBlock Text="快捷操作" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="12,0,12,8"/>
-                <Grid Margin="12,0,12,0">
-                  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                  <Border x:Name="BtnGuardRun" Grid.Row="0" Grid.Column="0" CornerRadius="9" Background="#F2F2F5" Padding="0,9" Cursor="Hand">
-                    <TextBlock x:Name="TxtGuardRun" Text="开始看护" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_ON_ACC}" HorizontalAlignment="Center"/>
-                  </Border>
-                  <Border x:Name="BtnSleepRun" Grid.Row="0" Grid.Column="2" CornerRadius="9" Background="#1AFFFFFF" Padding="0,9" Cursor="Hand">
-                    <TextBlock x:Name="TxtSleepRun" Text="自动休眠 关" FontSize="11.5" Foreground="#9E9EA6" HorizontalAlignment="Center"/>
-                  </Border>
-                  <Border x:Name="BtnCleanNow" Grid.Row="2" Grid.Column="0" CornerRadius="9" Background="#1AFFFFFF" Padding="0,9" Cursor="Hand">
-                    <TextBlock Text="清理内存" FontSize="11.5" Foreground="#F2F2F5" HorizontalAlignment="Center"/>
-                  </Border>
-                  <Border x:Name="BtnRemoteOpen" Grid.Row="2" Grid.Column="2" CornerRadius="9" Background="#1AFFFFFF" Padding="0,9" Cursor="Hand">
-                    <TextBlock Text="手机访问" FontSize="11.5" Foreground="#F2F2F5" HorizontalAlignment="Center"/>
-                  </Border>
-                </Grid>
-              </StackPanel>
-            </Border>
-
-            <Border x:Name="HealthCard" Grid.Row="2" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12" Cursor="Hand" Padding="0,12,0,12">
-              <StackPanel>
+            <Grid x:Name="HealthCard" Grid.Row="2" Margin="0,0,0,12" Cursor="Hand">
+              <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+              <StackPanel Margin="0,12,0,12">
                 <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="12,0,12,8"/>
                 <Grid Margin="12,0,12,0">
                   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
@@ -290,83 +297,90 @@ function Get-ShellXaml {
                   <TextBlock Grid.Column="2" Text="›" FontSize="12" Foreground="{DynamicResource T_UI_ARROW}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                 </Grid>
               </StackPanel>
-            </Border>
-
-            <Border Grid.Row="3" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Padding="0,6,0,6">
-              <StackPanel>
-                <Grid Margin="12,7,12,7"><TextBlock Text="下一次唤醒" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtNextWake" Text="—" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
-                <Border Height="1" Background="#0DFFFFFF" Margin="12,0,12,0"/>
-                <Grid Margin="12,7,12,7"><TextBlock Text="今日休眠" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtSleepToday" Text="0 次" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
-              </StackPanel>
-            </Border>
+            </Grid>
+            <Grid Grid.Row="3">
+              <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+              <Border Padding="0,6,0,6">
+                <StackPanel>
+                  <Grid Margin="12,7,12,7"><TextBlock Text="下一次唤醒" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtNextWake" Text="—" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
+                  <Border Height="1" Background="#0DFFFFFF" Margin="12,0,12,0"/>
+                  <Grid Margin="12,7,12,7"><TextBlock Text="今日休眠" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtSleepToday" Text="0 次" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
+                </StackPanel>
+              </Border>
+            </Grid>
           </Grid>
           </Grid>
         </Grid>
 
         <!-- 其余页面占位（后续填充） -->
         <Grid x:Name="Page2" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
-          <Border Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,14,0,0">
-            <StackPanel>
-              
-              <StackPanel x:Name="PnlManage" Margin="8,0,8,10"/>
-            </StackPanel>
-          </Border>
+          <Grid Margin="0,14,0,0">
+            <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+              <StackPanel>
+                
+                <StackPanel x:Name="PnlManage" Margin="8,0,8,10"/>
+              </StackPanel>
+          </Grid>
         </Grid>
 
         <Grid x:Name="Page3" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
-          <Border Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,14,0,0">
-            <StackPanel>
-              
-              <StackPanel x:Name="PnlHealthDetail" Margin="16,0,16,14"/>
-            </StackPanel>
-          </Border>
+          <Grid Margin="0,14,0,0">
+            <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+              <StackPanel>
+                
+                <StackPanel x:Name="PnlHealthDetail" Margin="16,0,16,14"/>
+              </StackPanel>
+          </Grid>
         </Grid>
 
         <Grid x:Name="Page4" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
-          <Border Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,14,0,0">
-            <StackPanel>
-              <Grid Margin="16,14,16,8">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0"><TextBlock Text="今日休眠" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtSleepToday2" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
-                <StackPanel Grid.Column="1"><TextBlock Text="自动唤醒" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtWakeToday" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
-                <StackPanel Grid.Column="2"><TextBlock Text="内存清理" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtCleanToday" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
-                <StackPanel Grid.Column="3"><TextBlock Text="异常恢复" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtRecoverToday" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
-              </Grid>
-              <StackPanel Orientation="Horizontal" Margin="16,14,16,10">
-                <TextBox x:Name="TxtEventSearch" Width="150" Height="26" Margin="0,0,8,0" FontSize="11" Foreground="{DynamicResource T_UI_T1}" Background="{DynamicResource T_UI_INPUT}" BorderThickness="0" Padding="8,4,8,4" VerticalContentAlignment="Center" ToolTip="按实例名 / 内容搜索"/>
-              <Border x:Name="BtnFAll" Background="#24FFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="全部" FontSize="10.5" Foreground="#F2F2F5"/></Border>
-                <Border x:Name="BtnFWarn" Background="#1AFFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="告警" FontSize="10.5" Foreground="#9E9EA6"/></Border>
-                <Border x:Name="BtnFSleep" Background="#1AFFFFFF" CornerRadius="7" Padding="10,4"><TextBlock Text="休眠" FontSize="10.5" Foreground="#9E9EA6"/></Border>
+          <Grid>
+            <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+              <StackPanel>
+                <Grid Margin="16,14,16,8">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0"><TextBlock Text="今日休眠" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtSleepToday2" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
+                  <StackPanel Grid.Column="1"><TextBlock Text="自动唤醒" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtWakeToday" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
+                  <StackPanel Grid.Column="2"><TextBlock Text="内存清理" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtCleanToday" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
+                  <StackPanel Grid.Column="3"><TextBlock Text="异常恢复" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtRecoverToday" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Margin="16,14,16,10">
+                  <TextBox x:Name="TxtEventSearch" Width="150" Height="26" Margin="0,0,8,0" FontSize="11" Foreground="{DynamicResource T_UI_T1}" Background="{DynamicResource T_UI_INPUT}" BorderThickness="0" Padding="8,4,8,4" VerticalContentAlignment="Center" ToolTip="按实例名 / 内容搜索"/>
+                <Border x:Name="BtnFAll" Background="#24FFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="全部" FontSize="10.5" Foreground="#F2F2F5"/></Border>
+                  <Border x:Name="BtnFWarn" Background="#1AFFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="告警" FontSize="10.5" Foreground="#9E9EA6"/></Border>
+                  <Border x:Name="BtnFSleep" Background="#1AFFFFFF" CornerRadius="7" Padding="10,4"><TextBlock Text="休眠" FontSize="10.5" Foreground="#9E9EA6"/></Border>
+                </StackPanel>
+                <ScrollViewer Height="470" VerticalScrollBarVisibility="Auto">
+                  <StackPanel x:Name="PnlEventDetail" Margin="16,0,16,14"/>
+                </ScrollViewer>
               </StackPanel>
-              <ScrollViewer Height="470" VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="PnlEventDetail" Margin="16,0,16,14"/>
-              </ScrollViewer>
-            </StackPanel>
-          </Border>
+          </Grid>
         </Grid>
 
         <Grid x:Name="Page5" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
-          <Border Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,14,0,0">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-              <StackPanel Margin="16,14,16,20">
-                <StackPanel x:Name="PnlSettings"/>
-                <TextBlock Text="工具" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,18,0,6"/>
-                <Border Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1">
-                  <StackPanel>
-                    <Border x:Name="BtnOpenLog" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="打开日志目录" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
-                    <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
-                    <Border x:Name="BtnExportRep" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出诊断报告" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
-                    <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
-                    <Border x:Name="BtnCheckUpd" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="检查更新" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
-                    <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
-                    <Border x:Name="BtnExportCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出设置" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
-                    <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
-                    <Border x:Name="BtnResetCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="恢复默认设置" FontSize="12" Foreground="{DynamicResource T_UI_ERR}" VerticalAlignment="Center"/></Border>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-            </ScrollViewer>
-          </Border>
+          <Grid Margin="0,14,0,0">
+            <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="16,14,16,20">
+                  <StackPanel x:Name="PnlSettings"/>
+                  <TextBlock Text="工具" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,18,0,6"/>
+                  <Grid>
+                    <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+                      <StackPanel>
+                        <Border x:Name="BtnOpenLog" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="打开日志目录" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                        <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
+                        <Border x:Name="BtnExportRep" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出诊断报告" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                        <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
+                        <Border x:Name="BtnCheckUpd" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="检查更新" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                        <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
+                        <Border x:Name="BtnExportCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出设置" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                        <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
+                        <Border x:Name="BtnResetCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="恢复默认设置" FontSize="12" Foreground="{DynamicResource T_UI_ERR}" VerticalAlignment="Center"/></Border>
+                      </StackPanel>
+                  </Grid>
+                </StackPanel>
+              </ScrollViewer>
+          </Grid>
         </Grid>
       </Grid>
     </Grid>

@@ -237,8 +237,8 @@ $xaml = @'
                     <ColumnDefinition Width="Auto"/><ColumnDefinition Width="92"/>
                     <ColumnDefinition Width="68"/><ColumnDefinition Width="16"/>
                   </Grid.ColumnDefinitions>
-                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="#22FFFFFF" VerticalAlignment="Center">
-                    <Image x:Name="Ava1" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="Transparent" VerticalAlignment="Center">
+                    <Image x:Name="Ava1" Width="26" Height="26" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="国服 微信" FontSize="12.5" Foreground="{StaticResource T1}"/>
@@ -268,8 +268,8 @@ $xaml = @'
                     <ColumnDefinition Width="Auto"/><ColumnDefinition Width="92"/>
                     <ColumnDefinition Width="68"/><ColumnDefinition Width="16"/>
                   </Grid.ColumnDefinitions>
-                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="#22FFFFFF" VerticalAlignment="Center">
-                    <Image x:Name="Ava2" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="Transparent" VerticalAlignment="Center">
+                    <Image x:Name="Ava2" Width="26" Height="26" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="国际服" FontSize="12.5" Foreground="{StaticResource T1}"/>
@@ -297,8 +297,8 @@ $xaml = @'
                     <ColumnDefinition Width="Auto"/><ColumnDefinition Width="92"/>
                     <ColumnDefinition Width="68"/><ColumnDefinition Width="16"/>
                   </Grid.ColumnDefinitions>
-                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="#22FFFFFF" VerticalAlignment="Center">
-                    <Image x:Name="Ava3" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="Transparent" VerticalAlignment="Center">
+                    <Image x:Name="Ava3" Width="26" Height="26" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="国服QQ" FontSize="12.5" Foreground="{StaticResource T1}"/>
@@ -326,8 +326,8 @@ $xaml = @'
                     <ColumnDefinition Width="Auto"/><ColumnDefinition Width="92"/>
                     <ColumnDefinition Width="68"/><ColumnDefinition Width="16"/>
                   </Grid.ColumnDefinitions>
-                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="#22FFFFFF" VerticalAlignment="Center">
-                    <Image x:Name="Ava4" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="Transparent" VerticalAlignment="Center">
+                    <Image x:Name="Ava4" Width="26" Height="26" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="MuMu安卓设备-2" FontSize="12.5" Foreground="{StaticResource T1}"/>
@@ -355,8 +355,8 @@ $xaml = @'
                     <ColumnDefinition Width="Auto"/><ColumnDefinition Width="92"/>
                     <ColumnDefinition Width="68"/><ColumnDefinition Width="16"/>
                   </Grid.ColumnDefinitions>
-                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="#22FFFFFF" VerticalAlignment="Center">
-                    <Image x:Name="Ava5" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Background="Transparent" VerticalAlignment="Center">
+                    <Image x:Name="Ava5" Width="26" Height="26" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="MuMu安卓设备-4" FontSize="12.5" Foreground="{StaticResource T1}"/>
@@ -454,7 +454,7 @@ $xaml = @'
 
             <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,12,0,0">
               <StackPanel>
-                <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="12,12,12,0"/>
+                <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="12,14,12,0"/>
                 <Grid Margin="12,10,12,14">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/>

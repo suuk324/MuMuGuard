@@ -281,7 +281,7 @@ function Get-ShellXaml {
 
               <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,12,0,0">
                 <StackPanel>
-                  <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="12,12,12,0"/>
+                  <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="12,14,12,0"/>
                   <Grid Margin="12,10,12,14">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/>
@@ -401,11 +401,11 @@ function New-InstanceRowShell {
     # 图标
     $tile = New-Object System.Windows.Controls.Border
     $tile.Width = 26; $tile.Height = 26; $tile.CornerRadius = [System.Windows.CornerRadius]::new(8)
-    $tile.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#22FFFFFF'))
+    $tile.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#00000000'))
     $tile.VerticalAlignment = 'Center'
     $img = New-Object System.Windows.Controls.Image
-    $img.Width = 22; $img.Height = 22
-    $img.Stretch = 'Uniform'
+    $img.Width = 26; $img.Height = 26
+    $img.Stretch = 'UniformToFill'
     if ($Icon) { $img.Source = $Icon }
     if ($IsOff) { $img.Opacity = 0.45 }
     $tile.Child = $img

@@ -83,6 +83,44 @@ function Save-SleepList($list) {
 }
 
 
+# 启动（开机）一个已关闭的实例；「唤醒」和「启动」按钮都走这里
+function Start-Instance([string]$index) {
+    if (-not $index -or $index -eq '-') { return $false }
+    $mgr = $null
+    try { $mgr = $MuMuMgr } catch { $mgr = $null }
+    if (-not $mgr -or -not (Test-Path $mgr)) {
+        Write-GuardLog 'START_FAIL' "实例$index" '找不到 MuMuManager.exe'
+        return $false
+    }
+    try {
+        $out = (& $mgr control -v $index launch 2>&1) -join ' '
+        $out = $out.Trim()
+        Write-Diag ("启动实例{0}: {1}" -f $index, $out)
+        $code = -1
+        try { if ($out -match 'errcode"\s*:\s*(-?\d+)') { $code = [int]$Matches[1] } } catch { }
+        if ($code -ne 0) {
+            Write-GuardLog 'START_FAIL' "实例$index" $out
+            return $false
+        }
+        return $true
+    } catch {
+        Write-GuardLog 'START_FAIL' "实例$index" $_.Exception.Message
+        return $false
+    }
+}
+
+# 唤醒时把该实例从休眠计划里移除（否则界面一直显示「休眠中」）
+function Remove-SleepEntry([string]$index) {
+    try {
+        $list = @(Get-SleepList)
+        $new = @($list | Where-Object { "$($_.Index)" -ne "$index" })
+        if ($new.Count -ne $list.Count) {
+            Save-SleepList $new
+            Write-Diag "已从休眠计划移除实例 $index"
+        }
+    } catch { Write-Diag "移除休眠记录失败: $($_.Exception.Message)" }
+}
+
 function Start-Waker {
     try {
         $running = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |

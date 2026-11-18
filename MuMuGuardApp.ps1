@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq', '63-res')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -328,7 +328,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.4'
+$script:appVersion     = '2.0.5'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -912,13 +912,12 @@ $updateTimer.Interval = [TimeSpan]::FromSeconds(20)
 $updateTimer.Add_Tick({
     $updateTimer.Stop()
     try { Invoke-AutoUpdateCheck } catch { }
-            if ($env:MMG_SHOW_DETAIL) { try { Show-InstanceDetail $env:MMG_SHOW_DETAIL } catch { Write-Diag "调试详情失败: $($_.Exception.Message)" } }
 })
 $win.Add_Loaded({
     Invoke-LogRotation
     $updateTimer.Start()
     Load-Trend
-    try { Load-OpState } catch { }
+    # 旧版操作状态已并入 config.json，不再单独加载
     Set-View $(if ($env:MMG_COMPACT -eq '1') { 'compact' } else { 'shell' })
     if ($txtVersion) { $txtVersion.Text = 'v' + $script:appVersion }
     Update-SleepButton

@@ -571,22 +571,36 @@ function Invoke-RemoteCommands {
 $script:remoteXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="手机访问" Width="420" Height="580"
+        Title="手机访问" Width="404" SizeToContent="Height"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        WindowStartupLocation="CenterScreen" ShowInTaskbar="False">
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
   <Window.Resources>
-    <Style x:Key="DlgBtn" TargetType="Button">
-      <Setter Property="Background" Value="#2B2B30"/>
+    <Style x:Key="FlatBtn" TargetType="Button">
       <Setter Property="Foreground" Value="#F2F2F5"/>
-      <Setter Property="BorderBrush" Value="#33FFFFFF"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Padding" Value="0,7,0,7"/>
+      <Setter Property="Background" Value="#1AFFFFFF"/>
+      <Setter Property="FontSize" Value="11.5"/>
+      <Setter Property="Padding" Value="0,9,0,9"/>
+      <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border CornerRadius="9" Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+            <Border CornerRadius="9" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="SegBtn" TargetType="Button">
+      <Setter Property="Foreground" Value="#6E6E78"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="Padding" Value="12,5,12,5"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border CornerRadius="7" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
           </ControlTemplate>
@@ -594,33 +608,51 @@ $script:remoteXaml = @"
       </Setter>
     </Style>
   </Window.Resources>
-  <Viewbox Stretch="Uniform"><Border CornerRadius="14" Background="#232327" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="22">
-    <StackPanel>
-      <DockPanel Margin="0,0,0,6">
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-          <Button x:Name="BtnModeLan" Content="局域网" Style="{StaticResource DlgBtn}" Padding="10,4,10,4" Margin="0,0,6,0"/>
-          <Button x:Name="BtnModeWan" Content="出门用" Style="{StaticResource DlgBtn}" Padding="10,4,10,4"/>
+  <Border CornerRadius="14" Background="#232327" BorderBrush="#33FFFFFF" BorderThickness="1">
+    <StackPanel Margin="22,18,22,18">
+      <Grid>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="手机访问" FontSize="15" FontWeight="SemiBold" Foreground="#F2F2F5" VerticalAlignment="Center"/>
+          <Border Background="#1AFFFFFF" CornerRadius="6" Padding="7,2,7,3" Margin="9,0,0,0" VerticalAlignment="Center">
+            <TextBlock x:Name="TxtState" Text="已开启" FontSize="9.5" Foreground="#6E6E78"/>
+          </Border>
         </StackPanel>
-        <TextBlock x:Name="TxtTitle" Text="手机访问" Foreground="#F2F2F5" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
-      </DockPanel>
-      <TextBlock x:Name="TxtHint" Foreground="#6E6E78" FontSize="11" TextWrapping="Wrap"
-                 Width="330" HorizontalAlignment="Left" Margin="0,0,0,14"/>
-      <Border x:Name="QrBox" Width="210" Height="210" Background="White" CornerRadius="8"
-              HorizontalAlignment="Center" Margin="0,0,0,12">
-        <Image x:Name="ImgQr" Width="186" Height="186" Stretch="Uniform"/>
+        <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#1AFFFFFF" CornerRadius="8" Padding="2">
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="BtnModeLan" Content="局域网" Style="{StaticResource SegBtn}"/>
+            <Button x:Name="BtnModeWan" Content="出门用" Style="{StaticResource SegBtn}"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <TextBlock x:Name="TxtHint" Foreground="#6E6E78" FontSize="10.5" TextWrapping="Wrap" Margin="0,10,0,14"/>
+
+      <Border x:Name="QrBox" Width="196" Height="196" Background="White" CornerRadius="10" HorizontalAlignment="Center" Margin="0,0,0,12">
+        <Image x:Name="ImgQr" Width="172" Height="172" Stretch="Uniform"/>
       </Border>
-      <TextBlock x:Name="TxtUrl" Foreground="#9E9EA6" FontSize="10" TextWrapping="Wrap"
-                 Width="330" TextAlignment="Center" Margin="0,0,0,14"/>
+
+      <Border Background="#1A1A1E" CornerRadius="9" Padding="12,9" Margin="0,0,0,14">
+        <Grid>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <TextBlock x:Name="TxtUrl" Foreground="#9E9EA6" FontSize="10.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+          <Border x:Name="BtnCopy" Grid.Column="1" Background="#1AFFFFFF" CornerRadius="6" Padding="8,3" Margin="8,0,0,0" Cursor="Hand">
+            <TextBlock Text="复制" FontSize="10" Foreground="#E6E6EC"/>
+          </Border>
+        </Grid>
+      </Border>
+
       <Grid>
         <Grid.ColumnDefinitions>
-          <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+          <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <Button x:Name="BtnPower" Grid.Column="0" Style="{StaticResource DlgBtn}" Margin="0,0,8,0"/>
-        <Button x:Name="BtnRefresh" Grid.Column="1" Content="刷新令牌" Style="{StaticResource DlgBtn}" Margin="0,0,8,0"/>
-        <Button x:Name="BtnClose" Grid.Column="2" Content="关闭" Style="{StaticResource DlgBtn}"/>
+        <Button x:Name="BtnPower" Grid.Column="0" Style="{StaticResource FlatBtn}"/>
+        <Button x:Name="BtnRefresh" Grid.Column="2" Content="刷新令牌" Style="{StaticResource FlatBtn}"/>
+        <Button x:Name="BtnClose" Grid.Column="4" Content="关闭" Style="{StaticResource FlatBtn}" Background="#F2F2F5" Foreground="#1B1B1F"/>
       </Grid>
     </StackPanel>
-  </Border></Viewbox>
+  </Border>
 </Window>
 "@
 
@@ -639,6 +671,10 @@ function Show-RemoteDialog {
     $txtUrl   = $dlg.FindName('TxtUrl')
     $btnPower = $dlg.FindName('BtnPower')
     $btnRefresh = $dlg.FindName('BtnRefresh')
+    $txtState  = $dlg.FindName('TxtState')
+    $btnCopy   = $dlg.FindName('BtnCopy')
+    if ($btnCopy) { $btnCopy.Add_MouseLeftButtonUp({ try { $t = $script:remoteDlg.FindName('TxtUrl'); if ($t -and $t.Text) { [System.Windows.Clipboard]::SetText($t.Text) } } catch { } }) }
+    $rootDlg = $dlg.FindName('TxtTitle'); if (-not $rootDlg) { try { $dlg.FindName('TxtHint').Add_MouseLeftButtonDown({ $dlg.DragMove() }) } catch { } }
     $btnModeLan = $dlg.FindName('BtnModeLan')
     $btnModeWan = $dlg.FindName('BtnModeWan')
 
@@ -659,16 +695,19 @@ function Show-RemoteDialog {
         $isLan = ($script:remoteMode -eq 'lan')
         $btnModeLan.Foreground = if ($isLan) { Brush '#F2F2F5' } else { Brush '#6E6E78' }
         $btnModeWan.Foreground = if ($isLan) { Brush '#6E6E78' } else { Brush '#F2F2F5' }
-
+        $btnModeLan.Background = if ($isLan) { Brush '#33FFFFFF' } else { Brush '#00000000' }
+        $btnModeWan.Background = if ($isLan) { Brush '#00000000' } else { Brush '#33FFFFFF' }
         $enabled = if ($isLan) { [bool]$script:cfg.RemoteEnabled } else { [bool]$script:cfg.OutboundEnabled }
         if ($isLan) {
             $hint.Text = '手机扫下面的二维码，或直接输入网址。同一 WiFi 下即可访问。'
         } else {
             $hint.Text = '出门在外也能用：手机打开下面的地址（走公共中转，不需要同一 WiFi）。'
         }
+        $st = $d.FindName('TxtState')
+        if ($st) { $st.Text = $(if ($enabled) { '已开启' } else { '未开启' }); $st.Foreground = $(if ($enabled) { Brush '#34C759' } else { Brush '#6E6E78' }) }
 
         if ($enabled) {
-            $btnPower.Content = '停止'
+            $btnPower.Content = '停止服务'
             $btnRefresh.IsEnabled = $enabled
             if ($isLan) { $btnRefresh.Content = '刷新令牌' } else { $btnRefresh.Content = '重新配对' }
             if ($isLan) {
@@ -690,7 +729,7 @@ function Show-RemoteDialog {
                 try { $imgQr.Source = New-QrBitmap $url 8 3 } catch { $imgQr.Source = $null }
             }
         } else {
-            $btnPower.Content = '启用'
+            $btnPower.Content = '开启服务'
             $btnRefresh.IsEnabled = $false
             $txtUrl.Text = ''
             $qrBox.Visibility = 'Collapsed'

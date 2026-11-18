@@ -248,6 +248,8 @@ function Render-ShellOverview {
             $isSleep = [bool]$r.WakeAt
             $isOff = $false
             $row = New-InstanceRowShell -Row $r -Icon $script:shellIcon -IsSleep $isSleep -IsOff $isOff
+            $row.Cursor = 'Hand'
+            $row.Add_MouseLeftButtonUp({ Switch-ShellPage 2; Update-Ui })
             [void]$pnl.Children.Add($row)
             $sep = New-Object System.Windows.Controls.Border
             $sep.Height = 1
@@ -497,138 +499,150 @@ function Render-ShellSettings {
     if (-not $pnl) { return }
     $pnl.Children.Clear()
 
-    $defs = @(
-        @{ K = 'AutoSleep';        L = '自动休眠';        D = '脚本在等升级时关掉模拟器省内存，升级前自动唤醒'; T = 'bool' }
-        @{ K = 'SleepBackground';  L = '后台也休眠';      D = '游戏退到后台时也允许休眠';                     T = 'bool' }
-        @{ K = 'SleepIdleMin';     L = '后台空闲判定';    D = '游戏退到后台多少分钟后才算「在等升级」';        T = 'min' }
-        @{ K = 'SleepLeadMin';     L = '提前唤醒';        D = '升级完成前多少分钟把模拟器打开';               T = 'min' }
-        @{ K = 'SleepMinHours';    L = '最短休眠';        D = '剩余时间短于这个值就不睡，省得反复开关机';      T = 'hour' }
-        @{ K = 'SleepMaxHours';    L = '最长休眠';        D = '剩余时间超过这个值就不睡（比如两天以上）';      T = 'hour' }
-        @{ K = 'AutoRecover';      L = '掉线自动恢复';    D = '脚本或游戏掉线时自动重启实例并重新拉起脚本';    T = 'bool' }
-        @{ K = 'RecoverCheckSec';  L = '检测间隔';        D = '每隔多少秒检查一次实例是否掉线';               T = 'sec' }
-        @{ K = 'RecoverFailCount'; L = '连续几次判定掉线'; D = '连续失败这么多次才重启，避免误判';              T = 'time' }
-        @{ K = 'CefAlert';         L = 'CEF 告警阈值';    D = '单个实例的 CEF 进程超过这个数就清理';           T = 'cnt' }
-        @{ K = 'LogKeepDays';      L = '日志保留';        D = '超过这个天数的日志会自动删除';                 T = 'day' }
+    # 分区：标题 + 条目
+    #   T = 类型：bool / int / text / theme / clear
+    $groups = @(
+        @{ Title = '休眠'; Items = @(
+            @{ K = 'AutoSleep';       L = '自动休眠';        D = '脚本在等升级时关掉模拟器省内存，升级前自动唤醒'; T = 'bool' }
+            @{ K = 'SleepBackground'; L = '后台也休眠';      D = '游戏退到后台时也允许休眠';                     T = 'bool' }
+            @{ K = 'SleepIdleMin';    L = '后台空闲判定';    D = '游戏退到后台多少分钟后才算「在等升级」';        T = 'int'; U = '分钟' }
+            @{ K = 'SleepLeadMin';    L = '提前唤醒';        D = '升级完成前多少分钟把模拟器打开';               T = 'int'; U = '分钟' }
+            @{ K = 'SleepMinHours';   L = '最短休眠';        D = '剩余时间短于这个值就不睡，省得反复开关机';      T = 'int'; U = '小时' }
+            @{ K = 'SleepMaxHours';   L = '最长休眠';        D = '剩余时间超过这个值就不睡（比如两天以上）';      T = 'int'; U = '小时' }
+        ) }
+        @{ Title = '掉线恢复'; Items = @(
+            @{ K = 'AutoRecover';     L = '掉线自动恢复';    D = '脚本或游戏掉线时自动重启实例并重新拉起脚本';    T = 'bool' }
+            @{ K = 'RecoverCheckSec'; L = '检测间隔';        D = '每隔多少秒检查一次实例是否掉线';               T = 'int'; U = '秒' }
+            @{ K = 'RecoverFailCount';L = '连续几次判定掉线'; D = '连续失败这么多次才重启，避免误判';              T = 'int'; U = '次' }
+            @{ K = 'RecoverCooldown'; L = '恢复冷却';        D = '两次自动恢复之间至少间隔多久，防止反复重启';    T = 'int'; U = '分钟' }
+        ) }
+        @{ Title = '资源告警与清理'; Items = @(
+            @{ K = 'GuardMinute';     L = '清理间隔';        D = '看护每隔多少分钟做一次内存清理；0 表示不清理';  T = 'int'; U = '分钟' }
+            @{ K = 'LowMemMB';        L = '低内存告警';      D = '可用内存低于这个值时报警';                     T = 'int'; U = 'MB' }
+            @{ K = 'MemAlertMB';      L = '单实例内存告警';  D = '单个实例占用超过这个值时报警';                 T = 'int'; U = 'MB' }
+            @{ K = 'CpuAlert';        L = 'CPU 告警';        D = '单个实例 CPU 占用超过几核时报警';              T = 'int'; U = '核' }
+            @{ K = 'CefAlert';        L = 'CEF 泄漏阈值';    D = '单个实例的 CEF 进程超过这个数就判定泄漏';       T = 'int'; U = '个' }
+            @{ K = 'CefKeep';         L = 'CEF 保留数量';    D = '清理时每个实例保留几个 CEF 进程';              T = 'int'; U = '个' }
+            @{ K = 'CefStaleMin';     L = '仅清理闲置进程';  D = '只清理闲置超过这么多分钟的 CEF 进程';          T = 'int'; U = '分钟' }
+            @{ K = 'NemuSpinPct';     L = '空转阈值';        D = 'CPU 低于这个百分比视为空转，可被清理';          T = 'int'; U = '%' }
+        ) }
+        @{ Title = '路径与包名'; Items = @(
+            @{ K = 'MuMuRoot';        L = 'MuMu 安装路径';   D = 'MuMuManager.exe 所在目录，换版本后改这里';      T = 'text' }
+            @{ K = 'PkgScript';       L = '脚本包名';        D = '用来判断脚本是否在运行（如 com.xxx.script）';   T = 'text' }
+            @{ K = 'PkgGame';         L = '游戏包名';        D = '用来判断游戏是否在前台';                       T = 'text' }
+        ) }
+        @{ Title = '其它'; Items = @(
+            @{ K = 'StartWithWindows';L = '开机自动启动';    D = '开机后自动进托盘常驻（会写入注册表启动项）';      T = 'bool' }
+            @{ K = 'LogKeepDays';     L = '日志保留';        D = '超过这个天数的日志会自动删除';                 T = 'int'; U = '天' }
+            @{ K = '';                L = '主题';            D = '点一下在「跟随系统 / 深色 / 浅色」之间切换';     T = 'theme' }
+            @{ K = '';                L = '清除记忆';        D = '删除休眠任务、趋势、统计与日志（设置保留）';     T = 'clear' }
+        ) }
     )
 
-    $first = $true
-    foreach ($d in $defs) {
-        $row = New-Object System.Windows.Controls.Grid
-        $row.Height = 52
-        $row.Background = [System.Windows.Media.Brushes]::Transparent
-        $c0 = New-Object System.Windows.Controls.ColumnDefinition
-        $c0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-        $c1 = New-Object System.Windows.Controls.ColumnDefinition
-        $c1.Width = [System.Windows.GridLength]::Auto
-        [void]$row.ColumnDefinitions.Add($c0)
-        [void]$row.ColumnDefinitions.Add($c1)
+    foreach ($g in $groups) {
+        $h = New-ShellText $g.Title 10.5 '#6E6E78'
+        $h.Margin = New-Object System.Windows.Thickness(2, 14, 0, 6)
+        if ($pnl.Children.Count -eq 0) { $h.Margin = New-Object System.Windows.Thickness(2, 0, 0, 6) }
+        [void]$pnl.Children.Add($h)
 
-        $left = New-Object System.Windows.Controls.StackPanel
-        $left.VerticalAlignment = 'Center'
-        [void]$left.Children.Add((New-ShellText $d.L 12 '#F2F2F5'))
-        $sub = New-ShellText $d.D 9.5 '#6E6E78'
-        $sub.Margin = New-Object System.Windows.Thickness(0, 2, 0, 0)
-        [void]$left.Children.Add($sub)
-        [void]$row.Children.Add($left)
+        foreach ($d in $g.Items) {
+            $row = New-Object System.Windows.Controls.Grid
+            $row.Height = 52
+            $row.Background = [System.Windows.Media.Brushes]::Transparent
+            $c0 = New-Object System.Windows.Controls.ColumnDefinition
+            $c0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+            $c1 = New-Object System.Windows.Controls.ColumnDefinition
+            $c1.Width = [System.Windows.GridLength]::Auto
+            [void]$row.ColumnDefinitions.Add($c0)
+            [void]$row.ColumnDefinitions.Add($c1)
 
-        $v = $script:cfg[$d.K]
-        $key = $d.K; $label = $d.L; $desc = $d.D
-        if ($d.T -eq 'bool') {
-            $on = [bool]$v
-            $pill = New-Object System.Windows.Controls.Border
-            $pill.Width = 38; $pill.Height = 22
-            $pill.CornerRadius = [System.Windows.CornerRadius]::new(11)
-            $pill.Background = Brush $(if ($on) { '#34C759' } else { '#3A3A42' })
-            $knob = New-Object System.Windows.Shapes.Ellipse
-            $knob.Width = 18; $knob.Height = 18
-            $knob.Fill = Brush '#FFFFFF'
-            $knob.HorizontalAlignment = $(if ($on) { 'Right' } else { 'Left' })
-            $knob.Margin = New-Object System.Windows.Thickness(2, 0, 2, 0)
-            $pill.Child = $knob
-            $pill.Cursor = 'Hand'
-            [System.Windows.Controls.Grid]::SetColumn($pill, 1)
-            $pill.Add_MouseLeftButtonUp({
-                $script:cfg[$key] = -not [bool]$script:cfg[$key]
-                Save-Config
-                Update-Ui
-            })
-            [void]$row.Children.Add($pill)
-        } else {
-            $txt = switch ($d.T) {
-                'min'  { "$v 分钟" }
-                'hour' { "$v 小时" }
-                'sec'  { "$v 秒" }
-                'cnt'  { "$v 个" }
-                'day'  { "$v 天" }
-                default { "$v 次" }
+            $left = New-Object System.Windows.Controls.StackPanel
+            $left.VerticalAlignment = 'Center'
+            [void]$left.Children.Add((New-ShellText $d.L 12 '#F2F2F5'))
+            $sub = New-ShellText $d.D 9.5 '#6E6E78'
+            $sub.Margin = New-Object System.Windows.Thickness(0, 2, 0, 0)
+            [void]$left.Children.Add($sub)
+            [void]$row.Children.Add($left)
+
+            $key = $d.K; $label = $d.L; $desc = $d.D; $kind = $d.T; $unit = $d.U
+
+            if ($kind -eq 'bool') {
+                $on = [bool]$script:cfg[$key]
+                $pill = New-Object System.Windows.Controls.Border
+                $pill.Width = 38; $pill.Height = 22
+                $pill.CornerRadius = [System.Windows.CornerRadius]::new(11)
+                $pill.Background = Brush $(if ($on) { '#34C759' } else { '#3A3A42' })
+                $knob = New-Object System.Windows.Shapes.Ellipse
+                $knob.Width = 18; $knob.Height = 18
+                $knob.Fill = Brush '#FFFFFF'
+                $knob.HorizontalAlignment = $(if ($on) { 'Right' } else { 'Left' })
+                $knob.Margin = New-Object System.Windows.Thickness(2, 0, 2, 0)
+                $pill.Child = $knob
+                $pill.Cursor = 'Hand'
+                [System.Windows.Controls.Grid]::SetColumn($pill, 1)
+                $pill.Add_MouseLeftButtonUp({
+                    $script:cfg[$key] = -not [bool]$script:cfg[$key]
+                    if ($key -eq 'StartWithWindows') { try { [void](Set-Autostart ([bool]$script:cfg[$key])); Update-TrayMenu } catch { } }
+                    Save-Config
+                    Update-Ui
+                })
+                [void]$row.Children.Add($pill)
             }
-            $btn = New-Object System.Windows.Controls.Border
-            $btn.CornerRadius = [System.Windows.CornerRadius]::new(7)
-            $btn.Padding = New-Object System.Windows.Thickness(9, 4, 9, 4)
-            $btn.Background = Brush '#1AFFFFFF'
-            $btn.Cursor = 'Hand'
-            $btn.VerticalAlignment = 'Center'
-            $bt = New-ShellText $txt 11.5 '#E6E6EC'
-            $btn.Child = $bt
-            [System.Windows.Controls.Grid]::SetColumn($btn, 1)
-            $unit = switch ($d.T) { 'min' { '分钟' } 'hour' { '小时' } 'sec' { '秒' } 'cnt' { '个' } 'day' { '天' } default { '次' } }
-            $btn.Add_MouseLeftButtonUp({
-                Show-SettingInput -Key $key -Label $label -Desc $desc -Value $script:cfg[$key] -Unit $unit
-            })
-            [void]$row.Children.Add($btn)
-        }
+            elseif ($kind -eq 'theme') {
+                $mode = "$($script:cfg.Theme)"; if (-not $mode) { $mode = 'auto' }
+                $modeText = switch ($mode) { 'light' { '浅色' } 'dark' { '深色' } default { '跟随系统' } }
+                $vt = New-ShellText $modeText 11.5 '#6E6E78'
+                [System.Windows.Controls.Grid]::SetColumn($vt, 1)
+                [void]$row.Children.Add($vt)
+                $row.Cursor = 'Hand'
+                $row.Add_MouseLeftButtonUp({
+                    $cur = "$($script:cfg.Theme)"
+                    $next = switch ($cur) { 'auto' { 'dark' } 'dark' { 'light' } default { 'auto' } }
+                    Set-Theme $next
+                    Update-Ui
+                })
+            }
+            elseif ($kind -eq 'clear') {
+                $vt = New-ShellText '删除 ›' 11.5 '#6E6E78'
+                [System.Windows.Controls.Grid]::SetColumn($vt, 1)
+                [void]$row.Children.Add($vt)
+                $row.Cursor = 'Hand'
+                $row.Add_MouseLeftButtonUp({ try { Show-ClearMemoryDialog } catch { Write-Diag "清除记忆失败: $($_.Exception.Message)" } })
+            }
+            else {
+                $v = $script:cfg[$key]
+                if ($kind -eq 'text') {
+                    $txt = if ("$v") { "$v" } else { '未设置' }
+                } else {
+                    $txt = "$v $unit"
+                }
+                $btn = New-Object System.Windows.Controls.Border
+                $btn.CornerRadius = [System.Windows.CornerRadius]::new(7)
+                $btn.Padding = New-Object System.Windows.Thickness(9, 4, 9, 4)
+                $btn.Background = Brush '#1AFFFFFF'
+                $btn.Cursor = 'Hand'
+                $btn.VerticalAlignment = 'Center'
+                $bt = New-ShellText $txt 11.5 '#E6E6EC'
+                if ($kind -eq 'text' -and $txt.Length -gt 26) { $bt.Text = '…' + $txt.Substring($txt.Length - 25) }
+                $btn.Child = $bt
+                [System.Windows.Controls.Grid]::SetColumn($btn, 1)
+                $btn.Add_MouseLeftButtonUp({
+                    Show-SettingInput -Key $key -Label $label -Desc $desc -Value $script:cfg[$key] -Unit $unit
+                })
+                [void]$row.Children.Add($btn)
+            }
 
-        [void]$pnl.Children.Add($row)
-        $sep = New-Object System.Windows.Controls.Border
-        $sep.Height = 1; $sep.Background = Brush '#0DFFFFFF'
-        [void]$pnl.Children.Add($sep)
+            [void]$pnl.Children.Add($row)
+            $sep = New-Object System.Windows.Controls.Border
+            $sep.Height = 1; $sep.Background = Brush '#0DFFFFFF'
+            [void]$pnl.Children.Add($sep)
+        }
     }
 
-    # 主题
-    $mode = "$($script:cfg.Theme)"; if (-not $mode) { $mode = 'auto' }
-    $modeText = switch ($mode) { 'light' { '浅色' } 'dark' { '深色' } default { '跟随系统' } }
-    $rowT = New-Object System.Windows.Controls.Grid
-    $rowT.Height = 44
-    $c0 = New-Object System.Windows.Controls.ColumnDefinition; $c0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-    $c1 = New-Object System.Windows.Controls.ColumnDefinition; $c1.Width = [System.Windows.GridLength]::Auto
-    [void]$rowT.ColumnDefinitions.Add($c0); [void]$rowT.ColumnDefinitions.Add($c1)
-    $lt = New-ShellText '主题（点击切换）' 12 '#F2F2F5'
-    [void]$rowT.Children.Add($lt)
-    $vt = New-ShellText $modeText 11.5 '#6E6E78'
-    [System.Windows.Controls.Grid]::SetColumn($vt, 1)
-    [void]$rowT.Children.Add($vt)
-    $rowT.Cursor = 'Hand'
-    $rowT.Add_MouseLeftButtonUp({
-        $cur = "$($script:cfg.Theme)"
-        $next = switch ($cur) { 'auto' { 'dark' } 'dark' { 'light' } default { 'auto' } }
-        Set-Theme $next
-        Update-Ui
-    })
-    [void]$pnl.Children.Add($rowT)
-
-    $sepT = New-Object System.Windows.Controls.Border
-    $sepT.Height = 1; $sepT.Background = Brush '#0DFFFFFF'
-    [void]$pnl.Children.Add($sepT)
-
-    # 清除记忆
-    $rowM = New-Object System.Windows.Controls.Grid
-    $rowM.Height = 44
-    $m0 = New-Object System.Windows.Controls.ColumnDefinition; $m0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-    $m1 = New-Object System.Windows.Controls.ColumnDefinition; $m1.Width = [System.Windows.GridLength]::Auto
-    [void]$rowM.ColumnDefinitions.Add($m0); [void]$rowM.ColumnDefinitions.Add($m1)
-    [void]$rowM.Children.Add((New-ShellText '清除记忆' 12 '#F2F2F5'))
-    $vm = New-ShellText '删除休眠任务与统计' 10 '#6E6E78'
-    [System.Windows.Controls.Grid]::SetColumn($vm, 1)
-    [void]$rowM.Children.Add($vm)
-    $rowM.Cursor = 'Hand'
-    $rowM.Add_MouseLeftButtonUp({ try { Show-ClearMemoryDialog } catch { Write-Diag "清除记忆失败: $($_.Exception.Message)" } })
-    [void]$pnl.Children.Add($rowM)
-
     $foot = New-ShellText ("MuMu 安装目录：{0}    版本 {1}" -f $MuMuRoot, $script:appVersion) 10 '#6E6E78'
-    $foot.Margin = New-Object System.Windows.Thickness(0, 10, 0, 0)
+    $foot.Margin = New-Object System.Windows.Thickness(0, 14, 0, 0)
     [void]$pnl.Children.Add($foot)
 }
-
 # ---------- 总入口（覆盖 30-ui.ps1 的实现） ----------
 function Update-Ui {
     if (-not $script:shellWin) { return }
@@ -880,6 +894,12 @@ function Show-SettingInput {
         if (-not $ok) { $dlg.FindName('Err').Text = '请输入有效数字'; return }
         try {
             $script:cfg.$Key = $v
+            # 改了间隔类的值要立刻作用到定时器，否则要重启才生效
+            try {
+                if ($Key -eq 'GuardMinute' -and $script:guardTimer) { $script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute) }
+                if ($Key -eq 'RecoverCheckSec' -and $script:recoverTimer) { $script:recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec) }
+                if ($Key -eq 'StartWithWindows') { [void](Set-Autostart ([bool]$script:cfg.StartWithWindows)); Update-TrayMenu }
+            } catch { }
             Save-Config
             $dlg.Close()
             Update-Ui

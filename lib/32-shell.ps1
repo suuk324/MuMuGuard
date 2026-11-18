@@ -208,7 +208,7 @@ function Get-ShellXaml {
                 <StackPanel>
                   <Grid Margin="12,10,12,4">
                     <TextBlock Text="实例监控" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}"/>
-                    <TextBlock x:Name="TxtInstanceMore" Text="管理 ›" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="TxtInstanceMore" Text="管理 ›" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" HorizontalAlignment="Right" Cursor="Hand"/>
                   </Grid>
                   <StackPanel x:Name="PnlInstances"/>
                 </StackPanel>
@@ -219,7 +219,7 @@ function Get-ShellXaml {
                 <StackPanel>
                   <Grid Margin="12,10,12,4">
                     <TextBlock Text="事件记录" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}"/>
-                    <TextBlock x:Name="TxtEventMore" Text="查看全部 ›" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="TxtEventMore" Text="查看全部 ›" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" HorizontalAlignment="Right" Cursor="Hand"/>
                   </Grid>
                   <StackPanel x:Name="PnlEvents"/>
                 </StackPanel>
@@ -275,7 +275,7 @@ function Get-ShellXaml {
               </StackPanel>
             </Border>
 
-            <Border Grid.Row="2" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12">
+            <Border x:Name="HealthCard" Grid.Row="2" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12" Cursor="Hand">
               <StackPanel Margin="0,12,0,12">
                 <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="12,0,12,8"/>
                 <Grid Margin="12,0,12,0">

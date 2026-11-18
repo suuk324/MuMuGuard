@@ -808,6 +808,7 @@ function Invoke-UiSelfTest {
     $log = Join-Path $LogDir 'uitest.log'
     $lines = @()
     $lines += "===== UI 自检 $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ====="
+    $flush = { try { $lines | Set-Content -Path $log -Encoding UTF8 } catch { } }
 
     $targets = @('Nav1', 'Nav2', 'Nav3', 'Nav4', 'Nav5', 'BtnRefresh', 'BtnCompact', 'BtnGuardRun', 'BtnSleepRun', 'BtnCleanNow', 'BtnOpenLog', 'BtnExportCfg', 'BtnResetCfg', 'TxtEventSearch', 'HealthCard')
     foreach ($n in $targets) {
@@ -818,8 +819,10 @@ function Invoke-UiSelfTest {
             $args.RoutedEvent = [System.Windows.UIElement]::MouseLeftButtonUpEvent
             $el.RaiseEvent($args)
             $lines += "PASS  $n"
+            & $flush
         } catch {
             $lines += "FAIL  $n  $($_.Exception.Message)  @@ " + $_.ScriptStackTrace
+            & $flush
         }
         if ($n -eq 'BtnCompact') { try { Set-View 'shell' } catch { } }
     }
@@ -834,8 +837,10 @@ function Invoke-UiSelfTest {
             $args.RoutedEvent = [System.Windows.UIElement]::MouseLeftButtonUpEvent
             $el.RaiseEvent($args)
             $lines += "PASS  $n"
+            & $flush
         } catch {
             $lines += "FAIL  $n  $($_.Exception.Message)  @@ " + $_.ScriptStackTrace
+            & $flush
         }
     }
 
@@ -848,8 +853,10 @@ function Invoke-UiSelfTest {
         Set-View 'shell'
         Update-Ui
         $lines += "PASS  回到完整视图"
+        & $flush
     } catch {
         $lines += "FAIL  compact  $($_.Exception.Message)"
+        & $flush
     }
 
     # 五页渲染
@@ -858,8 +865,10 @@ function Invoke-UiSelfTest {
             Switch-ShellPage $p
             Update-Ui
             $lines += "PASS  渲染第 $p 页"
+            & $flush
         } catch {
             $lines += "FAIL  第 $p 页  $($_.Exception.Message)"
+            & $flush
         }
     }
 
@@ -875,8 +884,10 @@ function Invoke-UiSelfTest {
                 '公告'     { Show-Announcement -Force }
             }
             $lines += "PASS  弹窗 $d"
+            & $flush
         } catch {
             $lines += "FAIL  弹窗 $d  $($_.Exception.Message)"
+            & $flush
         }
     }
     $script:dlgAudit = $false
@@ -884,6 +895,7 @@ function Invoke-UiSelfTest {
         foreach ($e in $script:dlgAuditErrs) { $lines += "FAIL  弹窗样式  $e" }
     } else {
         $lines += "PASS  四个弹窗配色完整"
+        & $flush
     }
 
     # 远程状态完整性：手机端总数必须等于桌面端实例总数
@@ -898,8 +910,10 @@ function Invoke-UiSelfTest {
         $gRun = @($ro.instances | Where-Object { $_.state -eq 'run' }).Count
         $gSlp = @($ro.instances | Where-Object { $_.state -eq 'sleep' }).Count
         $lines += "PASS  远程状态 运行 $gRun 休眠 $gSlp"
+        & $flush
     } catch {
         $lines += "FAIL  远程状态  $($_.Exception.Message)"
+        & $flush
     }
 
     $lines += "===== 结束 ====="

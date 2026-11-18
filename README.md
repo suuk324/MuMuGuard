@@ -1,10 +1,10 @@
-<img src="icon.png" width="80" align="left" style="margin-right:14px" alt="MuMuGuard">
+﻿<img src="icon.png" width="80" align="left" style="margin-right:14px" alt="MuMuGuard">
 
 # MuMuGuard：MuMu 模拟器多开看护面板
 
 盯着每个实例，掉线自动拉起，等升级时休眠省内存，醒来自动接着跑。
 
-![版本](https://img.shields.io/badge/version-2.0.1-3DDC84)
+![版本](https://img.shields.io/badge/version-2.0.2-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
 ![QQ 群](https://img.shields.io/badge/QQ%E7%BE%A4-1128379535-12B7F5)

@@ -51,7 +51,10 @@ function Get-OutboundPageUrl {
     try { $base = [string]$script:cfg.OutboundPage } catch { }
     if (-not $base) { $base = 'https://suuk324.github.io/MuMuGuard/remote/' }
     if ($base -notmatch '/$') { $base += '/' }
-    return ($base + '?u=' + (Get-OutboundUid) + '&k=' + (Get-OutboundKey))
+    # 带上版本号：页面每次发版都换 URL，手机不会拿到旧缓存
+    $v = ''
+    try { $v = [string]$script:appVersion } catch { }
+    return ($base + '?u=' + (Get-OutboundUid) + '&k=' + (Get-OutboundKey) + '&v=' + $v)
 }
 
 # 后台脚本：自包含，不依赖外部函数（runspace 里没有模块函数）

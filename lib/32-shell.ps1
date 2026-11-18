@@ -56,7 +56,7 @@ function Get-ShellXaml {
                   <GradientStop Color="#10FFFFFF" Offset="1"/>
                 </LinearGradientBrush>
               </Border.BorderBrush>
-              <Border.BorderThickness="1" Padding="0">
+              <Border BorderThickness="1" Padding="0">
                 <Image x:Name="LogoImg" Stretch="UniformToFill"/>
               </Border>
             </Border>
@@ -68,32 +68,32 @@ function Get-ShellXaml {
 
           <Border x:Name="Nav1" Style="{StaticResource NavItem}" Background="#24FFFFFF" Padding="12,0">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Text="▤" FontSize="13" Foreground="{StaticResource T1}" Width="20"/>
-              <TextBlock Text="概览" FontSize="12.5" Foreground="{StaticResource T1}" FontWeight="SemiBold"/>
+              <TextBlock x:Name="Nav1Ico" Text="▤" FontSize="13" Foreground="{StaticResource T1}" Width="20"/>
+              <TextBlock x:Name="Nav1Txt" Text="概览" FontSize="12.5" Foreground="{StaticResource T1}" FontWeight="SemiBold"/>
             </StackPanel>
           </Border>
           <Border x:Name="Nav2" Style="{StaticResource NavItem}" Padding="12,0" Background="Transparent">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Text="☰" FontSize="13" Foreground="{StaticResource T2}" Width="20"/>
-              <TextBlock Text="实例管理" FontSize="12.5" Foreground="{StaticResource T2}"/>
+              <TextBlock x:Name="Nav2Ico" Text="☰" FontSize="13" Foreground="{StaticResource T2}" Width="20"/>
+              <TextBlock x:Name="Nav2Txt" Text="实例管理" FontSize="12.5" Foreground="{StaticResource T2}"/>
             </StackPanel>
           </Border>
           <Border x:Name="Nav3" Style="{StaticResource NavItem}" Padding="12,0" Background="Transparent">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Text="♡" FontSize="13" Foreground="{StaticResource T2}" Width="20"/>
-              <TextBlock Text="健康检查" FontSize="12.5" Foreground="{StaticResource T2}"/>
+              <TextBlock x:Name="Nav3Ico" Text="♡" FontSize="13" Foreground="{StaticResource T2}" Width="20"/>
+              <TextBlock x:Name="Nav3Txt" Text="健康检查" FontSize="12.5" Foreground="{StaticResource T2}"/>
             </StackPanel>
           </Border>
           <Border x:Name="Nav4" Style="{StaticResource NavItem}" Padding="12,0" Background="Transparent">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Text="≡" FontSize="13" Foreground="{StaticResource T2}" Width="20"/>
-              <TextBlock Text="事件记录" FontSize="12.5" Foreground="{StaticResource T2}"/>
+              <TextBlock x:Name="Nav4Ico" Text="≡" FontSize="13" Foreground="{StaticResource T2}" Width="20"/>
+              <TextBlock x:Name="Nav4Txt" Text="事件记录" FontSize="12.5" Foreground="{StaticResource T2}"/>
             </StackPanel>
           </Border>
           <Border x:Name="Nav5" Style="{StaticResource NavItem}" Padding="12,0" Background="Transparent">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Text="⚙" FontSize="13" Foreground="{StaticResource T2}" Width="20"/>
-              <TextBlock Text="设置" FontSize="12.5" Foreground="{StaticResource T2}"/>
+              <TextBlock x:Name="Nav5Ico" Text="⚙" FontSize="13" Foreground="{StaticResource T2}" Width="20"/>
+              <TextBlock x:Name="Nav5Txt" Text="设置" FontSize="12.5" Foreground="{StaticResource T2}"/>
             </StackPanel>
           </Border>
         </StackPanel>
@@ -110,8 +110,8 @@ function Get-ShellXaml {
         <!-- 标题 -->
         <Grid Grid.Row="0" x:Name="TitleBar">
           <StackPanel>
-            <TextBlock x:Name="TxtGreeting" Text="概览" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource T1}"/>
-            <TextBlock x:Name="TxtSummary" Text="" FontSize="11.5" Foreground="{StaticResource T3}" Margin="0,4,0,0"/>
+            <TextBlock x:Name="TxtTitle" Text="概览" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource T1}"/>
+            <TextBlock x:Name="TxtSub" Text="" FontSize="11.5" Foreground="{StaticResource T3}" Margin="0,4,0,0"/>
           </StackPanel>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
             <Border x:Name="BtnRefresh" Width="30" Height="30" CornerRadius="9" Background="#14FFFFFF" Margin="0,0,8,0">
@@ -386,16 +386,16 @@ function Get-ShellXaml {
 function New-InstanceRowShell {
     param($Row, $Icon, $IsSleep, $IsOff)
 
-    $row = New-Object System.Windows.Controls.Grid
-    $row.Height = 54
-    $row.Margin = New-Object System.Windows.Thickness(12, 0, 10, 0)
+    $grid = New-Object System.Windows.Controls.Grid
+    $grid.Height = 54
+    $grid.Margin = New-Object System.Windows.Thickness(12, 0, 10, 0)
 
     foreach ($w in @('Auto', '*', 'Auto', '92', '68', '16')) {
         $cd = New-Object System.Windows.Controls.ColumnDefinition
         if ($w -eq '*') { $cd.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) }
         elseif ($w -eq 'Auto') { $cd.Width = [System.Windows.GridLength]::Auto }
         else { $cd.Width = [System.Windows.GridLength]::new([double]$w) }
-        [void]$row.ColumnDefinitions.Add($cd)
+        [void]$grid.ColumnDefinitions.Add($cd)
     }
 
     # 图标
@@ -410,7 +410,7 @@ function New-InstanceRowShell {
     if ($IsOff) { $img.Opacity = 0.45 }
     $tile.Child = $img
     [System.Windows.Controls.Grid]::SetColumn($tile, 0)
-    [void]$row.Children.Add($tile)
+    [void]$grid.Children.Add($tile)
 
     # 名称 + 副行
     $sp = New-Object System.Windows.Controls.StackPanel
@@ -425,7 +425,7 @@ function New-InstanceRowShell {
     $sub.Margin = New-Object System.Windows.Thickness(0, 1, 0, 0)
     [void]$sp.Children.Add($nm); [void]$sp.Children.Add($sub)
     [System.Windows.Controls.Grid]::SetColumn($sp, 1)
-    [void]$row.Children.Add($sp)
+    [void]$grid.Children.Add($sp)
 
     # 状态胶囊
     $pill = New-Object System.Windows.Controls.Border
@@ -434,7 +434,7 @@ function New-InstanceRowShell {
     $pill.VerticalAlignment = 'Center'
     $pt = New-Object System.Windows.Controls.TextBlock
     $pt.FontSize = 10
-    if ($IsSleep) {
+    if ($IsSleep -and $Row.WakeAt) {
         $pill.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#29FF9F0A'))
         $pt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#FF9F0A'))
         $pt.Text = '休眠'
@@ -449,14 +449,14 @@ function New-InstanceRowShell {
     }
     $pill.Child = $pt
     [System.Windows.Controls.Grid]::SetColumn($pill, 2)
-    [void]$row.Children.Add($pill)
+    [void]$grid.Children.Add($pill)
 
     # 内存
     $msp = New-Object System.Windows.Controls.StackPanel
     $msp.Margin = New-Object System.Windows.Thickness(10, 0, 0, 0)
     $msp.VerticalAlignment = 'Center'
     $mt = New-Object System.Windows.Controls.TextBlock
-    $mt.Text = $(if ($IsOff) { '—' } else { ('{0:N1} GB' -f ($Row.Private / 1024.0)) })
+    $mt.Text = $(if ($IsOff -or $IsSleep) { '—' } else { ('{0:N1} GB' -f ($Row.Private / 1024.0)) })
     $mt.FontSize = 10.5
     $mt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#9E9EA6'))
     $track = New-Object System.Windows.Controls.Border
@@ -474,7 +474,7 @@ function New-InstanceRowShell {
     }
     [void]$msp.Children.Add($mt); [void]$msp.Children.Add($track)
     [System.Windows.Controls.Grid]::SetColumn($msp, 3)
-    [void]$row.Children.Add($msp)
+    [void]$grid.Children.Add($msp)
 
     # 时间
     $tsp = New-Object System.Windows.Controls.StackPanel
@@ -489,7 +489,7 @@ function New-InstanceRowShell {
     $ts.HorizontalAlignment = 'Right'
     $ts.Margin = New-Object System.Windows.Thickness(0, 1, 0, 0)
     $ts.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#6E6E78'))
-    if ($IsSleep) {
+    if ($IsSleep -and $Row.WakeAt) {
         $tt.Text = $Row.WakeAt.ToString('HH:mm'); $ts.Text = '自动唤醒'
     } elseif ($IsOff) {
         $tt.Text = '—'; $ts.Text = '无任务'
@@ -499,7 +499,7 @@ function New-InstanceRowShell {
     }
     [void]$tsp.Children.Add($tt); [void]$tsp.Children.Add($ts)
     [System.Windows.Controls.Grid]::SetColumn($tsp, 4)
-    [void]$row.Children.Add($tsp)
+    [void]$grid.Children.Add($tsp)
 
     # 箭头
     $ch = New-Object System.Windows.Controls.TextBlock
@@ -507,9 +507,9 @@ function New-InstanceRowShell {
     $ch.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#40FFFFFF'))
     $ch.VerticalAlignment = 'Center'; $ch.HorizontalAlignment = 'Right'
     [System.Windows.Controls.Grid]::SetColumn($ch, 5)
-    [void]$row.Children.Add($ch)
+    [void]$grid.Children.Add($ch)
 
-    return $row
+    return $grid
 }
 
 # 生成一条事件

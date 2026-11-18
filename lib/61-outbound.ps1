@@ -158,17 +158,42 @@ $script:mqttScript = {
     while (-not $sync.OutboundStop) {
         $client = $null; $ssl = $null
         try {
-            $client = New-Object System.Net.Sockets.TcpClient
-            $client.Connect($broker, $port)
-            $ssl = New-Object System.Net.Security.SslStream($client.GetStream(), $false)
-            $ssl.AuthenticateAsClient($broker)
-            $stream = $ssl
-            $stream.ReadTimeout = 4000
+            # 公共中转有多个解析地址，个别节点只握手不回应 MQTT（34.243.217.54 就是这样）。
+            # 必须逐个试：能连上并回 CONNACK 的才算数，否则会卡死在坏节点上，
+            # 表现就是「手机显示已连接，但电脑一条数据都发不出来」。
+            $addrs = @()
+            try { $addrs = @([System.Net.Dns]::GetHostAddresses($broker) | ForEach-Object { $_.IPAddressToString }) } catch { }
+            if ($addrs.Count -eq 0) { $addrs = @($broker) }
 
-            $pkt = ConnectPkt $clientId
-            $stream.Write($pkt, 0, $pkt.Length); $stream.Flush()
-            $ack = ReadPkt $stream
-            if (-not $ack -or $ack.Type -ne 0x20) { throw 'CONNACK 失败' }
+            $ready = $false
+            foreach ($ip in $addrs) {
+                if ($sync.OutboundStop) { break }
+                try {
+                    $client = New-Object System.Net.Sockets.TcpClient
+                    $tcpOk = $client.ConnectAsync($ip, $port).Wait(6000)
+                    if (-not ($tcpOk -and $client.Connected)) { throw 'TCP 连接超时' }
+                    $ssl = New-Object System.Net.Security.SslStream($client.GetStream(), $false)
+                    # 显式指定 TLS1.2：编译版运行时默认只协商旧协议，中转会拒绝
+                    try { $ssl.AuthenticateAsClient($broker, $null, [System.Security.Authentication.SslProtocols]::Tls12, $false) }
+                    catch { $ssl.AuthenticateAsClient($broker, $null, [System.Security.Authentication.SslProtocols]::Tls13, $false) }
+                    $stream = $ssl
+                    $stream.ReadTimeout = 5000
+
+                    $pkt = ConnectPkt $clientId
+                    $stream.Write($pkt, 0, $pkt.Length); $stream.Flush()
+                    $ack = ReadPkt $stream
+                    if (-not $ack -or $ack.Type -ne 0x20) { throw '没有收到 CONNACK' }
+                    Log ('连上 ' + $ip + ' (' + $ssl.SslProtocol + ')')
+                    $ready = $true
+                    break
+                } catch {
+                    Log ('跳过 ' + $ip + ': ' + $_.Exception.Message)
+                    try { if ($ssl) { $ssl.Dispose() } } catch { }
+                    try { if ($client) { $client.Close() } } catch { }
+                    $client = $null; $ssl = $null
+                }
+            }
+            if (-not $ready) { throw '所有中转地址都没有响应' }
 
             $pkt = SubPkt 1 $topicCmd
             $stream.Write($pkt, 0, $pkt.Length); $stream.Flush()
@@ -194,6 +219,7 @@ $script:mqttScript = {
                     $pkt = PubPkt $topicState $env2
                     $stream.Write($pkt, 0, $pkt.Length); $stream.Flush()
                     $lastPub = $now
+                    if ($lastPub -eq $now -and -not $sync.PSObject.Properties.Match('PubLogged').Count) { $sync | Add-Member -NotePropertyName PubLogged -NotePropertyValue $true -Force; Log ('首次发布 ' + $pkt.Length + ' 字节, 状态 ' + $state.Length + ' 字节') }
                 }
                 if (($now - $lastPing).TotalSeconds -ge 30) {
                     $stream.Write([byte[]](0xC0, 0x00), 0, 2); $stream.Flush()
@@ -237,7 +263,7 @@ $script:mqttScript = {
         } catch {
             $sync.OutboundOk = $false
             $sync.OutboundError = $_.Exception.Message
-            Log ('异常: ' + $_.Exception.Message)
+            Log ('异常: ' + $_.Exception.Message + $(if ($_.Exception.InnerException) { ' | inner: ' + $_.Exception.InnerException.Message } else { '' }))
         } finally {
             try { if ($ssl) { $ssl.Dispose() } } catch { }
             try { if ($client) { $client.Close() } } catch { }

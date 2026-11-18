@@ -52,6 +52,22 @@
   .toast.show{opacity:1}
   footer{text-align:center;color:var(--dim);font-size:11px;margin-top:14px}
   .err{color:var(--red);font-size:12px;padding:6px 0}
+  .sub{padding:0 2px 12px;font-size:11.5px;color:var(--dim)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 6px;text-align:center}
+  .stat b{display:block;font-size:19px;font-weight:600;line-height:1.1}
+  .stat span{display:block;font-size:9.5px;color:var(--dim);margin-top:3px}
+  .c-run{color:var(--green)}.c-sleep{color:var(--amber)}.c-off{color:var(--sub)}
+  .rt{text-align:right;min-width:46px}
+  .rt b{display:block;font-size:13px;font-weight:500}
+  .rt span{display:block;font-size:9.5px;color:var(--dim);margin-top:1px}
+  button{display:flex;align-items:center;justify-content:center;gap:6px}
+  button .bdot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:0 0 6px}
+  button .bdot.orange{background:var(--amber)}
+  button.primary{background:#F2F2F5;color:#17171A;border-color:#F2F2F5;font-weight:600}
+  .memrow{display:flex;align-items:flex-end;padding:8px 0 0}
+  .memrow b{font-size:24px;font-weight:600;line-height:1}
+  .memrow em{font-style:normal;font-size:11px;color:var(--dim);margin:0 0 3px 5px}
 </style>
 </head>
 <body>
@@ -60,18 +76,16 @@
   <div class="pill"><span class="dot" id="dot"></span><span id="connText">未连接</span></div>
 </header>
 
-<div class="card">
-  <div class="title">开关状态</div>
-  <div class="row">
-    <div><div class="name">看护</div><div class="meta" id="guardMeta">等待数据…</div></div>
-    <div class="sw" id="guardSw"><i></i></div>
-  </div>
-  <div class="row">
-    <div><div class="name">升级休眠</div><div class="meta" id="sleepMeta">等待数据…</div></div>
-    <div class="sw" id="sleepSw"><i></i></div>
-  </div>
+<div class="sub" id="subLine">正在读取…</div>
+
+<div class="stats">
+  <div class="stat"><b id="statTotal">–</b><span>总数</span></div>
+  <div class="stat"><b id="statRun" class="c-run">–</b><span>运行</span></div>
+  <div class="stat"><b id="statSleep" class="c-sleep">–</b><span>休眠</span></div>
+  <div class="stat"><b id="statOff" class="c-off">–</b><span>关闭</span></div>
 </div>
-<div class="card" id="mainCard">
+
+<div class="card">
   <div class="title">实例</div>
   <div id="instances"><div class="empty">正在连接…</div></div>
 </div>
@@ -79,23 +93,21 @@
 <div class="card">
   <div class="title">操作</div>
   <div class="btns">
-    <button id="bGuard" disabled>看护</button>
-    <button id="bSleep" disabled>休眠</button>
-    <button id="bClean" disabled>立即清理</button>
-    <button id="bWakeAll" class="warn" disabled>全部唤醒</button>
+    <button id="bGuard" disabled><i class="bdot"></i><span>看护</span></button>
+    <button id="bSleep" disabled><i class="bdot orange"></i><span>自动休眠</span></button>
+    <button id="bClean" disabled>清理内存</button>
+    <button id="bWakeAll" class="primary" disabled>唤醒全部</button>
   </div>
 </div>
 
 <div class="card">
-  <div class="title">主机内存</div>
+  <div class="title">主机</div>
+  <div class="memrow"><b id="memBig">–</b><em id="memTotal">/ --</em></div>
   <div class="bar" id="membar"><i id="memfill" style="width:0%"></i></div>
-  <div class="kv"><span id="memUsed">--</span><span id="memTotal">--</span></div>
+  <div class="kv"><span id="memUsed">--</span><span id="memAvail">--</span></div>
 </div>
 
 <div class="card"><div class="title">最近事件</div><div id="events"><div class="empty">暂无</div></div></div>
-
-<footer>通过公共中转连接 · 每 3 秒同步</footer>
-<div class="toast" id="toast"></div>
 
 <script>
 // ---------------- MQTT 3.1.1 over WebSocket（最小实现） ----------------
@@ -237,36 +249,57 @@ function markBad(){
   document.getElementById('instances').innerHTML = '<div class="err">数据校验失败：这条状态不是你的电脑发出的，已忽略</div>';
 }
 
+const EVMAP = {CLEAN_CEF:'清理', SLEEP:'休眠', SLEEP_BG:'后台休眠', WAKE_MANUAL:'手动唤醒', WAKE_LATE:'补唤醒', AUTO_RECOVER:'自动恢复', AUTO_RESTART:'自动重启', RECOVER_OK:'恢复成功', RECOVER_FAIL:'恢复失败', LOW_MEM:'内存偏低', ALERT_MEM:'内存告警', ALERT_SCRIPT:'脚本告警', CEF_HIGH:'CEF 偏高', ROOT_FAIL:'权限失败', SLEEP_FAIL:'休眠失败'};
+function evText(s){ return String(s==null?'':s).replace(/^([A-Z][A-Z_]+)\s+/, function(x, c){ return (EVMAP[c] || c) + ' '; }); }
+
 function render(raw){
   let d = null;
   try { d = JSON.parse(raw); } catch(e){ return; }
   last = d;
 
-  // 开关状态 + 按钮联动
   const guardOn = !!d.guard, sleepOn = !!d.sleep;
-  document.getElementById('guardSw').className = 'sw' + (guardOn ? ' on' : '');
-  document.getElementById('guardMeta').textContent = guardOn ? '正在看护，掉线会自动重启' : '已暂停，不会自动处理';
-  document.getElementById('sleepSw').className = 'sw' + (sleepOn ? ' on' : '');
-  document.getElementById('sleepMeta').textContent = sleepOn ? '升级等待时会休眠模拟器' : '不启用休眠，一直挂着';
   const bG = document.getElementById('bGuard'), bS = document.getElementById('bSleep');
-  bG.textContent = guardOn ? '看护 · 开' : '看护 · 关';
   bG.className = guardOn ? 'on' : '';
-  bS.textContent = sleepOn ? '休眠 · 开' : '休眠 · 关';
+  bG.innerHTML = '<i class="bdot"></i><span>' + (guardOn ? '看护中' : '看护已停') + '</span>';
   bS.className = sleepOn ? 'on' : '';
+  bS.innerHTML = '<i class="bdot orange"></i><span>自动休眠 ' + (sleepOn ? '开' : '关') + '</span>';
+
+  const list = d.instances || [];
+  const nRun = list.filter(x => x.state === 'run').length;
+  const nSleep = list.filter(x => x.state === 'sleep').length;
+  const nOff = Math.max(0, list.length - nRun - nSleep);
+
+  document.getElementById('subLine').textContent = list.length + ' 个实例 · ' + nRun + ' 个运行 · ' + nSleep + ' 个休眠';
+  document.getElementById('statTotal').textContent = list.length;
+  document.getElementById('statRun').textContent = nRun;
+  document.getElementById('statSleep').textContent = nSleep;
+  document.getElementById('statOff').textContent = nOff;
+
   const ts = d.ts ? new Date(d.ts * 1000) : null;
   if (ts) document.getElementById('connText').textContent = '已连接 · ' + ts.toLocaleTimeString('zh-CN', {hour12:false});
 
   const box = document.getElementById('instances');
-  if (!d.instances || !d.instances.length){
+  if (!list.length){
     box.innerHTML = '<div class="empty">没有检测到实例</div>';
   } else {
-    box.innerHTML = d.instances.map(it => {
-      let tag = '离线', cls = 'off', meta = '实例 ' + esc(it.i);
-      if (it.state === 'run'){ tag = '运行中'; cls = 'run'; if (it.extra) meta = esc(it.extra); }
-      else if (it.state === 'sleep'){ tag = it.wake ? ('休眠到 ' + it.wake) : '休眠中'; if (it.extra) meta = esc(it.extra); }
-      else if (it.state === 'unknown'){ tag = '未知'; }
-      if (it.judge && it.judge !== '正常') meta += ' · ' + esc(it.judge);
+    box.innerHTML = list.map(it => {
+      let tag = '关闭', cls = 'off', rt = '—', rs = '无任务', meta = '';
+      if (it.state === 'run'){
+        tag = '运行中'; cls = 'run';
+        const m = String(it.extra || '').match(/剩\s*(.+)$/);
+        if (m) { rt = m[1]; rs = '剩余'; }
+        meta = it.judge && it.judge !== '正常' ? esc(it.judge) : '脚本运行中';
+      } else if (it.state === 'sleep'){
+        tag = '休眠'; cls = 'sleep';
+        rt = it.wake || '—'; rs = '唤醒';
+        meta = it.extra ? esc(it.extra) : '内存已释放';
+      } else if (it.state === 'unknown'){
+        tag = '未知'; cls = 'off'; rs = '无数据'; meta = '等待读取';
+      } else {
+        meta = '已关机';
+      }
       return '<div class="row"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' +
+             '<div class="rt"><b>' + esc(rt) + '</b><span>' + rs + '</span></div>' +
              '<div class="tag ' + cls + '">' + esc(tag) + '</div></div>';
     }).join('');
   }
@@ -275,15 +308,18 @@ function render(raw){
   const pct = total ? Math.min(100, Math.round(used / total * 100)) : 0;
   document.getElementById('memfill').style.width = pct + '%';
   document.getElementById('membar').className = 'bar' + (pct >= 85 ? ' hi' : '');
+  document.getElementById('memBig').textContent = (used/1024).toFixed(1);
+  document.getElementById('memTotal').textContent = '/ ' + (total/1024).toFixed(1) + ' GB';
   document.getElementById('memUsed').textContent = '已用 ' + (used/1024).toFixed(1) + ' GB';
-  document.getElementById('memTotal').textContent = '共 ' + (total/1024).toFixed(1) + ' GB';
+  const av = document.getElementById('memAvail');
+  if (av) av.textContent = '可用 ' + ((total - used)/1024).toFixed(1) + ' GB';
 
   const ev = document.getElementById('events');
   if (!d.events || !d.events.length){
     ev.innerHTML = '<div class="empty">今天还没有事件</div>';
   } else {
     ev.innerHTML = d.events.map(e => {
-      let cls = 'ev'; const m = String(e.m || '');
+      let cls = 'ev'; const m = evText(e.m);
       if (/失败|异常|掉线|未运行|错误/.test(m)) cls += ' err';
       else if (/告警|偏高|接近|不足/.test(m)) cls += ' warn';
       return '<div class="' + cls + '"><b>' + esc(e.t) + '</b>' + esc(m) + '</div>';

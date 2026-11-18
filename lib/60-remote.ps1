@@ -297,6 +297,22 @@ function Get-RemotePage {
   .toast.show{opacity:1}
   footer{text-align:center;color:var(--dim);font-size:11px;margin-top:14px}
   .err{color:var(--red);font-size:12px;padding:6px 0}
+  .sub{padding:0 2px 12px;font-size:11.5px;color:var(--dim)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 6px;text-align:center}
+  .stat b{display:block;font-size:19px;font-weight:600;line-height:1.1}
+  .stat span{display:block;font-size:9.5px;color:var(--dim);margin-top:3px}
+  .c-run{color:var(--green)}.c-sleep{color:var(--amber)}.c-off{color:var(--sub)}
+  .rt{text-align:right;min-width:46px}
+  .rt b{display:block;font-size:13px;font-weight:500}
+  .rt span{display:block;font-size:9.5px;color:var(--dim);margin-top:1px}
+  button{display:flex;align-items:center;justify-content:center;gap:6px}
+  button .bdot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:0 0 6px}
+  button .bdot.orange{background:var(--amber)}
+  button.primary{background:#F2F2F5;color:#17171A;border-color:#F2F2F5;font-weight:600}
+  .memrow{display:flex;align-items:flex-end;padding:8px 0 0}
+  .memrow b{font-size:24px;font-weight:600;line-height:1}
+  .memrow em{font-style:normal;font-size:11px;color:var(--dim);margin:0 0 3px 5px}
 </style>
 </head>
 <body>
@@ -305,22 +321,32 @@ function Get-RemotePage {
   <div class="pill"><span class="dot" id="dot"></span><span id="guardText">连接中…</span></div>
 </header>
 
+<div class="sub" id="subLine">正在读取…</div>
+
+<div class="stats">
+  <div class="stat"><b id="statTotal">–</b><span>总数</span></div>
+  <div class="stat"><b id="statRun" class="c-run">–</b><span>运行</span></div>
+  <div class="stat"><b id="statSleep" class="c-sleep">–</b><span>休眠</span></div>
+  <div class="stat"><b id="statOff" class="c-off">–</b><span>关闭</span></div>
+</div>
+
 <div class="card"><div class="title">实例</div><div id="instances"><div class="empty">正在读取…</div></div></div>
 
 <div class="card">
   <div class="title">操作</div>
   <div class="btns">
-    <button id="bGuard">停止看护</button>
-    <button id="bSleep">休眠 关</button>
+    <button id="bGuard"><i class="bdot"></i><span>停止看护</span></button>
+    <button id="bSleep"><i class="bdot orange"></i><span>自动休眠 关</span></button>
     <button id="bClean">立即清理</button>
-    <button id="bWakeAll" class="warn">全部唤醒</button>
+    <button id="bWakeAll" class="primary">唤醒全部</button>
   </div>
 </div>
 
 <div class="card">
   <div class="title">主机内存</div>
   <div class="bar" id="membar"><i id="memfill" style="width:0%"></i></div>
-  <div class="kv"><span id="memUsed">--</span><span id="memTotal">--</span></div>
+  <div class="memrow"><b id="memBig">–</b><em id="memTotal">/ --</em></div>
+  <div class="kv"><span id="memUsed">--</span><span id="memAvail">--</span></div>
 </div>
 
 <div class="card"><div class="title">最近事件</div><div id="events"><div class="empty">暂无</div></div></div>
@@ -331,6 +357,8 @@ function Get-RemotePage {
 <script>
 const K = new URLSearchParams(location.search).get('k') || '';
 let lastState = null;
+const EVMAP = {CLEAN_CEF:'清理', SLEEP:'休眠', SLEEP_BG:'后台休眠', WAKE_MANUAL:'手动唤醒', WAKE_LATE:'补唤醒', AUTO_RECOVER:'自动恢复', AUTO_RESTART:'自动重启', RECOVER_OK:'恢复成功', RECOVER_FAIL:'恢复失败', LOW_MEM:'内存偏低', ALERT_MEM:'内存告警', ALERT_SCRIPT:'脚本告警', CEF_HIGH:'CEF 偏高', ROOT_FAIL:'权限失败', SLEEP_FAIL:'休眠失败'};
+function evText(s){ return String(s==null?'':s).replace(/^([A-Z][A-Z_]+)\s+/, function(x, c){ return (EVMAP[c] || c) + ' '; }); }
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){
@@ -368,10 +396,19 @@ async function tick(){
     gt.textContent = d.guard ? '看护中' : '已停止';
     gt.style.color = d.guard ? '' : 'var(--dim)';
 
-    document.getElementById('bGuard').textContent = d.guard ? '停止看护' : '启动看护';
-    document.getElementById('bSleep').textContent = d.sleep ? '休眠 开' : '休眠 关';
+    document.getElementById('bGuard').innerHTML = '<i class="bdot"></i><span>' + (d.guard ? '停止看护' : '启动看护') + '</span>';
+    document.getElementById('bSleep').innerHTML = '<i class="bdot orange"></i><span>休眠 ' + (d.sleep ? '开' : '关') + '</span>';
     document.getElementById('bSleep').className = d.sleep ? '' : 'warn';
 
+const _list = d.instances || [];
+const _run = _list.filter(x => x.state === "run").length;
+const _sleep = _list.filter(x => x.state === "sleep").length;
+const _off = Math.max(0, _list.length - _run - _sleep);
+const _sub = document.getElementById("subLine"); if(_sub) _sub.textContent = _list.length + " 个实例 · " + _run + " 个运行 · " + _sleep + " 个休眠";
+const _st = document.getElementById("statTotal"); if(_st) _st.textContent = _list.length;
+const _sr = document.getElementById("statRun"); if(_sr) _sr.textContent = _run;
+const _ss = document.getElementById("statSleep"); if(_ss) _ss.textContent = _sleep;
+const _so = document.getElementById("statOff"); if(_so) _so.textContent = _off;
     const box = document.getElementById('instances');
     if(!d.instances || !d.instances.length){
       box.innerHTML = '<div class="empty">没有检测到实例</div>';
@@ -379,10 +416,10 @@ async function tick(){
       box.innerHTML = d.instances.map(it => {
         let tag = '离线', cls = 'off', meta = '实例 ' + esc(it.i);
         if(it.state === 'run'){ tag = '运行中'; cls = 'run'; if(it.extra) meta = esc(it.extra); }
-        else if(it.state === 'sleep'){ tag = it.wake ? ('休眠到 ' + it.wake) : '休眠中'; cls = 'sleep'; if(it.extra) meta = esc(it.extra); }
+        else if(it.state === 'sleep'){ tag = '休眠'; cls = 'sleep'; if(it.extra) meta = esc(it.extra); }
         else if(it.state === 'unknown'){ tag = '未知'; cls = 'off'; }
         if(it.judge && it.judge !== '正常'){ meta += ' · ' + esc(it.judge); }
-        return '<div class="row"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' +
+        return '<div class="row"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' + '<div class="rt"><b>' + esc(it.state === 'sleep' ? (it.wake || '—') : (it.state === 'run' && it.extra ? String(it.extra).replace(/^剩\s*/, '') : '—')) + '</b><span>' + (it.state === 'sleep' ? '唤醒' : (it.state === 'run' ? '剩余' : '无任务')) + '</span></div>' +
                '<div class="tag ' + cls + '">' + esc(tag) + '</div></div>';
       }).join('');
     }
@@ -392,6 +429,8 @@ async function tick(){
     document.getElementById('memfill').style.width = pct + '%';
     document.getElementById('membar').className = 'bar' + (pct >= 85 ? ' hi' : '');
     document.getElementById('memUsed').textContent  = '已用 ' + (used/1024).toFixed(1) + ' GB';
+const _mb = document.getElementById("memBig"); if(_mb) _mb.textContent = (used/1024).toFixed(1);
+const _ma = document.getElementById("memAvail"); if(_ma) _ma.textContent = "可用 " + ((total-used)/1024).toFixed(1) + " GB";
     document.getElementById('memTotal').textContent = '共 ' + (total/1024).toFixed(1) + ' GB';
 
     const ev = document.getElementById('events');
@@ -399,7 +438,7 @@ async function tick(){
       ev.innerHTML = '<div class="empty">今天还没有事件</div>';
     } else {
       ev.innerHTML = d.events.map(e => {
-        let cls = 'ev'; const m = String(e.m || '');
+        let cls = 'ev'; const m = evText(e.m);
         if(/失败|异常|掉线|未运行|错误/.test(m)) cls += ' err';
         else if(/告警|偏高|接近|不足/.test(m)) cls += ' warn';
         return '<div class="' + cls + '"><b>' + esc(e.t) + '</b>' + esc(m) + '</div>';

@@ -41,7 +41,16 @@ $head = $main.Substring(0, $startIdx)
 $tail = $main.Substring($endIdx)
 
 # ---- 依次拼入各模块 ----
-$order = @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '40-tray', '50-update')
+  # 清单直接从主脚本的加载循环里解析，避免两边不一致（1.6.0 就是漏了三个模块）
+  $order = @()
+  $lm = [regex]::Match($main, 'foreach\s*\(\s*\$f\s+in\s+@\((?<list>[^)]*)\)')
+  if (-not $lm.Success) { throw '主脚本里找不到模块清单 foreach ($f in @(...))' }
+  foreach ($part in ($lm.Groups['list'].Value -split ',')) {
+      $v = $part.Trim().Trim("'").Trim('"')
+      if ($v) { $order += $v }
+  }
+  if ($order.Count -eq 0) { throw '解析出来的模块清单为空' }
+  Write-Host ('  模块清单: ' + ($order -join ', '))
 $parts = New-Object System.Collections.Generic.List[string]
 $parts.Add('# ---------------- 模块（已内联）----------------')
 foreach ($name in $order) {
@@ -54,6 +63,19 @@ foreach ($name in $order) {
 }
 
 $merged = $head + ($parts -join "`r`n") + $tail
+
+  # ---- 自检：每个模块里定义的函数都必须在合并结果里出现（1.6.0 就是在这里漏掉的）----
+  $missing = @()
+  foreach ($name in $order) {
+      $mp = Join-Path $root ('lib\' + $name + '.ps1')
+      $mb = [System.IO.File]::ReadAllText($mp, [System.Text.Encoding]::UTF8)
+      foreach ($mm in [regex]::Matches($mb, '(?m)^\s*function\s+([A-Za-z0-9_\-]+)')) {
+          $fn = $mm.Groups[1].Value
+          if ($merged -notmatch ('(?m)^\s*function\s+' + [regex]::Escape($fn) + '\s*[\(\{]')) { $missing += ($name + '::' + $fn) }
+      }
+  }
+  if ($missing.Count -gt 0) { throw ('合并结果缺少函数定义：' + ($missing -join ', ')) }
+  Write-Host ('  自检通过：{0} 个模块，函数定义齐全' -f $order.Count)
 
 # ---- 编译版根目录回退 ----
 $rootFix = @'

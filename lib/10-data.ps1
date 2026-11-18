@@ -97,10 +97,12 @@ function Get-InstanceData {
                 }
             }
             $game     = $a.Game
+            $fgPkg    = ''
             $spin     = $a.Spin
             $props = $a.PSObject.Properties.Name
             if ($props -contains 'Upgrade') { $upgrade = $a.Upgrade }
             if ($props -contains 'Sched')   { $sched   = $a.Sched }
+            if ($props -contains 'Foreground') { $fgPkg = [string]$a.Foreground }
         }
 
         # 升级信息：完成时间已过就不显示
@@ -177,6 +179,7 @@ function Get-InstanceData {
             UpDone  = $upDone
             UpLeft  = $upLeft
             Sched   = $sched
+            Foreground = $fgPkg
             Judge   = $judge
             Level   = $level
         }

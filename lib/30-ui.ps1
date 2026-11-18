@@ -1321,7 +1321,8 @@ function Show-Settings {
         @{ Key = 'RecoverCooldown';  Label = '恢复冷却(分钟)';    Step = 1 },
         @{ Key = 'SleepLeadMin';    Label = '提前唤醒(分钟)';     Step = 1 },
         @{ Key = 'SleepMinHours';   Label = '最短休眠(小时)';     Step = 1 },
-        @{ Key = 'SleepMaxHours';   Label = '最长休眠(小时)';     Step = 1 }
+        @{ Key = 'SleepMaxHours';   Label = '最长休眠(小时)';     Step = 1 },
+        @{ Key = 'SleepIdleMin';  Label = '后台空闲判定(分钟)'; Step = 1 }
 
     )
 
@@ -1336,7 +1337,8 @@ function Show-Settings {
     $toggles = @(
         @{ Key = 'AutoRecover'; Label = '脚本掉线自动恢复' },
         @{ Key = 'AutoSleep';   Label = '升级等待时休眠模拟器' },
-        @{ Key = 'StartWithWindows'; Label = '开机自动启动面板（进托盘）' }
+        @{ Key = 'StartWithWindows'; Label = '开机自动启动面板（进托盘）' },
+        @{ Key = 'SleepBackground'; Label = '游戏切到后台时也允许休眠（脚本在等升级）' }
     )
 
     $checks = @{}

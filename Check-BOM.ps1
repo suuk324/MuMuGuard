@@ -33,7 +33,7 @@ function Test-HasBom([byte[]]$bytes) {
 }
 
 $targets = @(Get-ChildItem -Path $Path -Recurse -File -Include '*.ps1', '*.vbs' -ErrorAction SilentlyContinue |
-             Where-Object { $_.FullName -notmatch '\\_backup_' })
+             Where-Object { $_.FullName -notmatch '\\_backup_|\\_build\\|\\_dist\\' })
 
 if ($targets.Count -eq 0) {
     Write-Host "没找到 .ps1 / .vbs 文件" -ForegroundColor Yellow

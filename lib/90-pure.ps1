@@ -36,12 +36,30 @@ function Get-UpgradeFromMemoryJson {
     try { $j = $Text | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
     if ($null -eq $j) { return $null }
 
+    # 一模拟器多号时，memory.json 会同时存在 NextUpgrade1 / NextUpgrade2 …
+    # 只看当前登录号可能拿到较晚的那个，导致睡过头，所以取所有号里最快的。
+    $nowTs = [int64](([datetime]::UtcNow - (New-Object datetime 1970,1,1,0,0,0,([DateTimeKind]::Utc))).TotalSeconds)
+    $best = $null
+    $accBest = $null
     $acc = "$($j.accountNumber)"
     if (-not $acc) { $acc = '1' }
-    $raw = $j."NextUpgrade$acc"
-    if (-not $raw) { return $null }
-    try { $u = $raw | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
-    if (-not $u.completionTs) { return $null }
+    foreach ($p in $j.PSObject.Properties) {
+        if ($p.Name -notmatch '^NextUpgrade(\d+)$') { continue }
+        $num = $Matches[1]
+        $raw = $p.Value
+        if (-not $raw) { continue }
+        try { $u = $raw | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+        if (-not $u.completionTs) { continue }
+        $item = [pscustomobject]@{ Name = "$($u.name)"; Lvl = [int]$u.lvl; Ts = [int64]$u.completionTs }
+        # 当前登录号的那条单独留一份，作为全部过期的兜底
+        if ($num -eq $acc) { $accBest = $item }
+        # 只考虑还没完成的；取最早完成的那个
+        if ($item.Ts -le $nowTs) { continue }
+        if (-not $best -or $item.Ts -lt $best.Ts) { $best = $item }
+    }
+    if ($best) { return $best }
+    if ($accBest) { return $accBest }
+    return $null
 
     return [pscustomobject]@{
         Name = "$($u.name)"
@@ -186,13 +204,25 @@ function Get-InstanceMemBase {
 }
 # 升级休眠状态机（纯逻辑，便于单测）
 # 返回 @{ Action = 'wait'|'gamegone'|'sleep'|'idle'; Reason = '...' }
+# 前台包名是否属于游戏（PkgGame 可能是空格分隔的多个包）
+function Test-GameForeground {
+    param([string]$Foreground, [string]$Packages)
+    if (-not $Foreground -or -not $Packages) { return $false }
+    $fg = $Foreground.Trim().ToLower()
+    if (-not $fg) { return $false }
+    foreach ($p in ($Packages -split '\s+')) {
+        $pp = $p.Trim().ToLower()
+        if ($pp -and $fg -eq $pp) { return $true }
+    }
+    return $false
+}
+
 function Get-SleepStage {
     param(
         $Row,
         [object]$Since = $null,
         [object]$GameGone = $null,
         [datetime]$Now,
-        [double]$BootWaitMin = 20,
         [double]$GameGoneMin = 3,
         [double]$LeadMin = 10,
         [double]$MinHours = 1,
@@ -200,7 +230,11 @@ function Get-SleepStage {
         [bool]$AutoSleep = $true,
         [bool]$GuardRunning = $true,
         [string[]]$DetectOff = @(),
-        [string[]]$SleepingIndexes = @()
+        [string[]]$SleepingIndexes = @(),
+        [bool]$AllowBackground = $false,
+        [double]$IdleMin = 10,
+        [bool]$GameForeground = $false,
+        [object]$IdleSince = $null
     )
     if (-not $AutoSleep) { return @{ Action = 'idle'; Reason = 'auto-sleep-off' } }
     if (-not $GuardRunning) { return @{ Action = 'idle'; Reason = 'guard-off' } }
@@ -215,23 +249,27 @@ function Get-SleepStage {
 
     if (-not $Since) { $Since = $Now }
 
-    # 游戏在跑 = 脚本在干活，绝不休眠
-    if ($Row.Game -eq $true) { return @{ Action = 'wait'; Reason = 'game-running' } }
-    # 游戏状态读不到（采集异常）也不能睡，宁可晚睡
-    if ($Row.Game -ne $false) { return @{ Action = 'wait'; Reason = 'game-unknown' } }
-
-    # 唤醒后的等待期
-    $elapsed = ($Now - [datetime]$Since).TotalMinutes
-    if ($elapsed -lt $BootWaitMin) {
-        return @{ Action = 'wait'; Reason = ('boot-wait {0}/{1}min' -f [int]$elapsed, [int]$BootWaitMin) }
+    # 游戏进程在，但可能只是被脚本切到了后台
+    if ($Row.Game -eq $true) {
+        if (-not $AllowBackground) { return @{ Action = 'wait'; Reason = 'game-running' } }
+        # 游戏在前台 = 正在玩，绝不睡
+        if ($GameForeground) { return @{ Action = 'wait'; Reason = 'game-foreground' } }
+        # 后台空闲要连续够久才算「脚本在等」
+        if (-not $IdleSince) { return @{ Action = 'wait'; Reason = 'idle-start' } }
+        $idleNow = ($Now - [datetime]$IdleSince).TotalMinutes
+        if ($idleNow -lt $IdleMin) {
+            return @{ Action = 'wait'; Reason = ('background-idle {0:N0}/{1}min' -f $idleNow, $IdleMin) }
+        }
+    } elseif ($Row.Game -ne $false) {
+        # 游戏状态读不到（采集异常）也不能睡，宁可晚睡
+        return @{ Action = 'wait'; Reason = 'game-unknown' }
+    } else {
+        # 游戏已退出：先开始计确认时间
+        if (-not $GameGone) { return @{ Action = 'gamegone'; Reason = 'start-confirm' } }
+        if (($Now - [datetime]$GameGone).TotalMinutes -lt $GameGoneMin) {
+            return @{ Action = 'wait'; Reason = ('confirming {0}/{1}min' -f [int]($Now - [datetime]$GameGone).TotalMinutes, [int]$GameGoneMin) }
+        }
     }
-
-    # 游戏已退出：先开始计确认时间
-    if (-not $GameGone) { return @{ Action = 'gamegone'; Reason = 'start-confirm' } }
-    if (($Now - [datetime]$GameGone).TotalMinutes -lt $GameGoneMin) {
-        return @{ Action = 'wait'; Reason = ('confirming {0}/{1}min' -f [int]($Now - [datetime]$GameGone).TotalMinutes, [int]$GameGoneMin) }
-    }
-
     if (-not $Row.UpDone) { return @{ Action = 'wait'; Reason = 'no-upgrade' } }
     $doneAt = [datetime]$Row.UpDone
     $wakeAt = $doneAt.AddMinutes(-$LeadMin)

@@ -242,6 +242,8 @@ $defaultCfg = [ordered]@{
     # 升级休眠
     AutoSleep        = $false
     SleepLeadMin     = 10
+    SleepBackground  = $true      # 游戏切到后台时也允许休眠
+    SleepIdleMin     = 10         # 后台空闲多少分钟才判定为脚本在等
     SleepMaxHours   = 168   # 最长休眠时长（小时）：CoC 升级经常几十小时，20 太小
     SleepMinHours   = 1     # 最短休眠时长（小时）：升级很快做完就别睡了，省得反复开关机
     # 路径与包名（可在设置里改）
@@ -311,7 +313,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.6.2'
+$script:appVersion = '1.6.3'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -424,11 +426,13 @@ $script:lastInstances = @()
 # ---------------- 后台 adb 采集 ----------------
 
 $workerScript = {
-    param($sync, $mumuRoot, $adbExe, $pkgScript, $pkgGame, $purePath, $deviceList, $batchSize, $mumuMgr)
+    param($sync, $mumuRoot, $adbExe, $pkgScript, $pkgGame, $purePath, $deviceList, $batchSize, $mumuMgr, $pureFuncText)
 
     try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
     # 载入纯函数，保证与主程序逻辑一致
     if ($purePath -and (Test-Path $purePath)) { . $purePath }
+    # exe 版没有 lib 目录，函数定义由主线程直接传进来
+    if ($pureFuncText) { try { . ([scriptblock]::Create($pureFuncText)) } catch { } }
 
     function Convert-TimePlus([string]$s) {
         if ($s -match '(\d+):(\d+):(\d+)') { return ([int]$Matches[1] * 3600 + [int]$Matches[2] * 60 + [int]$Matches[3]) }
@@ -461,6 +465,8 @@ $workerScript = {
     while (-not $sync.Stop) {
         try {
             $cycle++
+            # 一次抖动就会永久降级，导致实例再也采不到数据；每 10 轮重试一次主通道
+            if ($mgrAdbSkip -and ($cycle % 10 -eq 0)) { $mgrAdbSkip = $false; $mgrAdbFail = 0 }
             $now  = Get-Date
             $out  = @{}
             $span = 30.0
@@ -500,8 +506,8 @@ $workerScript = {
                 $cur    = $null
 
                 # 一次 shell 调用同时取「紫孔雀进程」「游戏进程」「nemuinit 时间」
-                $cmd = "echo READY; echo SCRIPT; pidof $pkgScript; echo GAME; pidof $pkgGame; echo INST; pm path $pkgScript 2>/dev/null; echo SEP; ps -A -o TIME+,NAME 2>/dev/null | grep nemuinit"
-                if ($readMem -or $forceSet.ContainsKey($i)) {
+                $cmd = "echo READY; echo SCRIPT; pidof $pkgScript; echo GAME; pidof $pkgGame; echo INST; pm path $pkgScript 2>/dev/null; echo FG; dumpsys window 2>/dev/null | grep mCurrentFocus; echo SEP; ps -A -o TIME+,NAME 2>/dev/null | grep nemuinit"
+                if ($readMem -or (-not $schedCache.ContainsKey($i)) -or $forceSet.ContainsKey($i)) {
                     $cmd += "; echo ROOT; su -c 'id' 2>/dev/null; echo MEM; su -c 'base64 /storage/emulated/0/zkqFiles/memory.json 2>/dev/null'"
                     $cmd += "; echo SCH; su -c 'grep -o `"upgrade_time_scheduling[^,]*`" /storage/emulated/0/zkqFiles/zkq_config.json 2>/dev/null'"
                 }
@@ -559,8 +565,16 @@ $workerScript = {
                     if ($res -match '(?s)SEP\s*(.*)$')          { $psPart     = $Matches[1] }
                     # INST 段：紫孔雀是否已安装（没装就不能当成「掉线」去恢复）
                     $instPart = ''
-                    if ($res -match '(?s)INST\s*(.*?)\s*SEP') { $instPart = $Matches[1] }
+                    if ($res -match '(?s)INST\s*(.*?)\s*FG') { $instPart = $Matches[1] }
                     $installed = ($instPart -match 'package:')
+
+                    # 前台包名（判断脚本是不是把游戏切到后台了）
+                    $fgPart = ''
+                    if ($res -match '(?s)FG\s*(.*?)\s*SEP') { $fgPart = $Matches[1] }
+                    $fgPkg = ''
+                    foreach ($fgLine in ($fgPart -split "`n")) {
+                        if ($fgLine -match 'mCurrentFocus=.*?\su\d+\s+([A-Za-z0-9_.]+)/') { $fgPkg = $Matches[1]; break }
+                    }
 
                     # 三态：只有明确解析到段落才判定；解析不到 = 未知（null），不能当成「没在跑」
                     if ($res -match '(?s)SCRIPT\s*(.*?)\s*GAME') { $scriptOn = ($scriptPart -match '(?m)^\s*\d+\s*$') } else { $scriptOn = $null }
@@ -570,7 +584,7 @@ $workerScript = {
                     if ($res -match '(?s)SEP\s*(.*?)(?:MEM|$)') { $psPart = $Matches[1] }
                     if ($psPart -match '(\d+(?::\d+){1,2})') { $cur = Convert-TimePlus $Matches[1] }
 
-                    $readThis = $readMem -or $forceSet.ContainsKey($i)
+                    $readThis = $readMem -or (-not $schedCache.ContainsKey($i)) -or $forceSet.ContainsKey($i)
                     if ($readThis) {
                         # 被强制重读的实例：先丢掉旧缓存
                         if ($forceSet.ContainsKey($i)) { $memCache.Remove($i); $schedCache.Remove($i) }
@@ -615,6 +629,7 @@ $workerScript = {
                     Game    = $gameOn
                     Spin    = $spin
                     Upgrade = $(if ($memCache.ContainsKey($i)) { $memCache[$i] } else { $null })
+                    Foreground = $fgPkg
                     Sched   = $(if ($schedCache.ContainsKey($i)) { $schedCache[$i] } else { $null })
                 }
                 # 强制重读完成，撤掉标记，恢复常态轮询
@@ -654,7 +669,11 @@ $devList = @($script:instances | Where-Object {
 $script:adbSync.Devices = $devList
 $batchSize = if ($devList.Count -le 3) { $devList.Count } else { [math]::Max(2, [int][math]::Ceiling($devList.Count / 5)) }
 
-[void]$workerPs.AddScript($workerScript).AddArgument($script:adbSync).AddArgument($MuMuRoot).AddArgument($AdbExe).AddArgument($PkgScript).AddArgument($PkgGame).AddArgument((Join-Path $Root 'lib\90-pure.ps1')).AddArgument($devList).AddArgument($batchSize).AddArgument($MuMuMgr)
+            # 采集线程是独立 runspace，拿不到主线程的函数；exe 版又没有 lib 目录，
+            # 所以把解析函数定义成文本传进去，脚本版和 exe 版行为一致
+            $pureFuncText = ''
+            try { $pureFuncText = 'function Get-UpgradeFromMemoryJson { ' + (Get-Command Get-UpgradeFromMemoryJson -ErrorAction Stop).Definition + ' }' } catch { }
+[void]$workerPs.AddScript($workerScript).AddArgument($script:adbSync).AddArgument($MuMuRoot).AddArgument($AdbExe).AddArgument($PkgScript).AddArgument($PkgGame).AddArgument((Join-Path $Root 'lib\90-pure.ps1')).AddArgument($devList).AddArgument($batchSize).AddArgument($MuMuMgr).AddArgument($pureFuncText)
 $workerHandle = $workerPs.BeginInvoke()
 
 # ---------------- 主界面 XAML ----------------

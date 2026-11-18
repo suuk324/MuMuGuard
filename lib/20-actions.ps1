@@ -140,7 +140,6 @@ function Invoke-AutoSleep {
     $leadMin  = [double]$script:cfg.SleepLeadMin
     $maxHours = [double]$script:cfg.SleepMaxHours
     $minHours = [double]$script:cfg.SleepMinHours
-    $bootWait = 20   # 上号后先等 20 分钟，让脚本把活干完
     $goneMin  = 3    # 游戏关闭后再确认 3 分钟，防止脚本只是重开游戏
     $now = Get-Date
     $list = @(Get-SleepList)
@@ -168,7 +167,7 @@ function Invoke-AutoSleep {
         $idx = "$($r.Index)"
 
         if (-not $script:sleepStage.ContainsKey($idx)) {
-            $script:sleepStage[$idx] = @{ Since = $null; GameGone = $null }
+            $script:sleepStage[$idx] = @{ Since = $null; GameGone = $null; IdleSince = $null }
         }
         $st = $script:sleepStage[$idx]
         # 20 分钟保护期按模拟器进程启动时间算，面板重启也不会重置
@@ -192,12 +191,24 @@ function Invoke-AutoSleep {
             continue
         }
 
+        # 前台判定：游戏不在前台持续够久 = 脚本在等升级（紫孔雀会把游戏切后台）
+        $fgPkg = ''
+        try { if ($r.PSObject.Properties.Name -contains 'Foreground') { $fgPkg = [string]$r.Foreground } } catch { }
+        $gameFg = $false
+        try { $gameFg = Test-GameForeground -Foreground $fgPkg -Packages ([string]$script:cfg.PkgGame) } catch { }
+        if ($r.Game -eq $true -and -not $gameFg) {
+            if (-not $st['IdleSince']) { $st['IdleSince'] = $now }
+        } else {
+            $st['IdleSince'] = $null
+        }
+
         $dec = Get-SleepStage -Row $r -Since $st['Since'] -GameGone $st['GameGone'] -Now $now `
-            -BootWaitMin $bootWait -GameGoneMin $goneMin `
+             -GameGoneMin $goneMin `
             -LeadMin $leadMin -MinHours $minHours -MaxHours $maxHours `
             -AutoSleep ([bool]$script:cfg.AutoSleep) -GuardRunning ([bool]$script:guardRunning) `
             -DetectOff @($script:cfg.DetectOff) `
-            -SleepingIndexes @($list | ForEach-Object { "$($_.Index)" })
+            -SleepingIndexes @($list | ForEach-Object { "$($_.Index)" }) `
+            -AllowBackground ([bool]$script:cfg.SleepBackground) -IdleMin ([double]$script:cfg.SleepIdleMin) -GameForeground $gameFg -IdleSince $st['IdleSince']
 
         $action = "$($dec.Action)"
         $reason = "$($dec.Reason)"
@@ -236,6 +247,10 @@ function Invoke-AutoSleep {
         $changed = $true
         try {
             Start-Process -FilePath $MuMuMgr -ArgumentList 'control', '-v', $idx, 'shutdown' -WindowStyle Hidden | Out-Null
+            if ($r.Game -eq $true) {
+                $idleTxt = $(if ($st['IdleSince']) { [int]($now - [datetime]$st['IdleSince']).TotalMinutes } else { 0 })
+                Write-GuardLog 'SLEEP_BG' "实例$idx" ("游戏在后台空闲 {0} 分钟（前台：{1}），按升级时间休眠" -f $idleTxt, $(if ($fgPkg) { $fgPkg } else { '未知' }))
+            }
             Write-GuardLog 'SLEEP' "实例$idx" ("关机休眠，{0} 唤醒（{1}）" -f $wakeAt.ToString('HH:mm'), $entry.Upgrade)
             # 我们自己关的：清空该实例记忆，下次开机像新实例一样重新抓取
             try { Reset-InstanceMemory $idx 'sleep' } catch { }

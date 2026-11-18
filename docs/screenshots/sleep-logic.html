@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 34px 40px 40px;
+    background: #0B0E13; color: #E8ECF2;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    width: 980px;
+  }
+  h1 { font-size: 21px; margin: 0 0 4px; letter-spacing: .5px; }
+  .sub { font-size: 12px; color: #6B7485; margin-bottom: 26px; }
+
+  .stage { display: flex; gap: 18px; align-items: flex-start; }
+  .col-main { width: 470px; }
+  .col-side { width: 430px; padding-top: 4px; }
+
+  .label { font-size: 11px; color: #6B7485; margin: 0 0 8px 2px; letter-spacing: 1px; }
+
+  .box {
+    border: 1px solid #232A36; background: #12161D; border-radius: 10px;
+    padding: 11px 14px; font-size: 13px; line-height: 1.5; position: relative;
+  }
+  .box .k { color: #E8ECF2; }
+  .box .d { color: #9BA5B4; font-size: 12px; margin-top: 2px; }
+
+  .dec { border-color: #2E3A4C; background: #141A23; }
+  .dec .q { color: #E8ECF2; font-size: 13px; }
+  .dec .d { color: #6B7485; }
+
+  .pass { border-color: #2E6B45; background: #13201a; }
+  .pass .q { color: #3FB950; font-weight: 600; }
+
+  .sleep {
+    border: 1px solid #2E6B45; background: #14261B; border-radius: 10px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .sleep .t { color: #3FB950; font-size: 14px; font-weight: 600; }
+  .sleep .d { color: #9BA5B4; font-size: 12px; margin-top: 5px; line-height: 1.6; }
+
+  .arrow { height: 22px; display: flex; align-items: center; justify-content: center; color: #303A48; font-size: 15px; }
+  .arrow.no { color: #4A3A1A; }
+
+  .wait {
+    border: 1px solid #3A2F14; background: #1C170D; border-radius: 9px;
+    padding: 8px 12px; font-size: 12px; color: #D29922; line-height: 1.45;
+  }
+  .wait .r { color: #6B7485; font-size: 11px; margin-top: 2px; }
+
+  .collect { border: 1px dashed #2E3A4C; background: #0F131A; border-radius: 10px; padding: 12px 14px; }
+  .collect .h { font-size: 12px; color: #9BA5B4; margin-bottom: 8px; }
+  .collect table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .collect td { padding: 4px 0; vertical-align: top; }
+  .collect td.a { color: #6B7485; width: 118px; }
+  .collect td.b { color: #E8ECF2; }
+  code { font-family: Consolas, monospace; font-size: 11.5px; color: #9BA5B4; background: #171D27; padding: 1px 5px; border-radius: 4px; }
+
+  .side-item { display: flex; gap: 10px; margin-bottom: 9px; }
+  .side-item .idx {
+    width: 20px; height: 20px; border-radius: 50%; border: 1px solid #3A2F14;
+    color: #D29922; font-size: 11px; display: flex; align-items: center; justify-content: center; flex: 0 0 20px; margin-top: 1px;
+  }
+  .side-item .txt { font-size: 12.5px; color: #C9D1DE; line-height: 1.45; }
+  .side-item .txt .r { color: #6B7485; font-size: 11px; }
+
+  .wake { margin-top: 22px; border-top: 1px solid #1E2530; padding-top: 14px; display: flex; gap: 14px; align-items: center; }
+  .wake .b { border: 1px solid #232A36; background: #12161D; border-radius: 9px; padding: 9px 13px; font-size: 12px; color: #9BA5B4; }
+  .wake .a { color: #303A48; }
+  .foot { margin-top: 18px; font-size: 11px; color: #4E5666; }
+</style>
+</head>
+<body>
+  <h1>升级休眠 · 判定逻辑</h1>
+  <div class="sub">v1.6.3：用「前台是谁」判断脚本在跑还是在等，不再需要保护期</div>
+
+  <div class="stage">
+    <div class="col-main">
+      <div class="label">① 采集（每 15 秒一轮）</div>
+      <div class="collect">
+        <div class="h">每个运行中的实例取四样东西</div>
+        <table>
+          <tr><td class="a">脚本在跑吗</td><td class="b"><code>pidof 脚本包</code></td></tr>
+          <tr><td class="a">游戏在跑吗</td><td class="b"><code>pidof 游戏包</code>（进程存在 ≠ 在玩）</td></tr>
+          <tr><td class="a">前台是谁</td><td class="b"><code>mCurrentFocus</code> → 包名 <span style="color:#3FB950">新增</span></td></tr>
+          <tr><td class="a">下次升级完成</td><td class="b"><code>memory.json</code> → NextUpgrade&lt;当前号&gt;</td></tr>
+          <tr><td class="a">上号开关</td><td class="b"><code>upgrade_time_scheduling</code></td></tr>
+        </table>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="label">② 判定（每 20 秒一次，从上往下短路）</div>
+
+      <div class="box dec"><div class="q">自动休眠开关 / 看护 / 不检测名单</div><div class="d">任一不满足 → 直接不处理</div></div>
+      <div class="arrow">↓</div>
+
+      <div class="box dec"><div class="q">升级时间上号开了吗？脚本在跑吗？</div><div class="d">任一不满足 → 不处理</div></div>
+      <div class="arrow">↓</div>
+
+      <div class="box dec">
+        <div class="q">游戏进程还在吗？</div>
+        <div class="d">在 = 进程活着（可能只是被切到后台）</div>
+      </div>
+      <div class="arrow">↓ 在</div>
+
+      <div class="box dec">
+        <div class="q">游戏在前台吗？</div>
+        <div class="d">前台包名 ∈ 游戏包 → 正在玩</div>
+      </div>
+      <div class="arrow no">↓ 不在前台（脚本把游戏放后台了）</div>
+
+      <div class="box dec">
+        <div class="q">后台空闲够久吗？</div>
+        <div class="d">连续 ≥「后台空闲判定」分钟（默认 10）</div>
+      </div>
+      <div class="arrow">↓ 够久</div>
+
+
+
+      <div class="box dec">
+        <div class="q">升级时间合法吗？</div>
+        <div class="d">有完成时间 · 唤醒时刻还没到 · 剩余在 最短~最长 之间</div>
+      </div>
+      <div class="arrow">↓ 合法</div>
+
+      <div class="sleep">
+        <div class="t">③ 休眠</div>
+        <div class="d">
+          关机休眠 → 记录唤醒时间 = 升级完成时间 − 提前唤醒(默认 10 分钟)<br>
+          到点由 Waker 重新拉起实例，回到 ① 继续循环
+        </div>
+      </div>
+
+      <div class="wake">
+        <div class="b">游戏进程消失</div>
+        <div class="a">→</div>
+        <div class="b">确认 3 分钟</div>
+        <div class="a">→</div>
+        <div class="b">同一套时间判定</div>
+      </div>
+      <div class="foot">旧路径保留：紫孔雀真的关掉游戏时，仍然按“消失 + 3 分钟确认”走。</div>
+    </div>
+
+    <div class="col-side">
+      <div class="label">每一层不通过 → 都在这里停住（不睡）</div>
+
+      <div class="side-item"><div class="idx">1</div><div class="txt">开关没开 / 看护没开 / 在名单外<div class="r">什么都不做</div></div></div>
+      <div class="side-item"><div class="idx">2</div><div class="txt">没开“升级时间上号”，或脚本没在跑<div class="r">说明这不是等待升级的场景</div></div></div>
+      <div class="side-item"><div class="idx">3</div><div class="txt">游戏在前台<div class="r">正在玩，绝不关机</div></div></div>
+      <div class="side-item"><div class="idx">4</div><div class="txt">后台空闲不够久<div class="r">background-idle 3/10min —— 防止来回切屏被误判</div></div></div>
+      <div class="side-item"><div class="idx">5</div><div class="txt">（已取消）保护期<div class="r">前台信号已足够，不再需要"刚开机先等 20 分钟"</div></div></div>
+      <div class="side-item"><div class="idx">6</div><div class="txt">升级时间不合法<div class="r">没读到 / 快完成了 / 太远了</div></div></div>
+
+      <div style="height:18px"></div>
+      <div class="label">防误判的两道闸</div>
+      <div class="wait">① 10 分钟窗口<br><span class="r">切账号、临时切屏不会触发</span></div>
+      <div style="height:8px"></div>
+      <div class="wait">② 只对"升级剩余 ≥1 小时"生效<br><span class="r">快完成时不睡，避免睡过头</span></div>
+
+      <div style="height:22px"></div>
+      <div class="label">本次顺带修掉的两个坑</div>
+      <div class="wait">前台采集：<br><span class="r">mCurrentFocus 会输出两行，第一行是 null，原来只取第一行 → 永远拿不到前台应用</span></div>
+      <div style="height:8px"></div>
+      <div class="wait">升级信息读取：<br><span class="r">原来“每 3 轮读一次”与实例分批轮询错位，某些实例永远读不到 → 升级时间一直空 → 永不休眠</span></div>
+    </div>
+  </div>
+</body>
+</html>

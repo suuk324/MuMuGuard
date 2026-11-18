@@ -380,10 +380,10 @@ Test-Case '状态机：游戏在跑 → 不睡' {
     Assert-Equal 'game-running' "$($r.Reason)"
 }
 
-Test-Case '状态机：刚开机 5 分钟 → 等待' {
+Test-Case '状态机：游戏关闭未确认 -> 先进入确认）' {
     $row = @{ Index = '3'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
     $r = Get-SleepStage -Row $row -Since $stNow.AddMinutes(-5) -Now $stNow
-    Assert-Equal 'wait' "$($r.Action)"
+    Assert-Equal 'gamegone' "$($r.Action)"
 }
 
 Test-Case '状态机：开机 20 分钟后游戏已关 → 开始确认' {
@@ -446,10 +446,10 @@ Test-Case '解析：SCH 段能单独取到上号开关' {
     Assert-Equal $true $sched
 }
 
-Test-Case '状态机：没有起始时间 → 视为刚开始，先等待' {
+Test-Case '状态机：没有起始时间 -> 直接进入确认' {
     $row = @{ Index = '9'; Script = $true; Sched = $true; Game = $false; UpDone = $stNow.AddHours(6) }
     $r = Get-SleepStage -Row $row -Since $null -GameGone $null -Now $stNow
-    Assert-Equal 'wait' "$($r.Action)"
+    Assert-Equal 'gamegone' "$($r.Action)"
 }
 
 Test-Case '状态机：登记满 20 分钟且游戏已关 3 分钟 → 休眠' {
@@ -466,6 +466,74 @@ Test-Case '状态机：游戏状态读不到（未知）→ 不睡' {
 }
 
 Write-Host ''
+Test-Case '后台休眠关闭时：游戏在跑 → 不睡' {
+    $row = @{ Index = '2'; Script = $true; Sched = $true; Game = $true; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddHours(-2) -Now $stNow `
+        -AllowBackground $false -GameForeground $false -IdleSince $stNow.AddMinutes(-30)
+    Assert-Equal 'wait' "$($r.Action)"
+    Assert-Equal 'game-running' "$($r.Reason)"
+}
+
+Test-Case '游戏在前台 → 绝不睡' {
+    $row = @{ Index = '2'; Script = $true; Sched = $true; Game = $true; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddHours(-2) -Now $stNow `
+        -AllowBackground $true -GameForeground $true -IdleSince $stNow.AddMinutes(-30)
+    Assert-Equal 'wait' "$($r.Action)"
+    Assert-Equal 'game-foreground' "$($r.Reason)"
+}
+
+Test-Case '游戏在后台但空闲不够久 → 继续等' {
+    $row = @{ Index = '2'; Script = $true; Sched = $true; Game = $true; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddHours(-2) -Now $stNow `
+        -AllowBackground $true -GameForeground $false -IdleSince $stNow.AddMinutes(-3) -IdleMin 10
+    Assert-Equal 'wait' "$($r.Action)"
+}
+
+Test-Case '后台空闲够久 + 升级时间合法 → 休眠' {
+    $row = @{ Index = '2'; Script = $true; Sched = $true; Game = $true; UpDone = $stNow.AddHours(6) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddHours(-2) -Now $stNow `
+        -AllowBackground $true -GameForeground $false -IdleSince $stNow.AddMinutes(-12) -IdleMin 10
+    Assert-Equal 'sleep' "$($r.Action)"
+}
+
+Test-Case '后台空闲够久但升级快完成 → 不睡' {
+    $row = @{ Index = '2'; Script = $true; Sched = $true; Game = $true; UpDone = $stNow.AddMinutes(40) }
+    $r = Get-SleepStage -Row $row -Since $stNow.AddHours(-2) -Now $stNow `
+        -AllowBackground $true -GameForeground $false -IdleSince $stNow.AddMinutes(-12) -IdleMin 10
+    Assert-Equal 'wait' "$($r.Action)"
+}
+
+
+Test-Case '前台包名判断：游戏包 → 是游戏在前台' {
+    Assert-Equal 'True' "$(Test-GameForeground -Foreground 'com.supercell.clashofclans' -Packages 'com.tencent.tmgp.supercell.clashofclans com.supercell.clashofclans')"
+}
+
+Test-Case '前台包名判断：脚本包 → 不算游戏前台' {
+    Assert-Equal 'False' "$(Test-GameForeground -Foreground 'com.coc.zkqcode' -Packages 'com.supercell.clashofclans')"
+}
+
+Test-Case '前台包名判断：取不到 → 不算游戏前台' {
+    Assert-Equal 'False' "$(Test-GameForeground -Foreground '' -Packages 'com.supercell.clashofclans')"
+}
+Test-Case '多号同时等：取最早完成的那个' {
+    $now = [int64](([datetime]::UtcNow - (New-Object datetime 1970,1,1,0,0,0,([DateTimeKind]::Utc))).TotalSeconds)
+    $json = '{"NextUpgrade1":"{\"name\":\"早的\",\"lvl\":1,\"completionTs\":' + ($now + 3600) + '}","accountNumber":"2","NextUpgrade2":"{\"name\":\"晚的\",\"lvl\":2,\"completionTs\":' + ($now + 7200) + '}"}'
+    $u = Get-UpgradeFromMemoryJson -Text $json
+    Assert-Equal '早的' "$($u.Name)"
+}
+
+Test-Case '多号同时等：当前号是晚的那个，也取最早的' {
+    $now = [int64](([datetime]::UtcNow - (New-Object datetime 1970,1,1,0,0,0,([DateTimeKind]::Utc))).TotalSeconds)
+    $json = '{"NextUpgrade1":"{\"name\":\"早的\",\"lvl\":1,\"completionTs\":' + ($now + 3600) + '}","accountNumber":"1","NextUpgrade2":"{\"name\":\"晚的\",\"lvl\":2,\"completionTs\":' + ($now + 7200) + '}"}'
+    $u = Get-UpgradeFromMemoryJson -Text $json
+    Assert-Equal '早的' "$($u.Name)"
+}
+
+Test-Case '升级全部过期：返回当前号那条做兜底' {
+    $json = '{"NextUpgrade1":"{\"name\":\"旧\",\"lvl\":1,\"completionTs\":1000}","accountNumber":"1"}'
+    $u = Get-UpgradeFromMemoryJson -Text $json
+    Assert-Equal '旧' "$($u.Name)"
+}
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {
     Write-Host ("全部通过：{0} 个测试" -f $script:pass) -ForegroundColor Green

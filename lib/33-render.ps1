@@ -77,7 +77,7 @@ function Initialize-Shell {
     $cb = $Win.FindName('BtnCleanNow')
     if ($cb) { $cb.Add_MouseLeftButtonUp({ try { [void](Invoke-GuardCleanup) } catch { }; Update-Ui }) }
     $lg = $Win.FindName('BtnOpenLog')
-    if ($lg) { $lg.Add_MouseLeftButtonUp({ if (Test-Path $LogDir) { Start-Process explorer.exe -ArgumentList $LogDir } }) }
+    if ($lg) { $lg.Add_MouseLeftButtonUp({ if ($env:MMG_UITEST -eq '1') { return }; if (Test-Path $LogDir) { Start-Process explorer.exe -ArgumentList $LogDir } }) }
     $ex = $Win.FindName('BtnExportRep')
     if ($ex) { $ex.Add_MouseLeftButtonUp({ try { Export-Report } catch { Write-Diag "导出失败: $($_.Exception.Message)" } }) }
     $up = $Win.FindName('BtnCheckUpd')

@@ -234,8 +234,8 @@ function Get-ShellXaml {
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Border Grid.Row="0" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12">
-              <StackPanel Margin="12,11,12,12">
+            <Border Grid.Row="0" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12" Padding="12,11,12,12">
+              <StackPanel>
                 <TextBlock Text="主机内存" FontSize="11" Foreground="{DynamicResource T_UI_T3}"/>
                 <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                   <TextBlock x:Name="TxtMemUsed" Text="0.0" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}"/>
@@ -253,8 +253,8 @@ function Get-ShellXaml {
               </StackPanel>
             </Border>
 
-            <Border Grid.Row="1" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12">
-              <StackPanel Margin="0,12,0,12">
+            <Border Grid.Row="1" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12" Padding="0,12,0,12">
+              <StackPanel>
                 <TextBlock Text="快捷操作" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="12,0,12,8"/>
                 <Grid Margin="12,0,12,0">
                   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -275,8 +275,8 @@ function Get-ShellXaml {
               </StackPanel>
             </Border>
 
-            <Border x:Name="HealthCard" Grid.Row="2" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12" Cursor="Hand">
-              <StackPanel Margin="0,12,0,12">
+            <Border x:Name="HealthCard" Grid.Row="2" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Margin="0,0,0,12" Cursor="Hand" Padding="0,12,0,12">
+              <StackPanel>
                 <TextBlock Text="系统健康" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="12,0,12,8"/>
                 <Grid Margin="12,0,12,0">
                   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
@@ -292,8 +292,8 @@ function Get-ShellXaml {
               </StackPanel>
             </Border>
 
-            <Border Grid.Row="3" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1">
-              <StackPanel Margin="0,6,0,6">
+            <Border Grid.Row="3" Background="{DynamicResource T_UI_CARD}" CornerRadius="11" BorderBrush="{DynamicResource T_UI_LINE}" BorderThickness="1" Padding="0,6,0,6">
+              <StackPanel>
                 <Grid Margin="12,7,12,7"><TextBlock Text="下一次唤醒" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtNextWake" Text="—" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>
                 <Border Height="1" Background="#0DFFFFFF" Margin="12,0,12,0"/>
                 <Grid Margin="12,7,12,7"><TextBlock Text="今日休眠" FontSize="11" Foreground="{DynamicResource T_UI_T2}"/><TextBlock x:Name="TxtSleepToday" Text="0 次" FontSize="11" Foreground="{DynamicResource T_UI_T1}" HorizontalAlignment="Right"/></Grid>

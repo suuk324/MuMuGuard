@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -912,6 +912,7 @@ $updateTimer.Interval = [TimeSpan]::FromSeconds(20)
 $updateTimer.Add_Tick({
     $updateTimer.Stop()
     try { Invoke-AutoUpdateCheck } catch { }
+            if ($env:MMG_SHOW_DETAIL) { try { Show-InstanceDetail $env:MMG_SHOW_DETAIL } catch { Write-Diag "调试详情失败: $($_.Exception.Message)" } }
 })
 $win.Add_Loaded({
     Invoke-LogRotation

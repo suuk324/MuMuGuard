@@ -880,7 +880,7 @@ function Invoke-UiSelfTest {
             switch ($d) {
                 '设置输入' { Show-SettingInput -Key 'LogKeepDays' -Label '日志保留' -Desc '测试' -Value 7 -Unit '天' }
                 '清除记忆' { Show-ClearMemoryDialog }
-                '实例详情' { $ix = '0'; if ($script:instances -and $script:instances.Count -gt 0) { $ix = [string]$script:instances[0].Index }; Show-InstanceDetail $ix }
+                '实例详情' { $ix = '0'; $rw2 = @(Get-ShellRows); $pk2 = @($rw2 | Where-Object { $_.Online } | Select-Object -First 1); if ($pk2.Count -eq 0) { $pk2 = @($rw2 | Select-Object -First 1) }; if ($pk2.Count -gt 0) { $ix = [string]$pk2[0].Index }; Show-InstanceDetail $ix }
                 '公告'     { Show-Announcement -Force }
             }
             $lines += "PASS  弹窗 $d"
@@ -1136,6 +1136,19 @@ function Show-InstanceDetail([string]$Index) {
     & $addRow '游戏' ("$($row.UpName) Lv.$($row.UpLvl)") ''
     if ($row.UpLeft) { & $addRow '升级剩余' ("$($row.UpLeft)") '#FF9F0A' }
     if ($row.UpDone) { & $addRow '预计完成' ($row.UpDone.ToString('HH:mm')) '' }
+    # 紫孔雀账号数据：资源 + 当前升级（只读，来自 /sdcard/zkqFiles/memory.json）
+    try {
+        if ($row.Online) {
+            $zkq = Get-ZkqState "$Index"
+            if ($zkq) {
+                $gTxt = Format-ZkqAmount $zkq.Gold
+                $eTxt = Format-ZkqAmount $zkq.Elixir
+                $dTxt = Format-ZkqAmount $zkq.Dark
+                & $addRow '资源' ("金 $gTxt · 圣 $eTxt · 黑 $dTxt") ''
+                Write-Diag ("详情·紫孔雀：槽={0} 金={1} 圣={2} 黑={3} 建筑={4}" -f $zkq.Account, $gTxt, $eTxt, $dTxt, $zkq.BuildingCount)
+            }
+        }
+    } catch { Write-Diag "详情·紫孔雀读取失败: $($_.Exception.Message)" }
     if ($slp -and $slp.WakeAt) {
         $wi = Get-WakeInfo $slp.WakeAt
         & $addRow '休眠' ("$($wi.Main) · $($wi.Sub)") '#FF9F0A'

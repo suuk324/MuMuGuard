@@ -304,3 +304,43 @@ function Bind-ThemeBrush {
     try { $Control.SetResourceReference($dp, $token) } catch { }
 }
 
+
+# 弹窗体检：主题注入后，检查关键颜色是否都已解析（防再次出现「透明窗口」）
+function Test-DialogTheme {
+    param($Dlg, [string]$Tag)
+    $errs = @()
+    if (-not $Dlg) { return @("$Tag 窗口为空") }
+    try {
+        $bd = $Dlg.FindName('Root')
+        if (-not $bd) { $bd = $Dlg.Content }
+        if ($bd -and ($bd -is [System.Windows.Controls.Border])) {
+            if (-not $bd.Background) { $errs += "$Tag 根背景为空（会透明）" }
+            if (-not $bd.BorderBrush) { $errs += "$Tag 根描边为空" }
+        }
+        if (-not $Dlg.Background -and $Dlg.AllowsTransparency -eq $false) { $errs += "$Tag 窗口背景为空" }
+        if ($Dlg.Width -le 0 -and $Dlg.ActualWidth -le 0) { $errs += "$Tag 窗口宽度为 0" }
+        $tb = 0; $bad = 0
+        $stack = New-Object System.Collections.Stack
+        $stack.Push($Dlg)
+        while ($stack.Count -gt 0) {
+            $n = $stack.Pop()
+            if ($n -is [System.Windows.Controls.TextBlock]) {
+                $tb++
+                if (-not $n.Foreground) { $bad++ }
+            }
+            $cnt = 0
+            try { $cnt = [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($n) } catch { $cnt = 0 }
+            for ($i = 0; $i -lt $cnt; $i++) {
+                try { $stack.Push([System.Windows.Media.VisualTreeHelper]::GetChild($n, $i)) } catch { }
+            }
+            $cc = 0
+            try { $cc = $n.Children.Count } catch { $cc = 0 }
+            for ($i = 0; $i -lt $cc; $i++) {
+                try { $stack.Push($n.Children[$i]) } catch { }
+            }
+        }
+        if ($tb -gt 0 -and $bad -eq $tb) { $errs += "$Tag 全部 $tb 个文本都没有颜色（主题没注入）" }
+        elseif ($bad -gt 0) { $errs += "$Tag $bad/$tb 个文本没有颜色" }
+    } catch { $errs += "$Tag 体检异常: $($_.Exception.Message)" }
+    return $errs
+}

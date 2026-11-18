@@ -84,7 +84,7 @@ function Initialize-Shell {
     if ($up) { $up.Add_MouseLeftButtonUp({ try { Invoke-UpdateCheckUI -Silent $false } catch { } }) }
     $rb = $Win.FindName('BtnRemoteOpen')
     if ($rb) { $rb.Add_MouseLeftButtonUp({ try { Show-RemoteDialog } catch { Write-Diag "手机访问窗口异常: $($_.Exception.Message)" } }) }
-    $na = $Win.FindName('NavAnnounce2'); if ($na) { $na.Add_MouseLeftButtonUp({ try { Show-Announcement -Force } catch { } }) }
+    # 公告入口已并入设置页
     $root = $Win.FindName('Root')
     if ($root) { $root.Add_MouseLeftButtonDown({ try { $Win.DragMove() } catch { } }) }
 
@@ -282,9 +282,7 @@ function Render-ShellOverview {
     # 健康摘要
     $items = @(Get-Health $hm)
     $bad = @($items | Where-Object { -not $_.Ok })
-    $hl = $win.FindName('TxtHealthLine'); $hd = $win.FindName('HealthDot2')
-    if ($hl) { $hl.Text = '系统健康 · ' + $(if ($bad.Count -eq 0) { '检查通过' } else { "$($bad.Count) 项需处理" }) }
-    if ($hd) { $hd.Fill = Brush $(if ($bad.Count -eq 0) { '#34C759' } else { '#FF9F0A' }) }
+    # 旧版健康条已移除
     $gl = $win.FindName('HealthGlyph'); $ht = $win.FindName('TxtHealthTitle'); $hs = $win.FindName('TxtHealthSub')
     if ($ht) { $ht.Text = $(if ($bad.Count -eq 0) { '检查通过' } else { "$($bad.Count) 项需处理" }) }
     if ($hs) { $hs.Text = $(if ($bad.Count -eq 0) { '系统服务与资源状态正常' } else { ($bad | ForEach-Object { $_.Name }) -join '、' }) }
@@ -865,6 +863,29 @@ function Invoke-UiSelfTest {
         }
     }
 
+    # 弹窗体检：主题没注入会导致整窗透明（2.0.0 的教训）
+    $script:dlgAudit = $true
+    $script:dlgAuditErrs = @()
+    foreach ($d in @('设置输入', '清除记忆', '实例详情', '公告')) {
+        try {
+            switch ($d) {
+                '设置输入' { Show-SettingInput -Key 'LogKeepDays' -Label '日志保留' -Desc '测试' -Value 7 -Unit '天' }
+                '清除记忆' { Show-ClearMemoryDialog }
+                '实例详情' { $ix = '0'; if ($script:instances -and $script:instances.Count -gt 0) { $ix = [string]$script:instances[0].Index }; Show-InstanceDetail $ix }
+                '公告'     { Show-Announcement -Force }
+            }
+            $lines += "PASS  弹窗 $d"
+        } catch {
+            $lines += "FAIL  弹窗 $d  $($_.Exception.Message)"
+        }
+    }
+    $script:dlgAudit = $false
+    if ($script:dlgAuditErrs -and $script:dlgAuditErrs.Count -gt 0) {
+        foreach ($e in $script:dlgAuditErrs) { $lines += "FAIL  弹窗样式  $e" }
+    } else {
+        $lines += "PASS  四个弹窗配色完整"
+    }
+
     $lines += "===== 结束 ====="
     try { $lines | Set-Content -Path $log -Encoding UTF8 } catch { }
     $script:testNoCollect = $false
@@ -934,6 +955,7 @@ function Show-SettingInput {
         } catch { $dlg.FindName('Err').Text = "保存失败：$($_.Exception.Message)" }
     }.GetNewClosure())
     if ($script:shellWin) { try { $dlg.Owner = $script:shellWin } catch { } }
+    if ($script:dlgAudit) { $script:dlgAuditErrs += (Test-DialogTheme $dlg '设置输入'); try { $dlg.Close() } catch { }; return }
     [void]$dlg.ShowDialog()
 }
 
@@ -984,12 +1006,13 @@ function Show-ClearMemoryDialog {
     $dlg.FindName('ChkRow').Add_MouseLeftButtonUp({
         $script:chkOn = -not $script:chkOn
         $box = $dlg.FindName('ChkBox')
+        $mk = $dlg.FindName('ChkMark')
         if ($script:chkOn) {
-            $box.Background = Brush '#F2F2F5'
-            $dlg.FindName('ChkMark').Text = '✓'
+            if ($box) { $box.Background = Brush '#F2F2F5' }
+            if ($mk) { $mk.Text = '✓' }
         } else {
-            $box.Background = Brush '#00000000'
-            $dlg.FindName('ChkMark').Text = ''
+            if ($box) { $box.Background = Brush '#00000000' }
+            if ($mk) { $mk.Text = '' }
         }
     })
     $dlg.FindName('BtnNo').Add_MouseLeftButtonUp({ $dlg.Close() })
@@ -1006,6 +1029,7 @@ function Show-ClearMemoryDialog {
         }
     })
     if ($script:shellWin) { try { $dlg.Owner = $script:shellWin } catch { } }
+    if ($script:dlgAudit) { $script:dlgAuditErrs += (Test-DialogTheme $dlg '清除记忆'); try { $dlg.Close() } catch { }; return }
     [void]$dlg.ShowDialog()
 }
 
@@ -1106,5 +1130,6 @@ function Show-InstanceDetail([string]$Index) {
     })
     $dlg.FindName('BtnClose').Add_MouseLeftButtonUp({ $dlg.Close() })
     if ($script:shellWin) { try { $dlg.Owner = $script:shellWin } catch { } }
+    if ($script:dlgAudit) { $script:dlgAuditErrs += (Test-DialogTheme $dlg '实例详情'); try { $dlg.Close() } catch { }; return }
     [void]$dlg.ShowDialog()
 }

@@ -36,7 +36,7 @@ function Get-LatestRelease {
     $headers = @{ 'User-Agent' = 'MuMuGuard'; 'Accept' = 'application/vnd.github+json' }
 
     try {
-        $j = Invoke-RestMethod -Uri $api -Headers $headers -TimeoutSec 8 -UseBasicParsing -ErrorAction Stop
+        $j = Invoke-RestMethod -Uri $api -Headers $headers -TimeoutSec 4 -UseBasicParsing -ErrorAction Stop
     } catch {
         Write-Diag "检查更新失败: $($_.Exception.Message)"
         return [pscustomobject]@{ Ok = $false; Error = $_.Exception.Message }

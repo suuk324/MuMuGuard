@@ -183,6 +183,7 @@ function Show-Announcement {
     $dlg.FindName('BtnMute').Add_MouseLeftButtonUp($mute)
 
     try {
+        if ($script:dlgAudit) { $script:dlgAuditErrs += (Test-DialogTheme $dlg '公告'); try { $dlg.Close() } catch { }; return }
         $dlg.ShowDialog() | Out-Null
         Write-Diag '公告已显示'
     } catch {

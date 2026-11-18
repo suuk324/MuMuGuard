@@ -171,6 +171,48 @@ function Invoke-CatchUpWake {
 }
 
 
+# 实例实际已经在运行 -> 撤销它的休眠记录
+# 独立于「自动休眠」开关：即使不开自动休眠，休眠记录也不该和实际状态对不上
+function Clear-StaleSleepEntries {
+    try {
+        $list = @(Get-SleepList)
+        if ($list.Count -eq 0) { return }
+        $running = @{}
+        foreach ($r in @($script:lastInstances)) {
+            if (-not $r) { continue }
+            $idx = "$($r.Index)"
+            if (-not $idx -or $idx -eq '-') { continue }
+            if ($r.Online -eq $true) { $running[$idx] = $true }
+        }
+        if ($running.Count -eq 0) { return }
+        if (-not $script:staleSleepHits) { $script:staleSleepHits = @{} }
+        $keep = @()
+        $changed = $false
+        foreach ($s in $list) {
+            $idx = "$($s.Index)"
+            $hit = $false
+            if ($running.ContainsKey($idx)) {
+                $n = 0
+                if ($script:staleSleepHits.ContainsKey($idx)) { $n = [int]$script:staleSleepHits[$idx] }
+                $n++
+                $script:staleSleepHits[$idx] = $n
+                if ($n -ge 2) { $hit = $true }
+            } else {
+                if ($script:staleSleepHits.ContainsKey($idx)) { $script:staleSleepHits.Remove($idx) }
+            }
+            if ($hit) {
+                Write-GuardLog 'WAKE_MANUAL' "实例$idx" '实例已在运行，撤销休眠记录'
+                Write-Diag "实例$idx 已在运行，已撤销休眠记录"
+                try { Reset-InstanceMemory $idx } catch { }
+                $changed = $true
+                continue
+            }
+            $keep += $s
+        }
+        if ($changed) { Save-SleepList $keep }
+    } catch { }
+}
+
 function Invoke-AutoSleep {
     if ($script:cfg.AutoSleep -ne $true) { return }
     if (-not $script:guardRunning) { return }

@@ -328,7 +328,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.5'
+$script:appVersion     = '2.0.6'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -841,6 +841,10 @@ $timer.Add_Tick({
         $remoteOn = ($script:cfg.RemoteEnabled -eq $true) -or ($script:cfg.OutboundEnabled -eq $true)
         $script:adbSync.Idle = (-not $remoteOn) -and (($win.WindowState -eq 'Minimized') -or (-not $win.IsVisible))
     } catch { }
+                # 每 10 秒检查一次：休眠记录和实际运行状态是否对不上（5 秒一跳，%2 = 10 秒）
+                if ($script:tickCount % 2 -eq 0) {
+                    try { Clear-StaleSleepEntries } catch { Write-Diag "清理休眠记录异常: $($_.Exception.Message)" }
+                }
     Update-Ui
     if ($script:tickCount % 6 -eq 0) {
         try {

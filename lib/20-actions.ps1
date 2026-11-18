@@ -563,7 +563,7 @@ function Invoke-ClearMemory([bool]$StopGuard) {
     $logDir = Join-Path $Root 'logs'
     if (Test-Path $logDir) {
         Get-ChildItem $logDir -File -ErrorAction SilentlyContinue | Where-Object {
-            $_.Extension -in '.log', '.csv', '.txt' -and $_.Name -ne ('guard-{0:yyyyMMdd}.csv' -f (Get-Date))
+            $_.Extension -in '.log', '.csv', '.txt'
         } | ForEach-Object {
             try { Remove-Item $_.FullName -Force -ErrorAction Stop; $removed++ } catch { }
         }

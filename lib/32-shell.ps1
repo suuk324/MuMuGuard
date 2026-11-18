@@ -56,7 +56,7 @@ function Get-ShellXaml {
             </Border>
             <TextBlock Text="MuMuGuard" Foreground="{DynamicResource T_UI_T1}" FontSize="15" FontWeight="SemiBold"
                        HorizontalAlignment="Center" Margin="0,9,0,0"/>
-            <TextBlock x:Name="TxtVersion" Text="v1.6.3" Foreground="{DynamicResource T_UI_T3}" FontSize="10.5"
+            <TextBlock x:Name="TxtVersion" Text="v2.0.0" Foreground="{DynamicResource T_UI_T3}" FontSize="10.5"
                        HorizontalAlignment="Center" Margin="0,2,0,0"/>
           </StackPanel>
 
@@ -333,7 +333,8 @@ function Get-ShellXaml {
                 <StackPanel Grid.Column="3"><TextBlock Text="异常恢复" FontSize="10" Foreground="{DynamicResource T_UI_T3}"/><TextBlock x:Name="TxtRecoverToday" Text="0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}" Margin="0,1,0,0"/></StackPanel>
               </Grid>
               <StackPanel Orientation="Horizontal" Margin="16,14,16,10">
-                <Border x:Name="BtnFAll" Background="#24FFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="全部" FontSize="10.5" Foreground="#F2F2F5"/></Border>
+                <TextBox x:Name="TxtEventSearch" Width="150" Height="26" Margin="0,0,8,0" FontSize="11" Foreground="{DynamicResource T_UI_T1}" Background="{DynamicResource T_UI_INPUT}" BorderThickness="0" Padding="8,4,8,4" VerticalContentAlignment="Center" ToolTip="按实例名 / 内容搜索"/>
+              <Border x:Name="BtnFAll" Background="#24FFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="全部" FontSize="10.5" Foreground="#F2F2F5"/></Border>
                 <Border x:Name="BtnFWarn" Background="#1AFFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="告警" FontSize="10.5" Foreground="#9E9EA6"/></Border>
                 <Border x:Name="BtnFSleep" Background="#1AFFFFFF" CornerRadius="7" Padding="10,4"><TextBlock Text="休眠" FontSize="10.5" Foreground="#9E9EA6"/></Border>
               </StackPanel>
@@ -357,6 +358,10 @@ function Get-ShellXaml {
                     <Border x:Name="BtnExportRep" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出诊断报告" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
                     <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
                     <Border x:Name="BtnCheckUpd" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="检查更新" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                    <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
+                    <Border x:Name="BtnExportCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="导出设置" FontSize="12" Foreground="{DynamicResource T_UI_T1}" VerticalAlignment="Center"/></Border>
+                    <Border Height="1" Background="{DynamicResource T_UI_DIV}" Margin="14,0,14,0"/>
+                    <Border x:Name="BtnResetCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="恢复默认设置" FontSize="12" Foreground="{DynamicResource T_UI_ERR}" VerticalAlignment="Center"/></Border>
                   </StackPanel>
                 </Border>
               </StackPanel>

@@ -350,7 +350,7 @@ function Render-ShellManage {
         $g = New-Object System.Windows.Controls.Grid
         $g.Height = 58
         $g.Margin = New-Object System.Windows.Thickness(10, 0, 10, 0)
-        foreach ($w in @('Auto', '*', '116', '150')) {
+        foreach ($w in @('Auto', '*', '116', '205')) {
             $cd = New-Object System.Windows.Controls.ColumnDefinition
             if ($w -eq '*') { $cd.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) }
             elseif ($w -eq 'Auto') { $cd.Width = [System.Windows.GridLength]::Auto }
@@ -398,6 +398,17 @@ function Render-ShellManage {
         $btnDet.Margin = New-Object System.Windows.Thickness(0, 0, 6, 0)
         [void]$ops.Children.Add($btnDet)
 
+
+        # 详情入口
+        $btnInfo = New-Object System.Windows.Controls.Border
+        $btnInfo.CornerRadius = [System.Windows.CornerRadius]::new(7)
+        $btnInfo.Padding = New-Object System.Windows.Thickness(8, 4, 8, 4)
+        $btnInfo.Margin = New-Object System.Windows.Thickness(0, 0, 6, 0)
+        $btnInfo.Background = Brush '#1AFFFFFF'
+        $btnInfo.Cursor = 'Hand'
+        $btnInfo.Child = (New-ShellText '详情' 11 '#E6E6EC')
+        $btnInfo.Add_MouseLeftButtonUp({ try { Show-InstanceDetail $idx } catch { Write-Diag "实例详情异常: $($_.Exception.Message)" } }.GetNewClosure())
+        [void]$ops.Children.Add($btnInfo)
         $actText = $(if ($isSleep) { '唤醒' } elseif ($r.Online) { '重启' } else { '启动' })
         $btnAct = New-ShellButton $actText '#1F1F23' '#F2F2F5' ({
             if ($isSleep) {
@@ -474,6 +485,13 @@ function Render-ShellEvents {
         $rows = @($rows | Where-Object { $warn -contains $_.Action })
     } elseif ($script:shellFilter -eq 'sleep') {
         $rows = @($rows | Where-Object { $_.Action -in @('SLEEP', 'SLEEP_BG', 'WAKE_MANUAL', 'WAKE_LATE') })
+    }
+    # 搜索过滤（实例名 / 内容 / 动作）
+    $q = "$($script:shellQuery)"
+    if ($q) {
+        $rows = @($rows | Where-Object {
+            ("$($_.Instance) $($_.Detail) $($_.Action)") -like ("*" + $q + "*")
+        })
     }
     if ($rows.Count -gt 1) { [array]::Reverse($rows) }
     $rows = @($rows | Select-Object -First $Limit)
@@ -784,7 +802,7 @@ function Invoke-UiSelfTest {
     $lines = @()
     $lines += "===== UI 自检 $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ====="
 
-    $targets = @('Nav1', 'Nav2', 'Nav3', 'Nav4', 'Nav5', 'BtnRefresh', 'BtnCompact', 'BtnGuardRun', 'BtnSleepRun', 'BtnCleanNow', 'BtnOpenLog')
+    $targets = @('Nav1', 'Nav2', 'Nav3', 'Nav4', 'Nav5', 'BtnRefresh', 'BtnCompact', 'BtnGuardRun', 'BtnSleepRun', 'BtnCleanNow', 'BtnOpenLog', 'BtnExportCfg', 'BtnResetCfg', 'TxtEventSearch', 'HealthCard')
     foreach ($n in $targets) {
         $el = $win.FindName($n)
         if (-not $el) { $lines += "MISS  $n  元素不存在"; continue }
@@ -976,6 +994,105 @@ function Show-ClearMemoryDialog {
             $dlg.FindName('Hint').Text = "清除失败：$($_.Exception.Message)"
         }
     })
+    if ($script:shellWin) { try { $dlg.Owner = $script:shellWin } catch { } }
+    [void]$dlg.ShowDialog()
+}
+
+
+# ---------- 实例详情 ----------
+function Show-InstanceDetail([string]$Index) {
+    $row = @(Get-ShellRows | Where-Object { "$($_.Index)" -eq "$Index" }) | Select-Object -First 1
+    if (-not $row) { return }
+
+    $slp = $null
+    try { $slp = @(Get-SleepList | Where-Object { "$($_.Index)" -eq "$Index" }) | Select-Object -First 1 } catch { }
+
+    $xaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="实例详情" Width="430" SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Border x:Name="Root" CornerRadius="14" Background="#232327" BorderBrush="#33FFFFFF" BorderThickness="1">
+    <StackPanel Margin="22,20,22,18">
+      <StackPanel Orientation="Horizontal">
+        <Border Width="30" Height="30" CornerRadius="9">
+          <Image x:Name="ImgIcon" Stretch="UniformToFill"/>
+        </Border>
+        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+          <TextBlock x:Name="TxtName" Text="实例" FontSize="15" FontWeight="SemiBold" Foreground="#F2F2F5"/>
+          <TextBlock x:Name="TxtSub" Text="" FontSize="10.5" Foreground="#6E6E78" Margin="0,2,0,0"/>
+        </StackPanel>
+      </StackPanel>
+
+      <Border Background="#1A1A1E" CornerRadius="10" Padding="14,12" Margin="0,14,0,0">
+        <StackPanel x:Name="PnlRows"/>
+      </Border>
+
+      <Grid Margin="0,14,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border x:Name="BtnDetect" Grid.Column="0" Background="#1AFFFFFF" CornerRadius="9" Padding="0,9" Cursor="Hand">
+          <TextBlock x:Name="TxtDetect" Text="暂停检测" FontSize="11.5" Foreground="#E6E6EC" HorizontalAlignment="Center"/>
+        </Border>
+        <Border x:Name="BtnClose" Grid.Column="2" Background="#F2F2F5" CornerRadius="9" Padding="0,9" Cursor="Hand">
+          <TextBlock Text="关闭" FontSize="11.5" Foreground="#1B1B1F" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </Border>
+</Window>
+'@
+    $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
+    $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+    $dlg.FindName('ImgIcon').Source = $script:shellIcon
+    $dlg.FindName('TxtName').Text = "$($row.Name)"
+    $dlg.FindName('TxtSub').Text = ("{0} · {1}" -f $row.Judge, $(if ($row.Online) { '运行中' } else { '已关机' }))
+
+    $pnlRows = $dlg.FindName('PnlRows')
+    $addRow = {
+        param($k, $v, $color)
+        $g = New-Object System.Windows.Controls.Grid
+        $g.Margin = New-Object System.Windows.Thickness(0, 3, 0, 3)
+        $c0 = New-Object System.Windows.Controls.ColumnDefinition; $c0.Width = [System.Windows.GridLength]::new(96)
+        $c1 = New-Object System.Windows.Controls.ColumnDefinition; $c1.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+        [void]$g.ColumnDefinitions.Add($c0); [void]$g.ColumnDefinitions.Add($c1)
+        $kt = New-ShellText $k 10.5 '#6E6E78'
+        [void]$g.Children.Add($kt)
+        $vt = New-ShellText "$v" 11.5 $(if ($color) { $color } else { '#E6E6EC' })
+        [System.Windows.Controls.Grid]::SetColumn($vt, 1)
+        [void]$g.Children.Add($vt)
+        [void]$pnlRows.Children.Add($g)
+    }
+    & $addRow '序号' ("index " + $row.Index) ''
+    & $addRow '游戏' ("$($row.UpName) Lv.$($row.UpLvl)") ''
+    if ($row.UpLeft) { & $addRow '升级剩余' ("$($row.UpLeft)") '#FF9F0A' }
+    if ($row.UpDone) { & $addRow '预计完成' ($row.UpDone.ToString('HH:mm')) '' }
+    if ($slp -and $slp.WakeAt) {
+        $wi = Get-WakeInfo $slp.WakeAt
+        & $addRow '休眠' ("$($wi.Main) · $($wi.Sub)") '#FF9F0A'
+    }
+    $mem = 0
+    try { $mem = [double]$row.MemMB } catch { }
+    if ($mem -gt 0) { & $addRow '内存占用' ("{0:N0} MB" -f $mem) '' }
+    $detOff = (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains "$Index")
+    & $addRow '掉线检测' ($(if ($detOff) { '已暂停' } else { '开启中' })) $(if ($detOff) { '#6E6E78' } else { '#34C759' })
+
+    $dlg.FindName('TxtDetect').Text = $(if ($detOff) { '恢复检测' } else { '暂停检测' })
+    $dlg.FindName('BtnDetect').Add_MouseLeftButtonUp({
+        $cur = @($script:cfg.DetectOff | Where-Object { $_ -ne $null -and "$_" -ne '' })
+        if (@($cur | Where-Object { "$_" -eq "$Index" }).Count -gt 0) {
+            $script:cfg.DetectOff = @($cur | Where-Object { "$_" -ne "$Index" })
+        } else {
+            $script:cfg.DetectOff = @($cur + "$Index")
+        }
+        Save-Config
+        $dlg.Close()
+        Update-Ui
+    })
+    $dlg.FindName('BtnClose').Add_MouseLeftButtonUp({ $dlg.Close() })
     if ($script:shellWin) { try { $dlg.Owner = $script:shellWin } catch { } }
     [void]$dlg.ShowDialog()
 }

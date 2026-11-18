@@ -185,7 +185,8 @@ function Get-OvercommitLevel {
 # 版本比较：v1.0.0 < v1.0.1 < v1.1.0；返回 $true 表示 Remote 更新
 function Test-NewerVersion {
     param([string]$Local, [string]$Remote)
-    $clean = { param($v) ($v -replace '^[vV]', '').Trim() }
+    # 去掉 v 前缀与 -beta/-rc 之类的预发布后缀，否则 [version] 解析会失败退化成字符串比较
+    $clean = { param($v) (($v -replace '^[vV]', '') -replace '[-+].*$', '').Trim() }
     $l = & $clean $Local
     $r = & $clean $Remote
     if (-not $r) { return $false }

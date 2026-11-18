@@ -1136,19 +1136,31 @@ function Show-InstanceDetail([string]$Index) {
     & $addRow '游戏' ("$($row.UpName) Lv.$($row.UpLvl)") ''
     if ($row.UpLeft) { & $addRow '升级剩余' ("$($row.UpLeft)") '#FF9F0A' }
     if ($row.UpDone) { & $addRow '预计完成' ($row.UpDone.ToString('HH:mm')) '' }
-    # 紫孔雀账号数据：资源 + 当前升级（只读，来自 /sdcard/zkqFiles/memory.json）
+    # 大本营与资源：大本营来自紫孔雀的村庄快照（1000001 = 大本营），资源来自游戏界面 OCR
+    try {
+        $zkq = $null
+        if ($row.Online) { $zkq = Get-ZkqState "$Index" }
+        if ($zkq -and $zkq.Buildings -and $zkq.Buildings.ContainsKey('1000001')) {
+            $thLv = [int]$zkq.Buildings['1000001']
+            if ($thLv -gt 0) { & $addRow '大本营' ("TH$thLv") '#FF9F0A' }
+        }
+    } catch { }
     try {
         if ($row.Online) {
-            $zkq = Get-ZkqState "$Index"
-            if ($zkq) {
-                $gTxt = Format-ZkqAmount $zkq.Gold
-                $eTxt = Format-ZkqAmount $zkq.Elixir
-                $dTxt = Format-ZkqAmount $zkq.Dark
-                & $addRow '资源' ("金 $gTxt · 圣 $eTxt · 黑 $dTxt") ''
-                Write-Diag ("详情·紫孔雀：槽={0} 金={1} 圣={2} 黑={3} 建筑={4}" -f $zkq.Account, $gTxt, $eTxt, $dTxt, $zkq.BuildingCount)
+            $res = Get-GameResources "$Index"
+            if ($res -and $res.World -eq 'main') {
+                $ln = "金 $(Format-ResAmount $res.Gold) · 圣 $(Format-ResAmount $res.Elixir) · 黑 $(Format-ResAmount $res.Dark)"
+                if ($res.Stale) { $ln += '（上次）' }
+                & $addRow '主世界' $ln ''
+            } elseif ($res -and $res.World -eq 'bb') {
+                $ln = "兵金 $(Format-ResAmount $res.Gold) · 兵圣 $(Format-ResAmount $res.Elixir)"
+                if ($res.Stale) { $ln += '（上次）' }
+                & $addRow '夜世界' $ln ''
+            } else {
+                & $addRow '资源' '游戏不在前台，读不到' '#6E6E78'
             }
         }
-    } catch { Write-Diag "详情·紫孔雀读取失败: $($_.Exception.Message)" }
+    } catch { Write-Diag "详情·资源读取失败: $($_.Exception.Message)" }
     if ($slp -and $slp.WakeAt) {
         $wi = Get-WakeInfo $slp.WakeAt
         & $addRow '休眠' ("$($wi.Main) · $($wi.Sub)") '#FF9F0A'

@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq', '63-res')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }

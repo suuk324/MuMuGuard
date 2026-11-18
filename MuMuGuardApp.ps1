@@ -679,7 +679,7 @@ $workerHandle = $workerPs.BeginInvoke()
 
 # ---------------- 主界面 XAML ----------------
 
-$xaml = Get-ShellXaml
+$xaml = Convert-XamlTheme (Get-ShellXaml)
 
 $xaml = Convert-XamlTheme $xaml
 $win = [Windows.Markup.XamlReader]::Parse($xaml)

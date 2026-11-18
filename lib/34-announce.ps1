@@ -107,7 +107,7 @@ function Show-Announcement {
 '@
 
     try {
-        $dlg = [Windows.Markup.XamlReader]::Parse($xaml)
+        $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
     } catch {
         Write-Diag "公告窗口构建失败: $($_.Exception.Message)"
         return

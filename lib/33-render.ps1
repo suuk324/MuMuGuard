@@ -559,6 +559,46 @@ function Render-ShellSettings {
         [void]$pnl.Children.Add($sep)
     }
 
+    # 主题
+    $mode = "$($script:cfg.Theme)"; if (-not $mode) { $mode = 'auto' }
+    $modeText = switch ($mode) { 'light' { '浅色' } 'dark' { '深色' } default { '跟随系统' } }
+    $rowT = New-Object System.Windows.Controls.Grid
+    $rowT.Height = 44
+    $c0 = New-Object System.Windows.Controls.ColumnDefinition; $c0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+    $c1 = New-Object System.Windows.Controls.ColumnDefinition; $c1.Width = [System.Windows.GridLength]::Auto
+    [void]$rowT.ColumnDefinitions.Add($c0); [void]$rowT.ColumnDefinitions.Add($c1)
+    $lt = New-ShellText '主题（点击切换）' 12 '#F2F2F5'
+    [void]$rowT.Children.Add($lt)
+    $vt = New-ShellText $modeText 11.5 '#6E6E78'
+    [System.Windows.Controls.Grid]::SetColumn($vt, 1)
+    [void]$rowT.Children.Add($vt)
+    $rowT.Cursor = 'Hand'
+    $rowT.Add_MouseLeftButtonUp({
+        $cur = "$($script:cfg.Theme)"
+        $next = switch ($cur) { 'auto' { 'dark' } 'dark' { 'light' } default { 'auto' } }
+        Set-Theme $next
+        Update-Ui
+    })
+    [void]$pnl.Children.Add($rowT)
+
+    $sepT = New-Object System.Windows.Controls.Border
+    $sepT.Height = 1; $sepT.Background = Brush '#0DFFFFFF'
+    [void]$pnl.Children.Add($sepT)
+
+    # 清除记忆
+    $rowM = New-Object System.Windows.Controls.Grid
+    $rowM.Height = 44
+    $m0 = New-Object System.Windows.Controls.ColumnDefinition; $m0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+    $m1 = New-Object System.Windows.Controls.ColumnDefinition; $m1.Width = [System.Windows.GridLength]::Auto
+    [void]$rowM.ColumnDefinitions.Add($m0); [void]$rowM.ColumnDefinitions.Add($m1)
+    [void]$rowM.Children.Add((New-ShellText '清除记忆' 12 '#F2F2F5'))
+    $vm = New-ShellText '删除休眠任务与统计' 10 '#6E6E78'
+    [System.Windows.Controls.Grid]::SetColumn($vm, 1)
+    [void]$rowM.Children.Add($vm)
+    $rowM.Cursor = 'Hand'
+    $rowM.Add_MouseLeftButtonUp({ try { Show-ClearMemoryDialog } catch { Write-Diag "清除记忆失败: $($_.Exception.Message)" } })
+    [void]$pnl.Children.Add($rowM)
+
     $foot = New-ShellText ("MuMu 安装目录：{0}    版本 {1}" -f $MuMuRoot, $script:appVersion) 10 '#6E6E78'
     $foot.Margin = New-Object System.Windows.Thickness(0, 10, 0, 0)
     [void]$pnl.Children.Add($foot)
@@ -661,7 +701,7 @@ function Set-View([string]$mode) {
 
     if ($mode -eq 'compact') {
         if (-not $script:compactRoot) {
-            $script:compactRoot = [Windows.Markup.XamlReader]::Parse((Get-CompactXaml))
+            $script:compactRoot = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme (Get-CompactXaml)))
             $lg = $script:compactRoot.FindName('CmpLogo')
             if ($lg -and $script:shellLogo) { $lg.Source = $script:shellLogo }
             $script:compactRoot.Add_MouseLeftButtonDown({ try { $win.DragMove() } catch { } })
@@ -796,7 +836,7 @@ function Show-SettingInput {
   </Border>
 </Window>
 '@
-    $dlg = [Windows.Markup.XamlReader]::Parse($xaml)
+    $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
     $dlg.FindName('Ttl').Text = $Label
     $dlg.FindName('Dsc').Text = $Desc
     $dlg.FindName('Inp').Text = $cur
@@ -820,6 +860,77 @@ function Show-SettingInput {
             Update-Ui
         } catch { $dlg.FindName('Err').Text = "保存失败：$($_.Exception.Message)" }
     }.GetNewClosure())
+    if ($script:shellWin) { try { $dlg.Owner = $script:shellWin } catch { } }
+    [void]$dlg.ShowDialog()
+}
+
+
+# ---------- 清除记忆 ----------
+function Show-ClearMemoryDialog {
+    $xaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="清除记忆" Width="430" Height="286"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Border x:Name="Root" CornerRadius="14" Background="#232327" BorderBrush="#33FFFFFF" BorderThickness="1">
+    <StackPanel Margin="22,20,22,16">
+      <TextBlock Text="清除记忆" FontSize="15" FontWeight="SemiBold" Foreground="#F2F2F5"/>
+      <TextBlock Text="彻底删除以下内容，不可恢复：" FontSize="11" Foreground="#6E6E78" Margin="0,6,0,10"/>
+      <StackPanel Margin="0,0,0,6">
+        <TextBlock Text="· 全部休眠任务（正在休眠的实例不会再自动唤醒）" FontSize="11.5" Foreground="#B9B9C2" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <TextBlock Text="· 内存趋势、今日统计、事件记录" FontSize="11.5" Foreground="#B9B9C2" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <TextBlock Text="· 所有日志与已导出的报告" FontSize="11.5" Foreground="#B9B9C2" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <TextBlock Text="· 设置项会保留，不用重配" FontSize="11.5" Foreground="#6E6E78" TextWrapping="Wrap"/>
+      </StackPanel>
+      <Border x:Name="ChkRow" Background="Transparent" Padding="0,10,0,0" Cursor="Hand">
+        <StackPanel Orientation="Horizontal">
+          <Border x:Name="ChkBox" Width="16" Height="16" CornerRadius="4" BorderBrush="#33FFFFFF" BorderThickness="1" Background="Transparent" VerticalAlignment="Center">
+            <TextBlock x:Name="ChkMark" Text="" FontSize="10" Foreground="#1B1B1F" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <TextBlock x:Name="ChkText" Text="同时停止看护" FontSize="11.5" Foreground="#E6E6EC" Margin="8,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+      <TextBlock x:Name="Hint" Text="" FontSize="10" Foreground="#6E6E78" Margin="0,8,0,0"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <Border x:Name="BtnNo" Background="#1AFFFFFF" CornerRadius="9" Padding="16,8" Margin="0,0,8,0" Cursor="Hand">
+          <TextBlock Text="取消" FontSize="11.5" Foreground="#E6E6EC"/>
+        </Border>
+        <Border x:Name="BtnYes" Background="#FF453A" CornerRadius="9" Padding="16,8" Cursor="Hand">
+          <TextBlock Text="彻底清除" FontSize="11.5" Foreground="#FFFFFF" FontWeight="SemiBold"/>
+        </Border>
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>
+'@
+    $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
+    $script:chkOn = $false
+    $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+    $dlg.FindName('ChkRow').Add_MouseLeftButtonUp({
+        $script:chkOn = -not $script:chkOn
+        $box = $dlg.FindName('ChkBox')
+        if ($script:chkOn) {
+            $box.Background = Brush '#F2F2F5'
+            $dlg.FindName('ChkMark').Text = '✓'
+        } else {
+            $box.Background = Brush '#00000000'
+            $dlg.FindName('ChkMark').Text = ''
+        }
+    })
+    $dlg.FindName('BtnNo').Add_MouseLeftButtonUp({ $dlg.Close() })
+    $dlg.FindName('BtnYes').Add_MouseLeftButtonUp({
+        try {
+            $n = Invoke-ClearMemory ([bool]$script:chkOn)
+            $dlg.Close()
+            $script:lastInstances = @()
+            Update-Ui
+            Write-Diag ("清除记忆完成，删除 {0} 个文件" -f $n)
+            [void][System.Windows.MessageBox]::Show(("已清除 {0} 个文件，记忆已归零" -f $n), 'MuMuGuard', 'OK', 'Information')
+        } catch {
+            $dlg.FindName('Hint').Text = "清除失败：$($_.Exception.Message)"
+        }
+    })
     if ($script:shellWin) { try { $dlg.Owner = $script:shellWin } catch { } }
     [void]$dlg.ShowDialog()
 }

@@ -31,6 +31,28 @@ $script:PaletteDark = [ordered]@{
     'T_2A1214' = '#2A1315'   # 红色按钮底
     'T_16241C' = '#14251A'   # 深绿按钮底
     'T_0F2A1C' = '#10271A'   # 深绿面板底
+    # —— 新界面（v1.6.4 重构）用到的色值 ——
+    'T_UI_BG'      = '#1F1F23'   # 窗口底
+    'T_UI_SIDE'    = '#262629'   # 侧栏
+    'T_UI_CARD'    = '#2B2B30'   # 卡片
+    'T_UI_DIALOG'  = '#232327'   # 对话框
+    'T_UI_INPUT'   = '#1A1A1E'   # 输入框 / 内嵌块
+    'T_UI_DEEP'    = '#17171A'   # 最深底（手机页 / 页面底）
+    'T_UI_RAISE'   = '#33333A'   # 抬升一档的卡片
+    'T_UI_RAISE2'  = '#2A2A2F'   # 渐变尾色
+    'T_UI_TILE'    = '#3A3A42'   # 图标底座
+    'T_UI_T1'      = '#F2F2F5'   # 主文字 / 主按钮底
+    'T_UI_T2'      = '#9E9EA6'   # 次文字
+    'T_UI_T3'      = '#6E6E78'   # 弱文字
+    'T_UI_OK'      = '#34C759'   # 正常绿
+    'T_UI_WARN'    = '#FF9F0A'   # 警告橙
+    'T_UI_INFO'    = '#0A84FF'   # 信息蓝
+    'T_UI_ERR'     = '#FF453A'   # 错误红
+    'T_UI_LINE'    = '#33FFFFFF' # 描边
+    'T_UI_FILL1'   = '#1AFFFFFF' # 次级块
+    'T_UI_FILL2'   = '#24FFFFFF' # 选中块
+    'T_UI_FILL3'   = '#14FFFFFF' # 按钮底
+    'T_UI_DIV'     = '#0DFFFFFF' # 分隔线
 }
 
 # 浅色：保持同样的层级关系，只是明暗翻转
@@ -59,6 +81,27 @@ $script:PaletteLight = [ordered]@{
     'T_2A1214' = '#FCEBEC'   # 红色按钮底
     'T_16241C' = '#EBF7EF'   # 深绿按钮底
     'T_0F2A1C' = '#E6F4EB'   # 深绿面板底
+    'T_UI_BG'      = '#F4F5F7'
+    'T_UI_SIDE'    = '#ECEDF0'
+    'T_UI_CARD'    = '#FFFFFF'
+    'T_UI_DIALOG'  = '#FFFFFF'
+    'T_UI_INPUT'   = '#F2F3F5'
+    'T_UI_DEEP'    = '#F7F8FA'
+    'T_UI_RAISE'   = '#E8E9EC'
+    'T_UI_RAISE2'  = '#F0F1F3'
+    'T_UI_TILE'    = '#DCDDE2'
+    'T_UI_T1'      = '#17171A'
+    'T_UI_T2'      = '#5A5A62'
+    'T_UI_T3'      = '#8A8A92'
+    'T_UI_OK'      = '#1A7F37'
+    'T_UI_WARN'    = '#9A6700'
+    'T_UI_INFO'    = '#0B62D6'
+    'T_UI_ERR'     = '#CF222E'
+    'T_UI_LINE'    = '#1A000000'
+    'T_UI_FILL1'   = '#0F000000'
+    'T_UI_FILL2'   = '#14000000'
+    'T_UI_FILL3'   = '#0D000000'
+    'T_UI_DIV'     = '#0D000000'
 }
 
 # 色值 -> token 反查表

@@ -112,6 +112,18 @@ function Show-Announcement {
         Write-Diag "公告窗口构建失败: $($_.Exception.Message)"
         return
     }
+        # 关键：把主题色注入这个窗口，否则 DynamicResource 全为空 -> 背景透明、看着像死机
+        try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { Write-Diag "公告主题注入失败: $($_.Exception.Message)" }
+        # 兜底：万一资源没进去，至少给个不透明底色，避免又出现「透明窗口」
+        try {
+            $rootBd = $dlg.FindName('Root')
+            if ($rootBd -and -not $rootBd.Background) {
+                $rootBd.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#232327'))
+            }
+            if ($rootBd -and -not $rootBd.BorderBrush) {
+                $rootBd.BorderBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#33FFFFFF'))
+            }
+        } catch { }
 
     # 内容
     $dlg.FindName('AnTitle').Text = $c.Title

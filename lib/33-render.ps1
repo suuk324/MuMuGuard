@@ -767,6 +767,7 @@ function Set-View([string]$mode) {
     if ($mode -eq 'compact') {
         if (-not $script:compactRoot) {
             $script:compactRoot = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme (Get-CompactXaml)))
+            try { Set-ThemeResources $script:shellWin (Get-ActiveTheme) } catch { }
             $lg = $script:compactRoot.FindName('CmpLogo')
             if ($lg -and $script:shellLogo) { $lg.Source = $script:shellLogo }
             $script:compactRoot.Add_MouseLeftButtonDown({ try { $win.DragMove() } catch { } })
@@ -902,6 +903,7 @@ function Show-SettingInput {
 </Window>
 '@
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
+    try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { }
     $dlg.FindName('Ttl').Text = $Label
     $dlg.FindName('Dsc').Text = $Desc
     $dlg.FindName('Inp').Text = $cur
@@ -976,6 +978,7 @@ function Show-ClearMemoryDialog {
 </Window>
 '@
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
+    try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { }
     $script:chkOn = $false
     $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
     $dlg.FindName('ChkRow').Add_MouseLeftButtonUp({
@@ -1054,6 +1057,7 @@ function Show-InstanceDetail([string]$Index) {
 </Window>
 '@
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
+    try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { }
     $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
     $dlg.FindName('ImgIcon').Source = $script:shellIcon
     $dlg.FindName('TxtName').Text = "$($row.Name)"

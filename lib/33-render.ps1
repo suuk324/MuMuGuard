@@ -211,24 +211,26 @@ function Render-ShellOverview {
     $ss = $win.FindName('StatSleep'); if ($ss) { $ss.Text = "$($slp.Count)" }
     $so = $win.FindName('StatOff');   if ($so) { $total = @($script:instanceMap.Keys).Count; if ($total -lt $rows.Count) { $total = $rows.Count }; $so.Text = "$([math]::Max(0, $total - $run.Count - $slp.Count))" }
 
-    # 实例行
+    # 实例行：概览只显示运行中 / 休眠中的，关机的只在统计卡里计数
+    $viewRows = @($rows | Where-Object { $_.WakeAt -or $_.Script -eq $true -or $_.Online -eq $true })
     $pnl = $win.FindName('PnlInstances')
     if ($pnl) {
-        $sig = (($rows | ForEach-Object { "$($_.Index)|$($_.Judge)|$($_.Name)|$($_.UpLeft)|$($_.WakeAt)" }) -join ';')
-        if ($sig -ne $script:shellRowsSig) {
-            $script:shellRowsSig = $sig
-            $pnl.Children.Clear()
-            foreach ($r in $rows) {
-                $isSleep = [bool]$r.WakeAt
-                $isOff = (-not $isSleep -and $r.Script -ne $true -and -not $r.Online)
-                $row = New-InstanceRowShell -Row $r -Icon $script:shellIcon -IsSleep $isSleep -IsOff $isOff
-                [void]$pnl.Children.Add($row)
-                $sep = New-Object System.Windows.Controls.Border
-                $sep.Height = 1
-                $sep.Background = Brush '#0DFFFFFF'
-                $sep.Margin = New-Object System.Windows.Thickness(12, 0, 12, 0)
-                [void]$pnl.Children.Add($sep)
-            }
+        $pnl.Children.Clear()
+        if ($viewRows.Count -eq 0) {
+            $empty = New-ShellText '所有实例都已关机' 11 '#6E6E78'
+            $empty.Margin = New-Object System.Windows.Thickness(12, 8, 12, 14)
+            [void]$pnl.Children.Add($empty)
+        }
+        foreach ($r in $viewRows) {
+            $isSleep = [bool]$r.WakeAt
+            $isOff = $false
+            $row = New-InstanceRowShell -Row $r -Icon $script:shellIcon -IsSleep $isSleep -IsOff $isOff
+            [void]$pnl.Children.Add($row)
+            $sep = New-Object System.Windows.Controls.Border
+            $sep.Height = 1
+            $sep.Background = Brush '#0DFFFFFF'
+            $sep.Margin = New-Object System.Windows.Thickness(12, 0, 12, 0)
+            [void]$pnl.Children.Add($sep)
         }
     }
 

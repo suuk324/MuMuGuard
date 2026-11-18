@@ -65,11 +65,25 @@ function Initialize-Shell {
     $r = $Win.FindName('BtnRefresh')
     if ($r) { $r.Add_MouseLeftButtonUp({ Update-Ui; Write-Diag '界面：手动刷新' }) }
     $cp = $Win.FindName('BtnCompact')
-    if ($cp) { $cp.Add_MouseLeftButtonUp({ Set-View 'compact'; Update-Ui }.GetNewClosure()) }
+    if ($cp) { $cp.Add_MouseLeftButtonUp({ Set-View 'compact'; Update-Ui }) }
     $m = $Win.FindName('BtnMin')
     if ($m) { $m.Add_MouseLeftButtonUp({ $Win.WindowState = 'Minimized' }) }
     $h = $Win.FindName('BtnHide')
     if ($h) { $h.Add_MouseLeftButtonUp({ Hide-Panel }) }
+    $gb = $Win.FindName('BtnGuardRun')
+    if ($gb) { $gb.Add_MouseLeftButtonUp({ Set-GuardState; Update-Ui }) }
+    $sb = $Win.FindName('BtnSleepRun')
+    if ($sb) { $sb.Add_MouseLeftButtonUp({ $script:cfg.AutoSleep = -not [bool]$script:cfg.AutoSleep; Save-Config; Update-Ui }) }
+    $cb = $Win.FindName('BtnCleanNow')
+    if ($cb) { $cb.Add_MouseLeftButtonUp({ try { [void](Invoke-GuardCleanup) } catch { }; Update-Ui }) }
+    $lg = $Win.FindName('BtnOpenLog')
+    if ($lg) { $lg.Add_MouseLeftButtonUp({ if (Test-Path $LogDir) { Start-Process explorer.exe -ArgumentList $LogDir } }) }
+    $ex = $Win.FindName('BtnExportRep')
+    if ($ex) { $ex.Add_MouseLeftButtonUp({ try { Export-Report } catch { Write-Diag "导出失败: $($_.Exception.Message)" } }) }
+    $up = $Win.FindName('BtnCheckUpd')
+    if ($up) { $up.Add_MouseLeftButtonUp({ try { Invoke-UpdateCheckUI -Silent $false } catch { } }) }
+    $rb = $Win.FindName('BtnRemoteOpen')
+    if ($rb) { $rb.Add_MouseLeftButtonUp({ try { Show-RemoteDialog } catch { Write-Diag "手机访问窗口异常: $($_.Exception.Message)" } }) }
     $root = $Win.FindName('Root')
     if ($root) { $root.Add_MouseLeftButtonDown({ try { $Win.DragMove() } catch { } }) }
 
@@ -248,14 +262,43 @@ function Render-ShellOverview {
         $gl.Foreground = Brush $(if ($bad.Count -eq 0) { '#34C759' } else { '#FF9F0A' })
     }
 
+    # 快捷操作按钮状态
+    $guardOn = [bool]$script:cfg.GuardRunning
+    $gb = $win.FindName('BtnGuardRun'); $gt = $win.FindName('TxtGuardRun')
+    if ($gb -and $gt) {
+        if ($guardOn) {
+            $gb.Background = Brush '#1E3A2A'
+            $gt.Text = '看护中 · 点击停止'
+            $gt.Foreground = Brush '#34C759'
+        } else {
+            $gb.Background = Brush '#F2F2F5'
+            $gt.Text = '开始看护'
+            $gt.Foreground = Brush '#1B1B1F'
+        }
+    }
+    $sOn = [bool]$script:cfg.AutoSleep
+    $sb = $win.FindName('BtnSleepRun'); $stx = $win.FindName('TxtSleepRun')
+    if ($sb -and $stx) {
+        if ($sOn) {
+            $sb.Background = Brush '#2A2415'
+            $stx.Text = '自动休眠 开'
+            $stx.Foreground = Brush '#FF9F0A'
+        } else {
+            $sb.Background = Brush '#1AFFFFFF'
+            $stx.Text = '自动休眠 关'
+            $stx.Foreground = Brush '#9E9EA6'
+        }
+    }
+
     # 唤醒 / 休眠统计
     $next = $null
     if ($sleep.Count -gt 0) { $next = @($sleep | Sort-Object { [datetime]$_.WakeAt } | Select-Object -First 1) }
     $nw = $win.FindName('TxtNextWake')
     if ($nw) { $nw.Text = $(if ($next) { ([datetime]$next[0].WakeAt).ToString('HH:mm') } else { '—' }) }
     $tc = Get-TodayCounts
-    $sd = $win.FindName('TxtSleepToday')
+    $sd = $win.FindName('TxtSleepToday'); $sd2 = $win.FindName('TxtSleepToday2')
     if ($sd) { $sd.Text = "$($tc.sleep) 次" }
+    if ($sd2) { $sd2.Text = "$($tc.sleep)" }
     $wt = $win.FindName('TxtWakeToday'); if ($wt) { $wt.Text = "$($tc.wake) 次" }
     $ct = $win.FindName('TxtCleanToday'); if ($ct) { $ct.Text = "$($tc.clean) 次" }
     $rt = $win.FindName('TxtRecoverToday'); if ($rt) { $rt.Text = "$($tc.recover) 次" }
@@ -583,7 +626,7 @@ function Set-View([string]$mode) {
             if ($lg -and $script:shellLogo) { $lg.Source = $script:shellLogo }
             $script:compactRoot.Add_MouseLeftButtonDown({ try { $win.DragMove() } catch { } })
             $ex = $script:compactRoot.FindName('BtnCmpExpand')
-            if ($ex) { $ex.Add_MouseLeftButtonUp({ Set-View 'shell'; Update-Ui }.GetNewClosure()) }
+            if ($ex) { $ex.Add_MouseLeftButtonUp({ Set-View 'shell'; Update-Ui }) }
             $cl = $script:compactRoot.FindName('BtnCmpClose')
             if ($cl) { $cl.Add_MouseLeftButtonUp({ Hide-Panel }) }
         }
@@ -622,7 +665,7 @@ function Invoke-UiSelfTest {
     $lines = @()
     $lines += "===== UI 自检 $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ====="
 
-    $targets = @('Nav1', 'Nav2', 'Nav3', 'Nav4', 'Nav5', 'BtnRefresh', 'BtnCompact')
+    $targets = @('Nav1', 'Nav2', 'Nav3', 'Nav4', 'Nav5', 'BtnRefresh', 'BtnCompact', 'BtnGuardRun', 'BtnSleepRun', 'BtnCleanNow', 'BtnOpenLog')
     foreach ($n in $targets) {
         $el = $win.FindName($n)
         if (-not $el) { $lines += "MISS  $n  元素不存在"; continue }
@@ -632,7 +675,7 @@ function Invoke-UiSelfTest {
             $el.RaiseEvent($args)
             $lines += "PASS  $n"
         } catch {
-            $lines += "FAIL  $n  $($_.Exception.Message)"
+            $lines += "FAIL  $n  $($_.Exception.Message)  @@ " + $_.ScriptStackTrace
         }
         if ($n -eq 'BtnCompact') { try { Set-View 'shell' } catch { } }
     }
@@ -648,7 +691,7 @@ function Invoke-UiSelfTest {
             $el.RaiseEvent($args)
             $lines += "PASS  $n"
         } catch {
-            $lines += "FAIL  $n  $($_.Exception.Message)"
+            $lines += "FAIL  $n  $($_.Exception.Message)  @@ " + $_.ScriptStackTrace
         }
     }
 

@@ -474,15 +474,15 @@ function Export-Report {
 function Set-GuardState {
     if ($script:guardRunning) {
         $script:guardRunning = $false
-        $guardTimer.Stop()
-        $recoverTimer.Stop()
+        $script:guardTimer.Stop()
+        $script:recoverTimer.Stop()
     } else {
         $script:guardRunning = $true
         [void](Invoke-GuardCleanup)
-        $guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
-        $guardTimer.Start()
-        $recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
-        $recoverTimer.Start()
+        $script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
+        $script:guardTimer.Start()
+        $script:recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
+        $script:recoverTimer.Start()
     }
     # 记住看护状态与窗口位置，下次打开自动恢复
     try {

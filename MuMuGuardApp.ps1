@@ -776,12 +776,7 @@ try {
     if (Test-Path $mIco) { $instSrc = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$mIco) }
 } catch { }
 Initialize-Shell -Win $win -Logo $icoSrc -InstanceIcon $instSrc
-if ($env:MMG_UITEST -eq '1') {
-    try { Invoke-UiSelfTest } catch { Write-Diag "自检异常: $($_.Exception.Message)" }
-    try { $win.Close() } catch { }
-    Start-Sleep -Milliseconds 300
-    [Environment]::Exit(0)
-}
+if ($env:MMG_UITEST -eq '1') { $script:uiTestPending = $true }
 # ---------------- 导出报告 ----------------
 
 
@@ -842,17 +837,17 @@ $timer.Add_Tick({
     }
 })
 
-$guardTimer = New-Object System.Windows.Threading.DispatcherTimer
-$guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
-$guardTimer.Add_Tick({
+$script:guardTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
+$script:guardTimer.Add_Tick({
     [void](Invoke-GuardCleanup)
     Update-Ui
 })
 
 # 掉线检测：看护运行时按间隔检查，脚本掉了自动拉起
-$recoverTimer = New-Object System.Windows.Threading.DispatcherTimer
-$recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
-$recoverTimer.Add_Tick({
+$script:recoverTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
+$script:recoverTimer.Add_Tick({
     try {
         Invoke-AutoRecover
     } catch { }
@@ -913,13 +908,24 @@ $win.Add_Loaded({
     try {
         if (Test-AnnounceDue) { Show-Announcement } else { Write-Diag '公告：今天已提醒过' }
     } catch { Write-Diag "公告调用失败: $($_.Exception.Message)" }
+    if ($script:uiTestPending) {
+        $script:uiTestTimer = New-Object System.Windows.Threading.DispatcherTimer
+        $script:uiTestTimer.Interval = [TimeSpan]::FromSeconds(4)
+        $script:uiTestTimer.Add_Tick({
+            $script:uiTestTimer.Stop()
+            try { Invoke-UiSelfTest } catch { Write-Diag "自检异常: $($_.Exception.Message)" }
+            Start-Sleep -Milliseconds 300
+            [Environment]::Exit(0)
+        })
+        $script:uiTestTimer.Start()
+    }
     Invoke-CatchUpWake
     # 恢复上次的看护状态
     if ($script:cfg.GuardRunning -eq $true) {
         $script:guardRunning = $true
-        $guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
+        $script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
         $guardTimer.Start()
-        $recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
+        $script:recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
         $recoverTimer.Start()
         Update-Ui
     }

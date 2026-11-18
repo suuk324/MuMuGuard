@@ -7,6 +7,7 @@ function Get-AnnounceDateKey {
 
 function Test-AnnounceDue {
     try {
+        if ($env:MMG_UITEST -eq '1') { return $false }
         if ($env:MMG_ANNOUNCE -eq '1') { return $true }
         return ("$($script:cfg.AnnounceMuteDate)" -ne (Get-AnnounceDateKey))
     } catch { return $false }

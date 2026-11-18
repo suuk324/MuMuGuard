@@ -56,8 +56,8 @@ function Get-ShellXaml {
                   <GradientStop Color="#10FFFFFF" Offset="1"/>
                 </LinearGradientBrush>
               </Border.BorderBrush>
-              <Border.BorderThickness="1" Padding="6">
-                <Image x:Name="LogoImg" Stretch="Uniform"/>
+              <Border.BorderThickness="1" Padding="0">
+                <Image x:Name="LogoImg" Stretch="UniformToFill"/>
               </Border>
             </Border>
             <TextBlock Text="MuMuGuard" Foreground="{StaticResource T1}" FontSize="15" FontWeight="SemiBold"

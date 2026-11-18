@@ -313,7 +313,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion = '1.6.3'
+$script:appVersion     = '1.6.4'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -775,6 +775,12 @@ try {
     if (Test-Path $mIco) { $instSrc = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$mIco) }
 } catch { }
 Initialize-Shell -Win $win -Logo $icoSrc -InstanceIcon $instSrc
+if ($env:MMG_UITEST -eq '1') {
+    try { Invoke-UiSelfTest } catch { Write-Diag "自检异常: $($_.Exception.Message)" }
+    try { $win.Close() } catch { }
+    Start-Sleep -Milliseconds 300
+    [Environment]::Exit(0)
+}
 # ---------------- 导出报告 ----------------
 
 
@@ -897,7 +903,7 @@ $win.Add_Loaded({
     $updateTimer.Start()
     Load-Trend
     try { Load-OpState } catch { }
-    Set-View 'compact'
+    Set-View $(if ($env:MMG_COMPACT -eq '1') { 'compact' } else { 'shell' })
     if ($txtVersion) { $txtVersion.Text = 'v' + $script:appVersion }
     Update-SleepButton
     Update-Ui

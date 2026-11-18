@@ -117,6 +117,9 @@ function Get-ShellXaml {
             <Border x:Name="BtnRefresh" Width="30" Height="30" CornerRadius="9" Background="#14FFFFFF" Margin="0,0,8,0">
               <TextBlock Text="↻" FontSize="14" Foreground="{StaticResource T2}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
+            <Border x:Name="BtnCompact" Width="30" Height="30" CornerRadius="9" Background="#14FFFFFF" Margin="0,0,8,0">
+              <TextBlock Text="▣" FontSize="12" Foreground="{StaticResource T2}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
             <Border x:Name="BtnMin" Width="30" Height="30" CornerRadius="9" Background="#14FFFFFF" Margin="0,0,8,0">
               <TextBlock Text="—" FontSize="12" Foreground="{StaticResource T2}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
@@ -337,8 +340,7 @@ function Get-ShellXaml {
         <Grid x:Name="Page2" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
           <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,14,0,0">
             <StackPanel>
-              <TextBlock Text="实例管理" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="16,14,16,6"/>
-              <TextBlock Text="每个实例的启动、唤醒、重启、检测开关。" FontSize="11.5" Foreground="{StaticResource T3}" Margin="16,0,16,10"/>
+              
               <StackPanel x:Name="PnlManage" Margin="8,0,8,10"/>
             </StackPanel>
           </Border>
@@ -347,8 +349,7 @@ function Get-ShellXaml {
         <Grid x:Name="Page3" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
           <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,14,0,0">
             <StackPanel>
-              <TextBlock Text="健康检查" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="16,14,16,6"/>
-              <TextBlock Text="系统层面的内存、服务与权限状态。" FontSize="11.5" Foreground="{StaticResource T3}" Margin="16,0,16,10"/>
+              
               <StackPanel x:Name="PnlHealthDetail" Margin="16,0,16,14"/>
             </StackPanel>
           </Border>
@@ -357,9 +358,12 @@ function Get-ShellXaml {
         <Grid x:Name="Page4" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
           <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,14,0,0">
             <StackPanel>
-              <TextBlock Text="事件记录" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="16,14,16,6"/>
-              <TextBlock Text="最近的守护动作与异常。" FontSize="11.5" Foreground="{StaticResource T3}" Margin="16,0,16,10"/>
-              <ScrollViewer Height="460" VerticalScrollBarVisibility="Auto">
+              <StackPanel Orientation="Horizontal" Margin="16,14,16,10">
+                <Border x:Name="BtnFAll" Background="#24FFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="全部" FontSize="10.5" Foreground="#F2F2F5"/></Border>
+                <Border x:Name="BtnFWarn" Background="#1AFFFFFF" CornerRadius="7" Padding="10,4" Margin="0,0,6,0"><TextBlock Text="告警" FontSize="10.5" Foreground="#9E9EA6"/></Border>
+                <Border x:Name="BtnFSleep" Background="#1AFFFFFF" CornerRadius="7" Padding="10,4"><TextBlock Text="休眠" FontSize="10.5" Foreground="#9E9EA6"/></Border>
+              </StackPanel>
+              <ScrollViewer Height="470" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="PnlEventDetail" Margin="16,0,16,14"/>
               </ScrollViewer>
             </StackPanel>
@@ -369,8 +373,7 @@ function Get-ShellXaml {
         <Grid x:Name="Page5" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
           <Border Background="{StaticResource Card}" CornerRadius="11" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,14,0,0">
             <StackPanel>
-              <TextBlock Text="设置" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource T1}" Margin="16,14,16,6"/>
-              <TextBlock Text="阈值、路径与休眠规则。" FontSize="11.5" Foreground="{StaticResource T3}" Margin="16,0,16,10"/>
+              
               <StackPanel x:Name="PnlSettings" Margin="16,0,16,14"/>
             </StackPanel>
           </Border>
@@ -383,6 +386,108 @@ function Get-ShellXaml {
 }
 
 # 生成一行实例（概览）
+function Get-CompactXaml {
+    return @'
+<Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Name="CmpRoot" CornerRadius="12" Background="#2B2B30" BorderBrush="#33FFFFFF" BorderThickness="1">
+  <StackPanel>
+    <Grid Margin="12,9,9,7">
+      <StackPanel Orientation="Horizontal">
+        <Border Width="16" Height="16" CornerRadius="5" Background="Transparent" VerticalAlignment="Center">
+          <Image x:Name="CmpLogo" Stretch="UniformToFill"/>
+        </Border>
+        <TextBlock Text="MuMuGuard" FontSize="11" Foreground="#F2F2F5" Margin="6,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+        <Ellipse x:Name="CmpDot" Width="5" Height="5" Fill="#34C759" Margin="8,0,0,0" VerticalAlignment="Center"/>
+        <TextBlock x:Name="CmpState" Text="看护中" FontSize="9.5" Foreground="#6E6E78" Margin="4,0,0,0" VerticalAlignment="Center"/>
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Border x:Name="BtnCmpExpand" Width="19" Height="19" CornerRadius="6" Background="#14FFFFFF">
+          <TextBlock Text="⤢" FontSize="10" Foreground="#9E9EA6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <Border x:Name="BtnCmpClose" Width="19" Height="19" CornerRadius="6" Background="#14FFFFFF" Margin="5,0,0,0">
+          <TextBlock Text="✕" FontSize="9" Foreground="#9E9EA6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </StackPanel>
+    </Grid>
+    <Border Height="1" Background="#0DFFFFFF"/>
+    <UniformGrid x:Name="PnlRings" Columns="5" Margin="10,12,10,6"/>
+    <Border Height="1" Background="#0DFFFFFF" Margin="10,2,10,0"/>
+    <Grid Margin="12,7,12,8">
+      <TextBlock x:Name="TxtCmpWake" Text="—" FontSize="9" Foreground="#6E6E78"/>
+      <TextBlock x:Name="TxtCmpMem" Text="内存 —" FontSize="9" Foreground="#6E6E78" HorizontalAlignment="Right"/>
+    </Grid>
+  </StackPanel>
+</Border>
+'@
+}
+
+function New-RingCell {
+    param($Row, [string]$Label, [int]$Pct, [string]$State)
+
+    $sp = New-Object System.Windows.Controls.StackPanel
+    $sp.HorizontalAlignment = 'Center'
+
+    $grid = New-Object System.Windows.Controls.Grid
+    $grid.Width = 46; $grid.Height = 46
+
+    $track = New-Object System.Windows.Shapes.Ellipse
+    $track.Width = 46; $track.Height = 46
+    $track.Stroke = Brush '#22FFFFFF'
+    $track.StrokeThickness = 3
+    [void]$grid.Children.Add($track)
+
+    if ($State -eq 'run') {
+        $arc = New-Object System.Windows.Shapes.Ellipse
+        $arc.Width = 46; $arc.Height = 46
+        $arc.Stroke = Brush '#0A84FF'
+        $arc.StrokeThickness = 3
+        $arc.StrokeDashCap = 'Round'
+        $circ = [math]::PI * 46
+        $dash = [math]::Max(1, ($circ * $Pct / 100.0) / 3)
+        $gap = [math]::Max(0.5, ($circ - ($circ * $Pct / 100.0)) / 3)
+        $arc.StrokeDashArray = New-Object System.Windows.Media.DoubleCollection
+        $arc.StrokeDashArray.Add($dash)
+        $arc.StrokeDashArray.Add($gap)
+        $arc.RenderTransformOrigin = '0.5,0.5'
+        $rot = New-Object System.Windows.Media.RotateTransform
+        $rot.Angle = -90
+        $arc.RenderTransform = $rot
+        [void]$grid.Children.Add($arc)
+    } elseif ($State -eq 'sleep') {
+        $ring = New-Object System.Windows.Shapes.Ellipse
+        $ring.Width = 46; $ring.Height = 46
+        $ring.Stroke = Brush '#FF9F0A'
+        $ring.StrokeThickness = 3
+        $ring.Opacity = 0.5
+        [void]$grid.Children.Add($ring)
+    }
+
+    $txt = New-Object System.Windows.Controls.TextBlock
+    $txt.FontSize = 9.5
+    $txt.HorizontalAlignment = 'Center'
+    $txt.VerticalAlignment = 'Center'
+    switch ($State) {
+        'run'   { $txt.Text = "$Pct%"; $txt.Foreground = Brush '#F2F2F5' }
+        'sleep' { $txt.Text = '睡';  $txt.Foreground = Brush '#6E6E78'; $txt.FontSize = 11 }
+        default { $txt.Text = '关';  $txt.Foreground = Brush '#4A4A52'; $txt.FontSize = 11 }
+    }
+    [void]$grid.Children.Add($txt)
+    [void]$sp.Children.Add($grid)
+
+    $nm = New-Object System.Windows.Controls.TextBlock
+    $nm.Text = $Label
+    $nm.FontSize = 9.5
+    $nm.HorizontalAlignment = 'Center'
+    $nm.Margin = New-Object System.Windows.Thickness(0, 5, 0, 0)
+    $nm.TextTrimming = 'CharacterEllipsis'
+    if ($State -eq 'run') { $nm.Foreground = Brush '#F2F2F5' }
+    elseif ($State -eq 'sleep') { $nm.Foreground = Brush '#6E6E78' }
+    else { $nm.Foreground = Brush '#4A4A52' }
+    [void]$sp.Children.Add($nm)
+
+    return $sp
+}
 function New-InstanceRowShell {
     param($Row, $Icon, $IsSleep, $IsOff)
 

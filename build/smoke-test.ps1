@@ -1,19 +1,17 @@
 ﻿#Requires -Version 5.1
 <#
-  smoke-test.ps1
-  启动刚编译好的 exe，检查两件事：
-    1. 界面能否正常构建（防止漏打包模块导致空白界面）
-    2. 点「手机访问」能否真的弹出窗口（1.6.0 就是这里静默失败）
-  用法：.\build\smoke-test.ps1 -ExePath <路径> [-MinElements 8]
+smoke-test.ps1
+启动刚编译好的 exe，检查：
+1. 自检模式（MMG_UITEST=1）：把界面上所有安全按钮都点一遍，逐项 PASS/FAIL
+2. 正常启动：窗口能出现，界面文字渲染出来
+用法：.\build\smoke-test.ps1 -ExePath <路径>
 #>
 param(
     [Parameter(Mandatory = $true)][string]$ExePath,
-    [int]$MinElements = 8,
-    [int]$WaitSeconds = 28
+    [int]$WaitSeconds = 150
 )
 
 $ErrorActionPreference = 'Stop'
-
 if (-not (Test-Path $ExePath)) { throw "exe 不存在: $ExePath" }
 
 $smokeDir = Join-Path $env:TEMP ('mmg_smoke_' + [guid]::NewGuid().ToString('N').Substring(0, 8))
@@ -23,149 +21,86 @@ Copy-Item $ExePath $target -Force
 
 # 关掉正在运行的实例（单实例互斥）
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -match 'MuMuGuardApp\.ps1' -and $_.CommandLine -notmatch 'Get-CimInstance' } |
+    Where-Object { $_.CommandLine -and $_.CommandLine -match 'MuMuGuardApp\.ps1' } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Get-Process | Where-Object { $_.ProcessName -like 'MuMuGuard*' } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 3
 
+$logCandidates = @(
+    (Join-Path $smokeDir 'logs\uitest.log'),
+    (Join-Path $env:LOCALAPPDATA 'MuMuGuard\logs\uitest.log'),
+    (Join-Path $env:APPDATA 'MuMuGuard\logs\uitest.log')
+)
+foreach ($p in $logCandidates) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
+
+# ---------- 1. 自检模式 ----------
+$env:MMG_UITEST = '1'
 $proc = Start-Process -FilePath $target -PassThru
-$exePid = $proc.Id
-Start-Sleep -Seconds $WaitSeconds
+[void]$proc.WaitForExit($WaitSeconds * 1000)
+$env:MMG_UITEST = ''
+Start-Sleep -Seconds 1
+if (-not $proc.HasExited) {
+    try { $proc.Kill() } catch { }
+    throw '自检模式没有在超时内结束'
+}
 
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
+$log = $null
+foreach ($p in $logCandidates) { if (Test-Path $p) { $log = $p; break } }
+if (-not $log) { throw '自检没有生成 uitest.log（界面可能没起来）' }
 
-# 读取该进进程所有可见窗口的标题（对话框是属主窗口，UIA 不一定列在根节点下）
-if (-not ('SmokeWin' -as [type])) {
-Add-Type -TypeDefinition @"
-using System;
-using System.Text;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-public class SmokeWin {
-    [DllImport("user32.dll")] public static extern bool EnumWindows(EP cb, IntPtr p);
-    public delegate bool EP(IntPtr h, IntPtr p);
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
-    [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
-    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
-    public static List<string> Titles(uint pid) {
-        var list = new List<string>();
-        EnumWindows((h, p) => {
-            uint q; GetWindowThreadProcessId(h, out q);
-            if (q == pid && IsWindowVisible(h)) {
-                var sb = new StringBuilder(256);
-                GetWindowText(h, sb, 256);
-                if (sb.Length > 0) list.Add(sb.ToString());
-            }
-            return true;
-        }, IntPtr.Zero);
-        return list;
-    }
-    public static void CloseByTitle(uint pid, string title) {
-        EnumWindows((h, p) => {
-            uint q; GetWindowThreadProcessId(h, out q);
-            if (q == pid && IsWindowVisible(h)) {
-                var sb = new StringBuilder(256);
-                GetWindowText(h, sb, 256);
-                if (sb.ToString() == title) SendMessage(h, 0x0010, IntPtr.Zero, IntPtr.Zero);
-            }
-            return true;
-        }, IntPtr.Zero);
-    }
+$lines = Get-Content $log -Encoding UTF8
+$pass = @($lines | Where-Object { $_ -match '^PASS' }).Count
+$fail = @($lines | Where-Object { $_ -match '^FAIL|^MISS' })
+if ($fail.Count -gt 0) {
+    throw ('自检有 {0} 项失败：{1}' -f $fail.Count, ($fail -join ' / '))
+}
+if ($pass -lt 12) { throw ("自检只跑了 {0} 项，太少（界面元素可能缺失）" -f $pass) }
+
+# ---------- 2. 正常启动 ----------
+$proc2 = Start-Process -FilePath $target -PassThru
+Start-Sleep -Seconds 18
+
+Add-Type -AssemblyName System.Drawing
+Add-Type @"
+using System;using System.Runtime.InteropServices;
+public class SmokeShot {
+  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint f);
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  public struct RECT { public int L,T,R,B; }
 }
 "@
-}
+try { [void][SmokeShot]::SetProcessDPIAware() } catch { }
 
-$uiCount = 0
-$mainWin = $null
-try {
-    $rootEl = [System.Windows.Automation.AutomationElement]::RootElement
-    $cond = New-Object System.Windows.Automation.PropertyCondition(
-        [System.Windows.Automation.AutomationElement]::NameProperty, 'MuMuGuard')
-    $mainWin = $rootEl.FindFirst([System.Windows.Automation.TreeScope]::Children, $cond)
-    if ($mainWin) {
-        foreach ($x in $mainWin.FindAll([System.Windows.Automation.TreeScope]::Descendants,
-                [System.Windows.Automation.Condition]::TrueCondition)) {
-            if ($x.Current.Name) { $uiCount++ }
-        }
-    }
-} catch { }
+$proc2.Refresh()
+$h = $proc2.MainWindowHandle
+if ($h -eq [IntPtr]::Zero) { try { $proc2.Kill() } catch { }; throw "正常启动后没有主窗口" }
+$rect = New-Object SmokeShot+RECT
+[void][SmokeShot]::GetWindowRect($h, [ref]$rect)
+$w = $rect.R - $rect.L
+$ht = $rect.B - $rect.T
+if ($w -lt 800 -or $ht -lt 500) { try { $proc2.Kill() } catch { }; throw ("主窗口尺寸异常: {0}x{1}" -f $w, $ht) }
 
-$result = @{ Ok = $false; Why = ''; Elements = $uiCount; Dialog = $false }
+$bmp = New-Object System.Drawing.Bitmap $w, $ht
+$g = [System.Drawing.Graphics]::FromImage($bmp)
+$hdc = $g.GetHdc()
+[void][SmokeShot]::PrintWindow($h, $hdc, 2)
+$g.ReleaseHdc($hdc); $g.Dispose()
+try { $bmp.Save((Join-Path $PSScriptRoot "..\docs\screenshots\exe-smoke.png"), [System.Drawing.Imaging.ImageFormat]::Png) } catch { }
 
-if ($uiCount -lt $MinElements) {
-    $result.Why = ("界面元素只有 {0} 个（应 ≥ {1}），可能漏打包模块" -f $uiCount, $MinElements)
-} else {
-    # 切到详情页，再点「手机访问」
-    $btnType = [System.Windows.Automation.ControlType]::Button
-    $btnCond = New-Object System.Windows.Automation.PropertyCondition(
-        [System.Windows.Automation.AutomationElement]::ControlTypeProperty, $btnType)
-    try {
-        $btns = $mainWin.FindAll([System.Windows.Automation.TreeScope]::Descendants, $btnCond)
-        foreach ($b in $btns) {
-            if ($b.Current.Name -eq '详情') {
-                $b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-                break
-            }
-        }
-        Start-Sleep -Seconds 2
-
-        $target2 = $null
-        $btns = $mainWin.FindAll([System.Windows.Automation.TreeScope]::Descendants, $btnCond)
-        foreach ($b in $btns) {
-            if ($b.Current.Name -eq '手机访问') { $target2 = $b; break }
-        }
-
-        if (-not $target2) {
-            $result.Why = '界面上找不到「手机访问」按钮'
-        } else {
-            # 对话框是模态的，Invoke 会一直阻塞；放到独立线程里点，主线程继续检查
-            $ps = [powershell]::Create()
-            [void]$ps.AddScript({
-                param($el)
-                $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-            }).AddArgument($target2)
-            $handle = $ps.BeginInvoke()
-
-            $found = $false
-            for ($i = 0; $i -lt 16; $i++) {
-                Start-Sleep -Milliseconds 500
-                $titles = @()
-                try { $titles = [SmokeWin]::Titles([uint32]$exePid) } catch { }
-                if ($titles -contains '手机访问') { $found = $true; break }
-            }
-            $result.Dialog = $found
-
-            # 收尾：关掉对话框，停掉阻塞的线程
-            try { [SmokeWin]::CloseByTitle([uint32]$exePid, '手机访问') } catch { }
-            Start-Sleep -Milliseconds 600
-            try { [void]$ps.Stop() } catch { }
-            try { $ps.Dispose() } catch { }
-
-            if (-not $found) {
-                $result.Why = '点了「手机访问」但没有弹出窗口'
-                $diag = Join-Path $smokeDir 'logs\diag.log'
-                if (Test-Path $diag) {
-                    $tail = Get-Content $diag -ErrorAction SilentlyContinue |
-                            Where-Object { $_ -match '手机访问' } | Select-Object -Last 2
-                    if ($tail) { $result.Why += ('；日志: ' + ($tail -join ' / ')) }
-                }
-            } else {
-                $result.Ok = $true
-            }
-        }
-    } catch {
-        $result.Why = ('点击「手机访问」时出错: ' + $_.Exception.Message)
+$colors = @{}
+for ($x = 0; $x -lt $w; $x += 40) {
+    for ($y = 0; $y -lt $ht; $y += 40) {
+        $c = $bmp.GetPixel($x, $y).ToArgb()
+        if (-not $colors.ContainsKey($c)) { $colors[$c] = $true }
     }
 }
+$bmp.Dispose()
+if ($colors.Count -lt 12) { try { $proc2.Kill() } catch { }; throw ("界面疑似空白：抽样只有 {0} 种颜色" -f $colors.Count) }
 
-Get-Process | Where-Object { $_.ProcessName -like 'MuMuGuard*' } | Stop-Process -Force -ErrorAction SilentlyContinue
+try { $proc2.CloseMainWindow() | Out-Null } catch { }
 Start-Sleep -Seconds 2
+Get-Process | Where-Object { $_.ProcessName -like "MuMuGuard*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
 Remove-Item $smokeDir -Recurse -Force -ErrorAction SilentlyContinue
-
-if (-not $result.Ok) {
-    throw ('exe 冒烟测试失败：' + $result.Why)
-}
-
-Write-Host ("  OK  界面元素 {0} 个，手机访问窗口正常弹出" -f $result.Elements)
+Write-Host ("  OK  自检 {0} 项全过，窗口 {1}x{2}，画面颜色 {3} 种" -f $pass, $w, $ht, $colors.Count)

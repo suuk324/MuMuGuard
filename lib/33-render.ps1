@@ -43,6 +43,17 @@ function Initialize-Shell {
     $script:shellLogo = $Logo
     $script:shellIcon = $InstanceIcon
     $script:shellRowsSig = ''
+    $script:shellContent = $Win.Content
+    $script:viewMode = 'shell'
+
+    foreach ($pair in @(@('BtnFAll', 'all'), @('BtnFWarn', 'warn'), @('BtnFSleep', 'sleep'))) {
+        $btn = $Win.FindName($pair[0])
+        if ($btn) {
+            $mode = $pair[1]
+            $btn.Add_MouseLeftButtonUp({ $script:shellFilter = $mode; Update-FilterChips; Update-Ui }.GetNewClosure())
+        }
+    }
+    Update-FilterChips
 
     # 导航
     1..5 | ForEach-Object {
@@ -53,6 +64,8 @@ function Initialize-Shell {
     # 标题栏按钮
     $r = $Win.FindName('BtnRefresh')
     if ($r) { $r.Add_MouseLeftButtonUp({ Update-Ui; Write-Diag '界面：手动刷新' }) }
+    $cp = $Win.FindName('BtnCompact')
+    if ($cp) { $cp.Add_MouseLeftButtonUp({ Set-View 'compact'; Update-Ui }.GetNewClosure()) }
     $m = $Win.FindName('BtnMin')
     if ($m) { $m.Add_MouseLeftButtonUp({ $Win.WindowState = 'Minimized' }) }
     $h = $Win.FindName('BtnHide')
@@ -60,7 +73,10 @@ function Initialize-Shell {
     $root = $Win.FindName('Root')
     if ($root) { $root.Add_MouseLeftButtonDown({ try { $Win.DragMove() } catch { } }) }
 
-    Switch-ShellPage 1
+    $startPage = 1
+    if ($env:MMG_PAGE) { try { $startPage = [int]$env:MMG_PAGE } catch { } }
+    Switch-ShellPage $startPage
+    if ($env:MMG_COMPACT -eq '1') { Set-View 'compact' } else { Set-View 'shell' }
 }
 
 # ---------- 小工具 ----------
@@ -106,6 +122,7 @@ function New-ShellButton {
 # ---------- 行数据：运行中 + 休眠中 合并 ----------
 function Get-ShellRows {
     $data = @(Get-InstanceData)
+    if ($script:testNoCollect -and $script:testRows) { return $script:testRows }
     $script:lastInstances = $data
     $sleep = @(Get-SleepList)
     $sleepMap = @{}
@@ -161,6 +178,7 @@ function Get-ShellRows {
         [void]($o | Add-Member -NotePropertyName WakeAt -NotePropertyValue $w -Force)
         $out += $o
     }
+    $script:testRows = $out
     return $out
 }
 # ---------- 页1 概览 ----------
@@ -235,8 +253,12 @@ function Render-ShellOverview {
     if ($sleep.Count -gt 0) { $next = @($sleep | Sort-Object { [datetime]$_.WakeAt } | Select-Object -First 1) }
     $nw = $win.FindName('TxtNextWake')
     if ($nw) { $nw.Text = $(if ($next) { ([datetime]$next[0].WakeAt).ToString('HH:mm') } else { '—' }) }
+    $tc = Get-TodayCounts
     $sd = $win.FindName('TxtSleepToday')
-    if ($sd) { $sd.Text = "$($sleep.Count) 台" }
+    if ($sd) { $sd.Text = "$($tc.sleep) 次" }
+    $wt = $win.FindName('TxtWakeToday'); if ($wt) { $wt.Text = "$($tc.wake) 次" }
+    $ct = $win.FindName('TxtCleanToday'); if ($ct) { $ct.Text = "$($tc.clean) 次" }
+    $rt = $win.FindName('TxtRecoverToday'); if ($rt) { $rt.Text = "$($tc.recover) 次" }
 }
 
 # ---------- 页2 实例管理 ----------
@@ -463,6 +485,7 @@ function Render-ShellSettings {
 function Update-Ui {
     if (-not $script:shellWin) { return }
     try {
+        if ($script:viewMode -eq 'compact') { Render-Compact; return }
         switch ($script:shellPage) {
             1 { Render-ShellOverview }
             2 { Render-ShellManage }
@@ -474,7 +497,186 @@ function Update-Ui {
         Write-Diag ("界面刷新异常: " + $_.Exception.Message + " @ " + $_.InvocationInfo.ScriptLineNumber)
     }
 }
-# 新界面只有一套视图：旧的 compact/detail 切换统一为空操作
+
+# ---------- 今日统计 ----------
+function Get-TodayCounts {
+    $c = @{ wake = 0; clean = 0; recover = 0; sleep = 0 }
+    try {
+        $file = Get-LogFile
+        if (Test-Path $file) {
+            $today = (Get-Date).ToString('yyyy-MM-dd')
+            foreach ($r in @(Import-Csv $file)) {
+                if (-not ("$($r.Time)" -like "$today*")) { continue }
+                $a = "$($r.Action)"
+                if ($a -like '*WAKE*') { $c.wake++ }
+                elseif ($a -like '*CLEAN*') { $c.clean++ }
+                elseif ($a -like '*RECOVER*' -or $a -like '*RESTART*') { $c.recover++ }
+                elseif ($a -like '*SLEEP*') { $c.sleep++ }
+            }
+        }
+    } catch { }
+    return $c
+}
+
+# ---------- 紧凑视图 ----------
+function Render-Compact {
+    $win = $script:shellWin
+    if (-not $win) { return }
+    $root = $script:compactRoot
+    if (-not $root) { return }
+
+    $rows = @(Get-ShellRows)
+    $sleep = @(Get-SleepList)
+    $cntRun = @($rows | Where-Object { $_.Script -eq $true }).Count
+    $cntSlp = @($rows | Where-Object { $_.WakeAt }).Count
+
+    $st = $root.FindName('CmpState')
+    if ($st) { $st.Text = "$cntRun 跑 · $cntSlp 睡" }
+    $dot = $root.FindName('CmpDot')
+    if ($dot) {
+        $on = [bool]$script:cfg.GuardRunning
+        $dot.Fill = Brush $(if ($on) { '#34C759' } else { '#6E6E78' })
+    }
+
+    $pnl = $root.FindName('PnlRings')
+    if ($pnl) {
+        $pnl.Children.Clear()
+        foreach ($r in @($rows | Select-Object -First 5)) {
+            $short = "$($r.Name)"
+            if ($short -like 'MuMu安卓设备-*') { $short = '设备' + ($short -replace '.*-', '') }
+            if ($short.Length -gt 5) { $short = $short.Substring(0, 5) }
+            $state = 'off'
+            $pct = 0
+            if ($r.WakeAt) { $state = 'sleep' }
+            elseif ($r.Script -eq $true -or $r.Online) {
+                $state = 'run'
+                $base = [double]$r.MemBase
+                if ($base -le 0) { $base = 6144 }
+                $pct = [int]([math]::Min(99, [math]::Max(3, ([double]$r.Private / $base) * 100)))
+            }
+            [void]$pnl.Children.Add((New-RingCell -Row $r -Label $short -Pct $pct -State $state))
+        }
+    }
+
+    $tw = $root.FindName('TxtCmpWake')
+    if ($tw) {
+        $next = @($sleep | Sort-Object { [datetime]$_.WakeAt } | Select-Object -First 1)
+        $tw.Text = $(if ($next.Count -gt 0) { ([datetime]$next[0].WakeAt).ToString('HH:mm') + ' 唤醒' } else { '无唤醒任务' })
+    }
+    $tm = $root.FindName('TxtCmpMem')
+    if ($tm) {
+        $hm = Get-HostMemory
+        if ($hm) { $tm.Text = ('内存 {0:N1} GB 可用' -f ($hm.AvailableMB / 1024.0)) }
+    }
+}
+
+# ---------- 视图切换 ----------
 function Set-View([string]$mode) {
-    $script:viewMode = 'shell'
+    try { Write-Diag "SETVIEW $mode -> $(Get-Date -Format HH:mm:ss)" } catch { }
+    $win = $script:shellWin
+    if (-not $win) { return }
+
+    if ($mode -eq 'compact') {
+        if (-not $script:compactRoot) {
+            $script:compactRoot = [Windows.Markup.XamlReader]::Parse((Get-CompactXaml))
+            $lg = $script:compactRoot.FindName('CmpLogo')
+            if ($lg -and $script:shellLogo) { $lg.Source = $script:shellLogo }
+            $script:compactRoot.Add_MouseLeftButtonDown({ try { $win.DragMove() } catch { } })
+            $ex = $script:compactRoot.FindName('BtnCmpExpand')
+            if ($ex) { $ex.Add_MouseLeftButtonUp({ Set-View 'shell'; Update-Ui }.GetNewClosure()) }
+            $cl = $script:compactRoot.FindName('BtnCmpClose')
+            if ($cl) { $cl.Add_MouseLeftButtonUp({ Hide-Panel }) }
+        }
+        if (-not $script:shellContent) { $script:shellContent = $win.Content }
+        $win.Content = $script:compactRoot
+        $win.MinWidth = 0; $win.MinHeight = 0
+        $win.Width = 344; $win.Height = 182
+        $script:viewMode = 'compact'
+    } else {
+        if ($script:shellContent) { $win.Content = $script:shellContent }
+        $win.MinWidth = 900; $win.MinHeight = 620
+        $win.Width = 1000; $win.Height = 700
+        $script:viewMode = 'shell'
+    }
+    $script:cmpSig = ''
+}
+
+# ---------- 筛选按钮 ----------
+function Update-FilterChips {
+    $win = $script:shellWin
+    if (-not $win) { return }
+    $map = @{ all = 'BtnFAll'; warn = 'BtnFWarn'; sleep = 'BtnFSleep' }
+    foreach ($k in $map.Keys) {
+        $b = $win.FindName($map[$k])
+        if (-not $b) { continue }
+        $on = ($script:shellFilter -eq $k)
+        $b.Background = Brush $(if ($on) { '#24FFFFFF' } else { '#1AFFFFFF' })
+        if ($b.Child) { $b.Child.Foreground = Brush $(if ($on) { '#F2F2F5' } else { '#9E9EA6' }) }
+    }
+}
+# ---------- 自检：模拟点击所有安全按钮 ----------
+function Invoke-UiSelfTest {
+    $win = $script:shellWin
+    $script:testNoCollect = $true
+    $log = Join-Path $LogDir 'uitest.log'
+    $lines = @()
+    $lines += "===== UI 自检 $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ====="
+
+    $targets = @('Nav1', 'Nav2', 'Nav3', 'Nav4', 'Nav5', 'BtnRefresh', 'BtnCompact')
+    foreach ($n in $targets) {
+        $el = $win.FindName($n)
+        if (-not $el) { $lines += "MISS  $n  元素不存在"; continue }
+        try {
+            $args = New-Object System.Windows.Input.MouseButtonEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0, [System.Windows.Input.MouseButton]::Left)
+            $args.RoutedEvent = [System.Windows.UIElement]::MouseLeftButtonUpEvent
+            $el.RaiseEvent($args)
+            $lines += "PASS  $n"
+        } catch {
+            $lines += "FAIL  $n  $($_.Exception.Message)"
+        }
+        if ($n -eq 'BtnCompact') { try { Set-View 'shell' } catch { } }
+    }
+
+    # 事件筛选按钮
+    try { Switch-ShellPage 4 } catch { }
+    foreach ($n in @('BtnFAll', 'BtnFWarn', 'BtnFSleep')) {
+        $el = $win.FindName($n)
+        if (-not $el) { $lines += "MISS  $n  元素不存在"; continue }
+        try {
+            $args = New-Object System.Windows.Input.MouseButtonEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0, [System.Windows.Input.MouseButton]::Left)
+            $args.RoutedEvent = [System.Windows.UIElement]::MouseLeftButtonUpEvent
+            $el.RaiseEvent($args)
+            $lines += "PASS  $n"
+        } catch {
+            $lines += "FAIL  $n  $($_.Exception.Message)"
+        }
+    }
+
+    # 紧凑视图
+    try {
+        Set-View 'compact'
+        Update-Ui
+        $rings = $script:compactRoot.FindName('PnlRings')
+        $lines += ("PASS  compact 环数=" + $(if ($rings) { $rings.Children.Count } else { -1 }))
+        Set-View 'shell'
+        Update-Ui
+        $lines += "PASS  回到完整视图"
+    } catch {
+        $lines += "FAIL  compact  $($_.Exception.Message)"
+    }
+
+    # 五页渲染
+    foreach ($p in 1..5) {
+        try {
+            Switch-ShellPage $p
+            Update-Ui
+            $lines += "PASS  渲染第 $p 页"
+        } catch {
+            $lines += "FAIL  第 $p 页  $($_.Exception.Message)"
+        }
+    }
+
+    $lines += "===== 结束 ====="
+    try { $lines | Set-Content -Path $log -Encoding UTF8 } catch { }
+    $script:testNoCollect = $false
 }

@@ -73,6 +73,11 @@
   .resline.dim{color:var(--dim)}
   .resline .rw{margin-left:auto;color:var(--dim);font-size:10.5px}
   .drow{display:flex;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-size:13px}
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 0 2px}
+  .shot{position:relative;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:16/9}
+  .shot img{width:100%;height:100%;object-fit:cover;display:block}
+  .shot.empty{display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:10.5px;border:1px dashed var(--line)}
+  .shot span{position:absolute;left:6px;bottom:6px;font-size:10px;background:rgba(0,0,0,.6);padding:2px 6px;border-radius:6px;color:#fff}
   .dbtns{padding-top:12px}
   .dbtns button{width:100%}
   .sw.busy{opacity:.5}
@@ -277,6 +282,7 @@ let staleShown = false;
 let pending = null;
 let lastSeenTs = '';
 let detailI = null;   // 当前打开的实例卡片
+let shotCache = {};   // 实例号 -> 截图数据（{i,ts,main,bb}）
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -363,6 +369,22 @@ function resOne(label, r){
   if (r.at && parts.length) html += '<span class="rw">' + esc(r.at) + (r.stale ? ' · 上次' : '') + '</span>';
   return html + '</div>';
 }
+function shotCard(label, b64){
+  if (!b64) return '<div class="shot empty">' + label + '</div>';
+  return '<div class="shot"><img alt="" src="data:image/jpeg;base64,' + b64 + '"><span>' + label + '</span></div>';
+}
+/* 点开卡片时向电脑要截图（不带 pending，避免和普通指令抢锁） */
+function requestShot(idx){
+  try {
+    if (!connected || !KEY) return;
+    const ts = Math.floor(Date.now() / 1000);
+    ensureKey().then(function(key){
+      return crypto.subtle.sign('HMAC', key, new TextEncoder().encode('shot|' + ts));
+    }).then(function(sig){
+      ws.send(PUB(TOPIC_CMD, JSON.stringify({ cmd: 'shot', i: String(idx), ts: ts, sig: bufToHex(sig) })));
+    }).catch(function(){});
+  } catch(e){ }
+}
 function stateTag(it){
   if (!it) return { tag: '—', cls: 'off' };
   if (it.state === 'run') return { tag: '运行中', cls: 'run' };
@@ -391,6 +413,8 @@ function renderDetail(){
   h += '<div class="sheet-head"><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>';
   h += '<div class="tag ' + t.cls + '">' + t.tag + '</div><div class="sheet-close" data-close="1">✕</div></div>';
   h += resOne('主世界', r.main) + resOne('夜世界', r.bb);
+  const sc = shotCache[String(it.i)] || null;
+  h += '<div class="shots">' + shotCard('主世界', sc && sc.main) + shotCard('夜世界', sc && sc.bb) + '</div>';
   if (it.sched !== null && it.sched !== undefined) {
     h += '<div class="drow"><span>升级上号</span><div class="sw' + (it.sched ? ' on' : '') + (pending ? ' busy' : '') + '" data-zkq="' + esc(it.i) + '" data-on="' + (it.sched ? 1 : 0) + '"><i></i></div></div>';
   } else if (it.state === 'run') {
@@ -400,7 +424,13 @@ function renderDetail(){
   box.innerHTML = h;
   mask.style.display = 'flex';
 }
-function openDetail(i){ detailI = String(i); renderDetail(); }
+function openDetail(i){
+  detailI = String(i);
+  renderDetail();
+  const sc = shotCache[detailI];
+  const now = Date.now();
+  if (!sc || !sc.ts || (now - sc.ts * 1000) > 30000) requestShot(detailI);
+}
 function closeDetail(){
   detailI = null;
   const mask = document.getElementById('sheetMask');
@@ -411,6 +441,13 @@ function render(raw){
   let d = null;
   try { d = JSON.parse(raw); } catch(e){ return; }
   last = d;
+  // 电脑发来的截图（随一份状态到达）
+  try {
+    if (d.shot && d.shot.i) {
+      shotCache[String(d.shot.i)] = d.shot;
+      if (detailI !== null && String(detailI) === String(d.shot.i)) renderDetail();
+    }
+  } catch(e){ }
 
   const guardOn = !!d.guard, sleepOn = !!d.sleep;
   const bG = document.getElementById('bGuard'), bS = document.getElementById('bSleep');

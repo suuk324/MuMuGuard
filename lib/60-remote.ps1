@@ -70,6 +70,56 @@ function Get-RemoteRes([string]$Index) {
     return $out
 }
 
+# 从采样截图生成手机用的小图（JPEG，宽 360，质量 60），返回 base64；没截图返回 $null
+function Get-RemoteShotPayload([string]$Index) {
+    $dir = ''
+    try { $dir = Get-ResShotDir } catch { }
+    if (-not $dir -or -not (Test-Path $dir) -or -not $Index) { return $null }
+    Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+    $out = [ordered]@{
+        i    = "$Index"
+        ts   = [int64](([datetime]::UtcNow - (New-Object datetime 1970,1,1,0,0,0,([DateTimeKind]::Utc))).TotalSeconds)
+        main = ''
+        bb   = ''
+    }
+    $codec = $null
+    try { $codec = @([System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' })[0] } catch { }
+    foreach ($w in @('main', 'bb')) {
+        $p = Join-Path $dir ("{0}_{1}.png" -f $Index, $w)
+        if (-not (Test-Path $p)) { continue }
+        $src = $null; $bmp = $null; $ms = $null
+        try {
+            $src = [System.Drawing.Image]::FromFile($p)
+            $ratio = 360.0 / [double]$src.Width
+            if ($ratio -gt 1) { $ratio = 1 }
+            $nw = [int][Math]::Round($src.Width * $ratio)
+            $nh = [int][Math]::Round($src.Height * $ratio)
+            $bmp = New-Object System.Drawing.Bitmap($nw, $nh)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+            $g.DrawImage($src, 0, 0, $nw, $nh)
+            $g.Dispose()
+            $ms = New-Object System.IO.MemoryStream
+            if ($codec) {
+                $ep = New-Object System.Drawing.Imaging.EncoderParameters(1)
+                $ep.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, [int64]60)
+                $bmp.Save($ms, $codec, $ep)
+                $ep.Dispose()
+            } else {
+                $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+            }
+            $out[$w] = [Convert]::ToBase64String($ms.ToArray())
+        } catch { }
+        finally {
+            if ($ms) { $ms.Dispose() }
+            if ($bmp) { $bmp.Dispose() }
+            if ($src) { $src.Dispose() }
+        }
+    }
+    if (-not $out.main -and -not $out.bb) { return $null }
+    return [pscustomobject]$out
+}
+
 function Build-RemoteState {
     $list = @()
     try {
@@ -193,7 +243,10 @@ function Build-RemoteState {
         instances = $list
         events    = $events
         last      = $script:remoteLast
+        shot      = $(try { $script:remoteShotPayload } catch { $null })
     }
+    # 截图只随一份状态发出去一次；手机没收到会重新请求
+    try { $script:remoteShotPayload = $null } catch { }
     try { return ($obj | ConvertTo-Json -Depth 8 -Compress) } catch { return '{}' }
 }
 
@@ -870,6 +923,21 @@ function Invoke-RemoteCommands {
                         Start-InstanceRecover "$($obj.i)"; Write-Diag "远程：重启实例 $($obj.i)"
                         $ok = $true; $msg = "实例 $($obj.i) 已下发重启"
                     } else { $msg = '缺少实例编号' }
+                }
+                'shot' {
+                    # 手机点开实例卡片时请求截图：读采样图压成小图，随下一份状态发回
+                    $idx = "$($obj.i)"
+                    if (-not $idx) { $msg = '缺少实例编号' }
+                    else {
+                        $pl = $null
+                        try { $pl = Get-RemoteShotPayload $idx } catch { }
+                        if ($pl) {
+                            $script:remoteShotPayload = $pl
+                            $ok = $true; $msg = '截图已发送'
+                        } else {
+                            $msg = '这个实例还没有截图（游戏不在前台或还没采样）'
+                        }
+                    }
                 }
                 'wakeall' {
                     try { Start-Waker } catch { }

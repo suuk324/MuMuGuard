@@ -1183,7 +1183,8 @@ function Show-InstanceDetail([string]$Index) {
                 $bd.CornerRadius = New-Object System.Windows.CornerRadius 8
                 $bd.Padding = New-Object System.Windows.Thickness 3
                 $img = New-Object System.Windows.Controls.Image
-                $img.Width = 172
+                $img.Width = 186
+                $img.Height = 105
                 $img.Stretch = 'Uniform'
                 if ($shot -and (Test-Path $shot.Path)) {
                     try {
@@ -1196,7 +1197,8 @@ function Show-InstanceDetail([string]$Index) {
                         $img.Source = $bi
                     } catch { }
                 }
-                if ($shot -and (Test-Path $shot.Path)) { $bd.Child = $img } else { $bd.Height = 120; $ph = New-ShellText '暂无截图' 10.5 '#3A3A42'; $ph.HorizontalAlignment = 'Center'; $ph.VerticalAlignment = 'Center'; $bd.Child = $ph }
+                if ($shot -and (Test-Path $shot.Path)) { $bd.Child = $img } else { $bd.Width = 192; $bd.Height = 105; $ph = New-ShellText '暂无截图' 10.5 '#3A3A42'; $ph.HorizontalAlignment = 'Center'; $ph.VerticalAlignment = 'Center'; $bd.Child = $ph }
+                if ($shot) { $shotPath = $shot.Path; $bd.Cursor = 'Hand'; $bd.ToolTip = '点击查看原图'; $bd.Add_MouseLeftButtonUp({ try { Start-Process -FilePath $shotPath } catch { } }.GetNewClosure()) }
                 [void]$box.Children.Add($bd)
                 $capTxt = $(if ($shot) { "$wName · $($shot.At.ToString('HH:mm'))" } else { "$wName · 暂无截图" })
                 $cap = New-ShellText $capTxt 10 '#6E6E78'

@@ -536,20 +536,24 @@ function Save-ResShot([string]$Index, $Sample, [string]$Png) {
         Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
         $src = [System.Drawing.Bitmap]::FromFile($Png)
         try {
-            $x0 = [int]($src.Width * 0.775)
-            $y0 = 0
-            $w = $src.Width - $x0
-            $h = [int]($src.Height * 0.365)
-            if ($w -lt 40 -or $h -lt 40) { return $null }
+            # 存整张画面（缩到 960 宽，保留全部布局信息），卡片里显示缩略图，点开能看细节
+            $maxW = 960
+            $outW = $src.Width
+            $outH = $src.Height
+            if ($outW -gt $maxW) {
+                $outH = [int]($src.Height * ($maxW / $src.Width))
+                $outW = $maxW
+            }
+            if ($outW -lt 40 -or $outH -lt 40) { return $null }
             $out = Join-Path $dir ("{0}_{1}.png" -f $Index, $Sample.World)
-            $crop = New-Object System.Drawing.Bitmap $w, $h
-            $g = [System.Drawing.Graphics]::FromImage($crop)
+            $img = New-Object System.Drawing.Bitmap $outW, $outH
+            $g = [System.Drawing.Graphics]::FromImage($img)
             $g.InterpolationMode = 'HighQualityBicubic'
-            $g.DrawImage($src, (New-Object System.Drawing.Rectangle 0, 0, $w, $h),
-                         (New-Object System.Drawing.Rectangle $x0, $y0, $w, $h), [System.Drawing.GraphicsUnit]::Pixel)
+            $g.DrawImage($src, (New-Object System.Drawing.Rectangle 0, 0, $outW, $outH),
+                         (New-Object System.Drawing.Rectangle 0, 0, $src.Width, $src.Height), [System.Drawing.GraphicsUnit]::Pixel)
             $g.Dispose()
-            $crop.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)
-            $crop.Dispose()
+            $img.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)
+            $img.Dispose()
             if (-not $script:resShotInfo.ContainsKey($Index)) { $script:resShotInfo[$Index] = @{} }
             $script:resShotInfo[$Index]["$($Sample.World)"] = @{ Path = $out; At = (Get-Date) }
             return $out

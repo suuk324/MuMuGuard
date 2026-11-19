@@ -32,7 +32,9 @@ function Hide-Panel {
         # 记录尺寸：最小化会把它改掉，还原时要显式设回去
         $script:restoreW = $win.Width
         $script:restoreH = $win.Height
-        $win.ShowInTaskbar = $false
+        # 不要去掉任务栏按钮：Win11 会把新的托盘图标塞进溢出区，
+        # 去掉任务栏按钮后用户找不到图标，就会以为程序挂了、点什么都没反应
+        $win.ShowInTaskbar = $true
         # 只能用最小化，不能用 Hide：Hide 会让 ShowDialog 的消息循环结束，
         # 进程直接退出、托盘图标跟着消失（这是 1.2.4 踩过的坑）
         $win.WindowState = 'Minimized'

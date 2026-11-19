@@ -659,6 +659,52 @@ function Get-ResShotDir {
     return $dir
 }
 
+# 旧版本后台线程曾把截图写到 %LOCALAPPDATA%\MuMuGuard\shots，这里做兼容：
+# 主目录没有或比旧目录旧时，把旧目录的新文件搬回主目录，保证 UI/手机读到的是同一份
+function Get-LegacyResShotDir {
+    try { return (Join-Path $env:LOCALAPPDATA 'MuMuGuard\shots') } catch { return $null }
+}
+function Resolve-ResShotPath([string]$Index, [string]$World) {
+    try {
+        $dir = Get-ResShotDir
+        $p = Join-Path $dir ("{0}_{1}.png" -f $Index, $World)
+        $ld = Get-LegacyResShotDir
+        if ($ld) {
+            $lp = Join-Path $ld ("{0}_{1}.png" -f $Index, $World)
+            if (Test-Path $lp) {
+                $copy = $true
+                if (Test-Path $p) { $copy = ((Get-Item $lp).LastWriteTime -gt (Get-Item $p).LastWriteTime) }
+                if ($copy) {
+                    try { Copy-Item $lp $p -Force } catch { }
+                    try {
+                        $lj = [System.IO.Path]::ChangeExtension($lp, '.json')
+                        if (Test-Path $lj) { Copy-Item $lj ([System.IO.Path]::ChangeExtension($p, '.json')) -Force }
+                    } catch { }
+                }
+            }
+        }
+        if (Test-Path $p) { return $p }
+    } catch { }
+    return $null
+}
+function Resolve-ResShotMetaPath([string]$Index, [string]$World) {
+    try {
+        $dir = Get-ResShotDir
+        $p = Join-Path $dir ("{0}_{1}.json" -f $Index, $World)
+        $ld = Get-LegacyResShotDir
+        if ($ld) {
+            $lp = Join-Path $ld ("{0}_{1}.json" -f $Index, $World)
+            if (Test-Path $lp) {
+                $copy = $true
+                if (Test-Path $p) { $copy = ((Get-Item $lp).LastWriteTime -gt (Get-Item $p).LastWriteTime) }
+                if ($copy) { try { Copy-Item $lp $p -Force } catch { } }
+            }
+        }
+        if (Test-Path $p) { return $p }
+    } catch { }
+    return $null
+}
+
 # 只裁右上角那摞资源条，存成图；同一实例同一世界只保留最新一张
 function Save-ResShot([string]$Index, $Sample, [string]$Png) {
     try {
@@ -706,10 +752,8 @@ function Get-ResShot([string]$Index, [string]$World) {
             $info = $script:resShotInfo[$Index][$World]
             if ($info -and (Test-Path $info.Path)) { return $info }
         }
-        $dir = Get-ResShotDir
-        if (-not $dir) { return $null }
-        $p = Join-Path $dir ("{0}_{1}.png" -f $Index, $World)
-        if (Test-Path $p) { return @{ Path = $p; At = (Get-Item $p).LastWriteTime } }
+        $p = Resolve-ResShotPath $Index $World
+        if ($p) { return @{ Path = $p; At = (Get-Item $p).LastWriteTime } }
     } catch { }
     return $null
 }
@@ -739,10 +783,8 @@ function Update-ResSamples([string]$Index) {
 # 进程重启后从磁盘恢复上一次的数值（标记为「上次」）
 function Get-ResMeta([string]$Index, [string]$World) {
     try {
-        $dir = Get-ResShotDir
-        if (-not $dir) { return $null }
-        $p = Join-Path $dir ("{0}_{1}.json" -f $Index, $World)
-        if (-not (Test-Path $p)) { return $null }
+        $p = Resolve-ResShotMetaPath $Index $World
+        if (-not $p) { return $null }
         $j = Get-Content $p -Raw -Encoding UTF8 | ConvertFrom-Json
         return [pscustomobject]@{
             World = "$($j.World)"; GameVer = "$($j.GameVer)"
@@ -750,6 +792,16 @@ function Get-ResMeta([string]$Index, [string]$World) {
             Samples = 1; At = [datetime]::Parse($j.At); Stale = $true
         }
     } catch { return $null }
+}
+
+# 不指定世界时（实例详情/卡片），从磁盘挑最近采集过的那个世界，避免「重启后显示尚未采集」
+function Get-ResMetaFallback([string]$Index, [string]$World) {
+    if ($World) { return (Get-ResMeta $Index $World) }
+    $a = Get-ResMeta $Index 'main'
+    $b = Get-ResMeta $Index 'bb'
+    if ($a -and $b) { try { if ([datetime]$b.At -gt [datetime]$a.At) { return $b } } catch { }; return $a }
+    if ($a) { return $a }
+    return $b
 }
 
 function Get-ResStable([string]$Index, [string]$World) {
@@ -771,11 +823,11 @@ function Get-ResStable([string]$Index, [string]$World) {
             }
         }
     } catch { }
-    if (-not $script:resSamples.ContainsKey($Index)) { return (Get-ResMeta $Index $World) }
+    if (-not $script:resSamples.ContainsKey($Index)) { return (Get-ResMetaFallback $Index $World) }
     $all = @($script:resSamples[$Index])
     $world = $(if ($World) { $World } else { "$($all[$all.Count - 1].World)" })
     $same = @($all | Where-Object { "$($_.World)" -eq $world })
-    if ($same.Count -eq 0) { return (Get-ResMeta $Index $World) }
+    if ($same.Count -eq 0) { return (Get-ResMetaFallback $Index $World) }
     if ($same.Count -lt 2) {
         $one = $same[0]
         $one | Add-Member -NotePropertyName Samples -NotePropertyValue 1 -Force
@@ -833,9 +885,13 @@ $script:resBgScript = {
     }
 
     # 后台线程自己的模块上下文
+    # 注意：$DataDir 必须在这里定义，否则 Get-ResShotDir 会退到 %LOCALAPPDATA%\MuMuGuard\shots，
+    # 主线程读的却是面板目录下的 shots，两边对不上（表现为截图/资源"刚刚还有现在没了"）
     $script:cfg = [pscustomobject]@{ MuMuRoot = "$($Sync.MuMuRoot)" }
     $script:adbSync = [pscustomobject]@{ Data = @{} }
     $script:AdbExe = "$($Sync.AdbExe)"
+    $DataDir = "$($Sync.DataDir)"
+    $script:DataDir = "$($Sync.DataDir)"
     $script:resSamples = @{}
     $script:resShotInfo = @{}
     $script:resCache = @{}

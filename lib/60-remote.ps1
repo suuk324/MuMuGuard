@@ -85,7 +85,11 @@ function Get-RemoteShotPayload([string]$Index) {
     $codec = $null
     try { $codec = @([System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' })[0] } catch { }
     foreach ($w in @('main', 'bb')) {
-        $p = Join-Path $dir ("{0}_{1}.png" -f $Index, $w)
+        $p = $null
+        try { $p = Resolve-ResShotPath $Index $w } catch { }
+        if (-not $p) {
+            $p = Join-Path $dir ("{0}_{1}.png" -f $Index, $w)
+        }
         if (-not (Test-Path $p)) { continue }
         $src = $null; $bmp = $null; $ms = $null
         try {
@@ -363,7 +367,16 @@ $script:remoteServerScript = {
                 if ($si -notmatch '^\d+$') { $si = '' }
                 if ($sw -ne 'main' -and $sw -ne 'bb') { $sw = 'main' }
                 $sf = ''
-                if ($si -and $shotDir) { $sf = Join-Path $shotDir ("{0}_{1}.png" -f $si, $sw) }
+                if ($si -and $shotDir) {
+                    $sf = Join-Path $shotDir ("{0}_{1}.png" -f $si, $sw)
+                    if (-not (Test-Path $sf)) {
+                        # 兼容旧版本后台线程写到 LOCALAPPDATA 的截图
+                        try {
+                            $lpx = Join-Path (Join-Path $env:LOCALAPPDATA 'MuMuGuard\shots') ("{0}_{1}.png" -f $si, $sw)
+                            if (Test-Path $lpx) { $sf = $lpx }
+                        } catch { }
+                    }
+                }
                 if ($sf -and (Test-Path $sf)) {
                     try {
                         $sb2 = [System.IO.File]::ReadAllBytes($sf)

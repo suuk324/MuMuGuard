@@ -25,12 +25,12 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.0.19'
+        Title = 'MuMuGuard 2.0.20'
         Lines = @(
-            '手机卡片里能看游戏截图了：局域网直接看，出门在外点开卡片会自动向电脑要一张。'
-            '截图按缩略图传输（两张约 50KB），只在你打开卡片时发一次，不占日常流量。'
-            '公告窗口固定在最上面；设置、详情、手机访问弹窗打开时也会自动到最前。'
-            '另外修了出门在外二维码不显示、强杀后打不开；出门在外页也能点实例看卡片。'
+            '修好了「资源数据和截图过一会儿就没了」：后台采样线程之前把新截图写到了用户目录，'
+            '而界面和手机读取的是面板目录，所以看起来像数据被删了（其实没删）。'
+            '现在统一写回面板目录，旧目录里已有的截图会自动迁移回来。'
+            '重启面板后会用磁盘上最近一次的数据先补上（标「上次」），不用等下一次采样。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

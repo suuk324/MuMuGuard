@@ -1152,18 +1152,14 @@ function Show-InstanceDetail([string]$Index) {
             $verTag = $(if ("$($res.GameVer)" -eq 'cn') { '国服' } elseif ("$($res.GameVer)" -eq 'global') { '国际服' } else { '' })
             if ($res -and $res.World -eq 'main') {
                 $ln = "金 $(Format-ResAmount $res.Gold) · 圣 $(Format-ResAmount $res.Elixir) · 黑 $(Format-ResAmount $res.Dark)"
-                if ($null -ne $res.Gems) { $ln += " · 宝 $(Format-ResAmount $res.Gems)" }
                 if ($res.Stale) { $ln += '（上次）' }
                 if ($res.Samples -ge 2) { $ln += " · $($res.Samples)次" }
                 & $addRow $(if ($verTag) { "$verTag 主世界" } else { '主世界' }) $ln ''
-                if ($null -ne $res.Extra) { & $addRow '点券' (Format-ResAmount $res.Extra) '' }
             } elseif ($res -and $res.World -eq 'bb') {
                 $ln = "兵金 $(Format-ResAmount $res.Gold) · 兵圣 $(Format-ResAmount $res.Elixir)"
-                if ($null -ne $res.Gems) { $ln += " · 宝 $(Format-ResAmount $res.Gems)" }
                 if ($res.Stale) { $ln += '（上次）' }
                 if ($res.Samples -ge 2) { $ln += " · $($res.Samples)次" }
                 & $addRow $(if ($verTag) { "$verTag 夜世界" } else { '夜世界' }) $ln ''
-                if ($null -ne $res.Extra) { & $addRow '点券' (Format-ResAmount $res.Extra) '' }
             } else {
                 & $addRow '资源' '游戏不在前台，读不到' '#6E6E78'
             }

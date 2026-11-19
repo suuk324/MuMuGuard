@@ -211,7 +211,7 @@ function Get-ShellRows {
             GuestGB = $(if ($sic) { $sic.MemoryGB } else { 0 })
             Online = $null; Script = $null; Game = $null; Spin = $null
             UpName = ''; UpLvl = 0; UpDone = $null; UpLeft = ''
-            Judge = '休眠中'; Level = 0; Sleeping = $true; WakeAt = $wakeAt
+            Judge = '休眠中'; Level = 0; Sleeping = $true; WakeAt = $wakeAt; SleepUpgrade = "$($s.Upgrade)"
         }
     }
 
@@ -419,7 +419,12 @@ function Render-ShellManage {
         $sp.Margin = New-Object System.Windows.Thickness(10, 0, 0, 0)
         $sp.VerticalAlignment = 'Center'
         [void]$sp.Children.Add((New-ShellText "$($r.Name)" 12.5 '#F2F2F5'))
-        $sub = New-ShellText ("{0} · {1}" -f $r.Judge, $(if ($r.UpName) { "$($r.UpName) Lv.$($r.UpLvl)" } else { '无升级任务' })) 10.5 '#6E6E78'
+$subTxt = ''
+if ($r.UpName) { $subTxt = "$($r.UpName) Lv.$($r.UpLvl)" }
+elseif ("$($r.SleepUpgrade)" -and "$($r.SleepUpgrade)" -ne '') { $subTxt = "$($r.SleepUpgrade)" }
+else { $subTxt = '无升级任务' }
+if ($r.UpLeft -and -not $r.Sleeping) { $subTxt += " · 剩 $($r.UpLeft)" }
+$sub = New-ShellText ("{0} · {1}" -f $r.Judge, $subTxt) 10.5 '#6E6E78'
         $sub.Margin = New-Object System.Windows.Thickness(0, 2, 0, 0)
         [void]$sp.Children.Add($sub)
         [System.Windows.Controls.Grid]::SetColumn($sp, 1)
@@ -431,7 +436,7 @@ function Render-ShellManage {
         $ops.VerticalAlignment = 'Center'
 
         $detOff = (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains $idx)
-        $btnDet = New-ShellButton $(if ($detOff) { '已暂停' } else { '检测中' }) $(if ($detOff) { '#6E6E78' } else { '#9E9EA6' }) '#1AFFFFFF' ({
+        $btnDet = New-ShellButton $(if ($detOff) { '恢复检测' } else { '暂停检测' }) '#9E9EA6' '#1AFFFFFF' ({
             $cur = @($script:cfg.DetectOff | Where-Object { $_ -ne $null -and "$_" -ne '' })
             if (@($cur | Where-Object { "$_" -eq $idx }).Count -gt 0) {
                 $script:cfg.DetectOff = @($cur | Where-Object { "$_" -ne $idx })

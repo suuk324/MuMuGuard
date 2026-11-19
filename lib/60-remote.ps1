@@ -199,7 +199,7 @@ function Build-RemoteState {
 
 # ---------------- 服务端脚本（后台 runspace 运行） ----------------
 $script:remoteServerScript = {
-    param($sync, $port, $token, $root)
+    param($sync, $port, $token, $root, $shotDir)
 
     $listener = $null
     $bound = $false
@@ -250,6 +250,15 @@ $script:remoteServerScript = {
         $stream.Write($bytes, 0, $bytes.Length)
         $stream.Flush()
     }
+    function Send-Bin($client, $code, $ctype, $bytes) {
+        $reason = switch ($code) { 200 { 'OK' } 404 { 'Not Found' } default { 'OK' } }
+        $head = "HTTP/1.1 $code $reason`r`nContent-Type: $ctype`r`nContent-Length: $($bytes.Length)`r`nCache-Control: no-store`r`nConnection: close`r`n`r`n"
+        $hb = [System.Text.Encoding]::ASCII.GetBytes($head)
+        $stream = $client.GetStream()
+        $stream.Write($hb, 0, $hb.Length)
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.Flush()
+    }
 
     while ($true) {
         if ($sync.Stop) { break }
@@ -280,6 +289,26 @@ $script:remoteServerScript = {
                 $state = [string]$sync.RemoteState
                 if (-not $state) { $state = '{}' }
                 Send-Res $client 200 'application/json; charset=utf-8' $state
+            }
+            elseif ($path -eq '/api/shot') {
+                # 手机端看游戏截图：直接读磁盘上最近一次采样保存的整屏图
+                $si = ''; $sw = 'main'
+                foreach ($kv in ($query -split '&')) {
+                    if ($kv -match '^i=(.*)$') { $si = [System.Uri]::UnescapeDataString($Matches[1]) }
+                    if ($kv -match '^w=(.*)$') { $sw = [System.Uri]::UnescapeDataString($Matches[1]) }
+                }
+                if ($si -notmatch '^\d+$') { $si = '' }
+                if ($sw -ne 'main' -and $sw -ne 'bb') { $sw = 'main' }
+                $sf = ''
+                if ($si -and $shotDir) { $sf = Join-Path $shotDir ("{0}_{1}.png" -f $si, $sw) }
+                if ($sf -and (Test-Path $sf)) {
+                    try {
+                        $sb2 = [System.IO.File]::ReadAllBytes($sf)
+                        Send-Bin $client 200 'image/png' $sb2
+                    } catch { Send-Res $client 500 'text/plain; charset=utf-8' 'ERR' }
+                } else {
+                    Send-Res $client 404 'text/plain; charset=utf-8' 'NO SHOT'
+                }
             }
             elseif ($path -eq '/api/action' -and $method -eq 'POST') {
                 $body = ''
@@ -353,7 +382,7 @@ function Get-RemotePage {
   .ev b{color:var(--dim);font-weight:400;margin-right:8px}
   .ev.warn{color:var(--amber)}.ev.err{color:#FF8078}
   .empty{color:var(--dim);font-size:12px;padding:10px 0}
-  .btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:4px 0 12px}
+  .btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:4px 0 12px}
   button{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);border-radius:11px;padding:12px 8px;font-size:13px;font-family:inherit}
   button:active{background:rgba(255,255,255,.12)}
   button.warn{color:var(--amber)}
@@ -369,7 +398,7 @@ function Get-RemotePage {
   footer{text-align:center;color:var(--dim);font-size:11px;margin-top:14px}
   .err{color:var(--red);font-size:12px;padding:6px 0}
   .sub{padding:0 2px 12px;font-size:11.5px;color:var(--dim)}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 6px;text-align:center}
   .stat b{display:block;font-size:19px;font-weight:600;line-height:1.1}
   .stat span{display:block;font-size:9.5px;color:var(--dim);margin-top:3px}
@@ -384,20 +413,26 @@ function Get-RemotePage {
   .memrow{display:flex;align-items:flex-end;padding:8px 0 0}
   .memrow b{font-size:24px;font-weight:600;line-height:1}
   .memrow em{font-style:normal;font-size:11px;color:var(--dim);margin:0 0 3px 5px}
-  .icard{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+  .icard{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
   .ihead{display:flex;align-items:center;gap:10px;padding:11px 12px}
   .icard .tag{margin-left:auto}
-  .ires{padding:0 12px 10px}
+  .ires{padding:0 12px 10px;min-width:0}
   .idet{display:none;border-top:1px solid var(--line);padding:2px 12px 12px}
   .icard.open .idet{display:block}
   .resline{font-size:12.5px;color:var(--sub);padding:3px 0;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;flex-wrap:wrap;gap:6px}
   .resline .rk{color:var(--dim);font-size:11px;flex:0 0 42px}
   .resline .rw{color:var(--dim);font-size:10px;margin-left:auto}
   .resline.dim{color:var(--dim)}
-  .drow{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
+  .drow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;min-width:0}
   .drow span{font-size:13px}
   .dbtns{display:flex;gap:9px;padding-top:8px}
   .dbtns button{flex:1;padding:10px 8px;font-size:12.5px}
+  .shots{display:flex;gap:8px;padding:2px 0 10px;min-width:0}
+  .shot{flex:1 1 0;min-width:0;position:relative;display:block;border-radius:9px;overflow:hidden;background:#1F1F23;aspect-ratio:16/9}
+  .shot img{width:100%;max-width:100%;height:100%;min-width:0;object-fit:cover;display:block}
+  .shot span{position:absolute;left:6px;bottom:5px;font-size:10px;color:#fff;background:rgba(0,0,0,.5);padding:1px 6px;border-radius:6px}
+  .shot.empty{display:flex;align-items:center;justify-content:center}
+  .shot.empty::after{content:'暂无截图';color:var(--dim);font-size:11px}
   .sw.busy{opacity:.45}
   .icard .chev{color:var(--dim);font-size:11px;margin-left:4px}
 </style>
@@ -492,6 +527,17 @@ function resOne(label, r){
   if(r.at && parts.length) html += '<span class="rw">' + esc(r.at) + (r.stale ? ' · 上次' : '') + '</span>';
   html += '</div>';
   return html;
+}
+function shotBox(w, label, i, ts){
+  const t = Math.floor((ts || Date.now()) / 60000);
+  const src = '/api/shot?k=' + encodeURIComponent(K) + '&i=' + encodeURIComponent(i) + '&w=' + w + '&t=' + t;
+  return '<a class="shot" href="' + src + '" target="_blank" rel="noopener">'
+    + '<img loading="lazy" alt="" src="' + src + '" onerror="this.parentNode.className=&#39;shot empty&#39;;this.remove()">'
+    + '<span>' + label + '</span></a>';
+}
+
+function shotsRow(it, ts){
+  return '<div class="shots">' + shotBox('main', '主世界', it.i, ts) + shotBox('bb', '夜世界', it.i, ts) + '</div>';
 }
 
 let openSet = [];
@@ -595,6 +641,7 @@ const _so = document.getElementById("statOff"); if(_so) _so.textContent = _off;
         } else if(it.state === 'run'){
           det += '<div class="drow"><span>升级上号</span><span class="meta">读取中…</span></div>';
         }
+        det += shotsRow(it, d.ts);
         det += '<div class="dbtns"><button data-restart="' + esc(it.i) + '">重启实例</button></div>';
         return '<div class="icard' + (open ? ' open' : '') + '" data-i="' + esc(it.i) + '">'
           + '<div class="ihead"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>'
@@ -651,6 +698,11 @@ document.getElementById('instances').addEventListener('click', function(ev){
   }
 });
 
+/* #i3 可以直接打开某个实例的卡片（方便分享/调试） */
+try {
+  const mm = location.hash.match(/#i(\d+)/);
+  if (mm && openSet.indexOf(mm[1]) < 0) { openSet.push(mm[1]); }
+} catch(e){}
 tick();
 setInterval(tick, 2000);
 </script>
@@ -680,7 +732,9 @@ function Start-RemoteServer {
     $rs.Open()
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
-    [void]$ps.AddScript($script:remoteServerScript).AddArgument($sync).AddArgument($port).AddArgument($token).AddArgument($Root)
+    $shotDir = ''
+    try { $shotDir = Get-ResShotDir } catch { }
+    [void]$ps.AddScript($script:remoteServerScript).AddArgument($sync).AddArgument($port).AddArgument($token).AddArgument($Root).AddArgument($shotDir)
     $handle = $ps.BeginInvoke()
 
     $script:remotePs = $ps

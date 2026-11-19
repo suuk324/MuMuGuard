@@ -36,6 +36,33 @@ function Switch-ShellPage([int]$n) {
     if ($s) { $s.Text = $titles[$n - 1][1] }
 }
 
+
+# 无边框窗口的拖动：必须等鼠标真的移动超过阈值再 DragMove。
+# 直接在 MouseLeftButtonDown 里调 DragMove 会抢走鼠标捕获，
+# 子按钮的 MouseLeftButtonUp 永远收不到 —— 表现就是整个界面点不动。
+function Enable-WindowDrag($Element, $Window) {
+    if (-not $Element -or -not $Window) { return }
+    $st = @{ Pending = $false; Start = $null }
+    $Element.Add_MouseLeftButtonDown({
+        param($s, $e)
+        $st.Start = $e.GetPosition($Window)
+        $st.Pending = $true
+    }.GetNewClosure())
+    $Element.Add_MouseMove({
+        param($s, $e)
+        if (-not $st.Pending) { return }
+        if ($e.LeftButton -ne [System.Windows.Input.MouseButtonState]::Pressed) { $st.Pending = $false; return }
+        if (-not $st.Start) { return }
+        $p = $e.GetPosition($Window)
+        if (([Math]::Abs($p.X - $st.Start.X) + [Math]::Abs($p.Y - $st.Start.Y)) -gt 4) {
+            $st.Pending = $false
+            try { $Window.DragMove() } catch { }
+        }
+    }.GetNewClosure())
+    $Element.Add_MouseLeftButtonUp({ $st.Pending = $false }.GetNewClosure())
+    $Element.Add_LostMouseCapture({ $st.Pending = $false }.GetNewClosure())
+}
+
 function Initialize-Shell {
     param($Win, $Logo, $InstanceIcon)
 
@@ -86,7 +113,7 @@ function Initialize-Shell {
     if ($rb) { $rb.Add_MouseLeftButtonUp({ try { Show-RemoteDialog } catch { Write-Diag "手机访问窗口异常: $($_.Exception.Message)" } }) }
     # 公告入口已并入设置页
     $root = $Win.FindName('Root')
-    if ($root) { $root.Add_MouseLeftButtonDown({ try { $Win.DragMove() } catch { } }) }
+    Enable-WindowDrag $root $Win
 
     $startPage = 1
     if ($env:MMG_PAGE) { try { $startPage = [int]$env:MMG_PAGE } catch { } }
@@ -768,7 +795,7 @@ function Set-View([string]$mode) {
             try { Set-ThemeResources $script:shellWin (Get-ActiveTheme) } catch { }
             $lg = $script:compactRoot.FindName('CmpLogo')
             if ($lg -and $script:shellLogo) { $lg.Source = $script:shellLogo }
-            $script:compactRoot.Add_MouseLeftButtonDown({ try { $win.DragMove() } catch { } })
+        Enable-WindowDrag $script:compactRoot $win
             $ex = $script:compactRoot.FindName('BtnCmpExpand')
             if ($ex) { $ex.Add_MouseLeftButtonUp({ Set-View 'shell'; Update-Ui }) }
             $cl = $script:compactRoot.FindName('BtnCmpClose')
@@ -958,7 +985,7 @@ function Show-SettingInput {
     $dlg.FindName('Ttl').Text = $Label
     $dlg.FindName('Dsc').Text = $Desc
     $dlg.FindName('Inp').Text = $cur
-    $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+    Enable-WindowDrag $dlg.FindName('Root') $dlg
     $dlg.FindName('BtnCancel').Add_MouseLeftButtonUp({ $dlg.Close() })
     $dlg.FindName('BtnOk').Add_MouseLeftButtonUp({
         $raw = $dlg.FindName('Inp').Text
@@ -1032,7 +1059,7 @@ function Show-ClearMemoryDialog {
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
     try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { }
     $script:chkOn = $false
-    $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+    Enable-WindowDrag $dlg.FindName('Root') $dlg
     $dlg.FindName('ChkRow').Add_MouseLeftButtonUp({
         $script:chkOn = -not $script:chkOn
         $box = $dlg.FindName('ChkBox')
@@ -1113,7 +1140,7 @@ function Show-InstanceDetail([string]$Index) {
 '@
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
     try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { }
-    $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+    Enable-WindowDrag $dlg.FindName('Root') $dlg
     $dlg.FindName('ImgIcon').Source = $script:shellIcon
     $dlg.FindName('TxtName').Text = "$($row.Name)"
     $dlg.FindName('TxtSub').Text = ("{0} · {1}" -f $row.Judge, $(if ($row.Online) { '运行中' } else { '已关机' }))

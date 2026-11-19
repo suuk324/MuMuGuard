@@ -705,7 +705,7 @@ function Show-RemoteDialog {
     $txtState  = $dlg.FindName('TxtState')
     $btnCopy   = $dlg.FindName('BtnCopy')
     if ($btnCopy) { $btnCopy.Add_MouseLeftButtonUp({ try { $t = $script:remoteDlg.FindName('TxtUrl'); if ($t -and $t.Text) { [System.Windows.Clipboard]::SetText($t.Text) } } catch { } }) }
-    $rootDlg = $dlg.FindName('TxtTitle'); if (-not $rootDlg) { try { $dlg.FindName('TxtHint').Add_MouseLeftButtonDown({ $dlg.DragMove() }) } catch { } }
+        $rootDlg = $dlg.FindName('TxtTitle'); if ($rootDlg) { Enable-WindowDrag $rootDlg $dlg } else { $hintDlg = $dlg.FindName('TxtHint'); if ($hintDlg) { Enable-WindowDrag $hintDlg $dlg } }
     $btnModeLan = $dlg.FindName('BtnModeLan')
     $btnModeWan = $dlg.FindName('BtnModeWan')
 
@@ -819,7 +819,7 @@ function Show-RemoteDialog {
 
     $dlg.FindName('BtnClose').Add_Click({ $dlg.Close() })
     $dlg.Add_Closed({ $script:remoteDlg = $null })
-    try { $dlg.FindName('TxtTitle').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } }) } catch { }
+try { Enable-WindowDrag ($dlg.FindName('TxtTitle')) $dlg } catch { }
 
     $script:remoteDlg = $dlg
     & $script:remoteRefreshUi

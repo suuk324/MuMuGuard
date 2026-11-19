@@ -328,7 +328,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.8'
+$script:appVersion     = '2.0.9'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -974,6 +974,15 @@ $win.Add_Loaded({
         Update-Ui
     }
     $timer.Start()
+    # 启动时把自己弹到最前：如果开机时前台是别的全屏程序（浏览器/画图工具），
+    # 窗口会开在它后面，没有任务栏按钮时用户会以为程序没起来
+    try {
+        $win.ShowInTaskbar = $true
+        $win.Activate() | Out-Null
+        $win.Topmost = $true
+        $win.Topmost = $false
+        $win.Focus() | Out-Null
+    } catch { }
 })
 
 $win.Add_Closing({

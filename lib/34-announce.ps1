@@ -151,7 +151,7 @@ function Show-Announcement {
     } catch { }
 
     # 拖动
-    $dlg.FindName('Root').Add_MouseLeftButtonDown({ try { $dlg.DragMove() } catch { } })
+    Enable-WindowDrag ($dlg.FindName('Root')) $dlg
 
     # 打开仓库
     $openRepo = {

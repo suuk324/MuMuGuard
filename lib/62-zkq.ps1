@@ -159,3 +159,72 @@ function Format-ZkqRemain($CompleteAt) {
     if ($span.TotalHours -ge 1) { return ('{0}小时{1}分' -f [int][Math]::Floor($span.TotalHours), $span.Minutes) }
     return ('{0}分钟' -f [Math]::Max(1, [int][Math]::Ceiling($span.TotalMinutes)))
 }
+# ---------------- 「升级时间上号」开关（读取/修改 紫孔雀 zkq_config.json）----------------
+# 配置在每台模拟器各自的 /sdcard/zkqFiles/zkq_config.json
+# 键 upgrade_time_scheduling："1" = 升级完成后按时间自动上号，"0" = 关闭
+# 修改方式：在设备上跑一个 shell 脚本用 sed 原地替换这一个值，其余字节不动，
+#          避免整文件往返把换行改成 CRLF、也避免破坏其它 1430 个键。
+
+function Get-ZkqRawConfig([string]$Index) {
+    $mm = Get-ZkqManagerPath
+    if (-not $mm) { return $null }
+    try {
+        $out = & $mm adb -v $Index -c "shell cat /sdcard/zkqFiles/zkq_config.json" 2>&1
+    } catch { return $null }
+    $txt = ($out | Out-String)
+    $i = $txt.IndexOf('{')
+    if ($i -lt 0) { return $null }
+    return $txt.Substring($i).Trim()
+}
+
+# 返回 $true=开启 $false=关闭 $null=读不到（实例没开/文件不存在）
+function Get-ZkqUpgradeSchedule([string]$Index) {
+    try {
+        $raw = Get-ZkqRawConfig $Index
+        if (-not $raw) { return $null }
+        if ($raw -notmatch '"upgrade_time_scheduling"\s*:\s*"([^"]*)"') { return $null }
+        return ($Matches[1].Trim() -eq '1')
+    } catch { return $null }
+}
+
+# 改开关：推一个 sed 脚本上去执行，再读回校验；被紫孔雀回写就重试一次
+function Set-ZkqUpgradeSchedule([string]$Index, [bool]$On) {
+    $mm = Get-ZkqManagerPath
+    if (-not $mm) { return $null }
+    $cur = Get-ZkqUpgradeSchedule $Index
+    if ($null -eq $cur) { return $null }
+    if ($cur -eq $On) { return $true }
+
+    $val = $(if ($On) { '1' } else { '0' })
+    $shLocal = Join-Path $env:TEMP ('mmg-sched-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.sh')
+    $shDev = '/sdcard/zkqFiles/_mmg_sched.sh'
+
+    # 用单引号模板 + 占位符替换：双引号 here-string 里的 $F 会被 PowerShell 吞掉
+    $shTpl = @'
+#!/system/bin/sh
+F=/sdcard/zkqFiles/zkq_config.json
+sed 's/"upgrade_time_scheduling": "[01]"/"upgrade_time_scheduling": "@VAL@"/' "$F" > /sdcard/zkqFiles/_mmg_new.json
+if [ -s /sdcard/zkqFiles/_mmg_new.json ]; then
+  cat /sdcard/zkqFiles/_mmg_new.json > "$F"
+fi
+rm -f /sdcard/zkqFiles/_mmg_new.json
+'@
+    $shText = $shTpl.Replace('@VAL@', $val)
+    # shell 脚本必须用 LF，不能带 CR
+    [System.IO.File]::WriteAllText($shLocal, $shText.Replace("`r`n", "`n"), (New-Object System.Text.UTF8Encoding $false))
+
+    try {
+        for ($try = 1; $try -le 2; $try++) {
+            & $mm adb -v $Index -c "push `"$shLocal`" $shDev" 2>&1 | Out-Null
+            & $mm adb -v $Index -c "shell su -c 'sh $shDev'" 2>&1 | Out-Null
+            Start-Sleep -Milliseconds 500
+            $after = Get-ZkqUpgradeSchedule $Index
+            if ($after -eq $On) { return $true }
+            Start-Sleep -Milliseconds 700
+        }
+        return $null
+    } catch { return $null } finally {
+        try { Remove-Item $shLocal -Force -ErrorAction SilentlyContinue } catch { }
+        try { & $mm adb -v $Index -c "shell rm -f $shDev" 2>&1 | Out-Null } catch { }
+    }
+}

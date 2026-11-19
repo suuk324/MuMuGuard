@@ -556,6 +556,12 @@ function Save-ResShot([string]$Index, $Sample, [string]$Png) {
             $img.Dispose()
             if (-not $script:resShotInfo.ContainsKey($Index)) { $script:resShotInfo[$Index] = @{} }
             $script:resShotInfo[$Index]["$($Sample.World)"] = @{ Path = $out; At = (Get-Date) }
+            # 顺手把这次读到的数值也存下来，进程重启后卡片还能显示（标注「上次」）
+            try {
+                $metaPath = [System.IO.Path]::ChangeExtension($out, '.json')
+                $meta = [pscustomobject]@{ Gold = $Sample.Gold; Elixir = $Sample.Elixir; Dark = $Sample.Dark; Gems = $Sample.Gems; Extra = $Sample.Extra; GameVer = $Sample.GameVer; World = $Sample.World; At = (Get-Date).ToString('o') }
+                [System.IO.File]::WriteAllText($metaPath, ($meta | ConvertTo-Json -Compress), (New-Object System.Text.UTF8Encoding $false))
+            } catch { }
             return $out
         } finally { try { $src.Dispose() } catch { } }
     } catch { return $null }
@@ -598,11 +604,28 @@ function Update-ResSamples([string]$Index) {
     return $r
 }
 
+# 进程重启后从磁盘恢复上一次的数值（标记为「上次」）
+function Get-ResMeta([string]$Index, [string]$World) {
+    try {
+        $dir = Get-ResShotDir
+        if (-not $dir) { return $null }
+        $p = Join-Path $dir ("{0}_{1}.json" -f $Index, $World)
+        if (-not (Test-Path $p)) { return $null }
+        $j = Get-Content $p -Raw -Encoding UTF8 | ConvertFrom-Json
+        return [pscustomobject]@{
+            World = "$($j.World)"; GameVer = "$($j.GameVer)"
+            Gold = $j.Gold; Elixir = $j.Elixir; Dark = $j.Dark; Gems = $j.Gems; Extra = $j.Extra
+            Samples = 1; At = [datetime]::Parse($j.At); Stale = $true
+        }
+    } catch { return $null }
+}
+
 function Get-ResStable([string]$Index, [string]$World) {
-    if (-not $script:resSamples.ContainsKey($Index)) { return $null }
+    if (-not $script:resSamples.ContainsKey($Index)) { return (Get-ResMeta $Index $World) }
     $all = @($script:resSamples[$Index])
     $world = $(if ($World) { $World } else { "$($all[$all.Count - 1].World)" })
     $same = @($all | Where-Object { "$($_.World)" -eq $world })
+    if ($same.Count -eq 0) { return (Get-ResMeta $Index $World) }
     if ($same.Count -lt 2) {
         $one = $same[0]
         $one | Add-Member -NotePropertyName Samples -NotePropertyValue 1 -Force

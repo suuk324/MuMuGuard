@@ -1132,6 +1132,7 @@ function Show-InstanceDetail([string]$Index) {
         [System.Windows.Controls.Grid]::SetColumn($vt, 1)
         [void]$g.Children.Add($vt)
         [void]$pnlRows.Children.Add($g)
+        $script:lastRowValue = $vt
     }
     & $addRow '序号' ("index " + $row.Index) ''
     if ($row.UpName) { & $addRow '游戏' ("$($row.UpName) Lv.$($row.UpLvl)") '' } else { & $addRow '游戏' '—' '#6E6E78' }
@@ -1217,6 +1218,37 @@ function Show-InstanceDetail([string]$Index) {
     try { $mem = [double]$row.MemMB } catch { }
     if ($mem -gt 0) { & $addRow '内存占用' ("{0:N0} MB" -f $mem) '' }
     $detOff = (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains "$Index")
+    # 升级时间上号：每台模拟器单独控制，点一下切换
+    try {
+        $schedOn = $null
+        if ($row.Online) { $schedOn = Get-ZkqUpgradeSchedule "$Index" }
+        if ($null -eq $schedOn) {
+            & $addRow '升级上号' '—' '#6E6E78'
+        } else {
+            & $addRow '升级上号' ($(if ($schedOn) { '开启中' } else { '已关闭' })) ($(if ($schedOn) { '#34C759' } else { '#6E6E78' }))
+            $schedTxt = $script:lastRowValue
+            if ($schedTxt) {
+                $schedTxt.Cursor = 'Hand'
+                $schedTxt.ToolTip = '点击切换（升级完成时间到自动上号）'
+                $schedTxt.Add_MouseLeftButtonUp({
+                    try {
+                        $cur = Get-ZkqUpgradeSchedule "$Index"
+                        if ($null -eq $cur) { return }
+                        $target = -not $cur
+                        $ok = Set-ZkqUpgradeSchedule "$Index" $target
+                        if ($ok) {
+                            $schedTxt.Text = $(if ($target) { '开启中' } else { '已关闭' })
+                            $schedTxt.Foreground = Brush $(if ($target) { '#34C759' } else { '#6E6E78' })
+                            try { Write-GuardLog 'ZKQ_SCHED' "实例$Index" ($(if ($target) { '开启升级上号' } else { '关闭升级上号' })) } catch { }
+                        } else {
+                            $schedTxt.Text = '切换失败'
+                            $schedTxt.Foreground = Brush '#FF453A'
+                        }
+                    } catch { }
+                }.GetNewClosure())
+            }
+        }
+    } catch { }
     & $addRow '掉线检测' ($(if ($detOff) { '已暂停' } else { '开启中' })) $(if ($detOff) { '#6E6E78' } else { '#34C759' })
 
     $dlg.FindName('TxtDetect').Text = $(if ($detOff) { '恢复检测' } else { '暂停检测' })

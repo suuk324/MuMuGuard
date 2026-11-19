@@ -162,8 +162,10 @@ function Test-BarReadable([System.Drawing.Bitmap]$Bmp) {
 function Find-NumberBands([System.Drawing.Bitmap]$Bmp) {
     $bands = @()
     $yLimit = [int]($Bmp.Height * 0.42)
-    $x0 = [int]($Bmp.Width * 0.84)
-    $x1 = [int]($Bmp.Width * 0.975)
+    # 只扫数字本身所在的横向区间：左边避开绿色「+」按钮，右边避开图标，
+    # 否则「+」按钮的白色十字会多出一条亮带，把真正的资源行挤掉（主世界被误判成夜世界就是这么来的）
+    $x0 = [int]($Bmp.Width * 0.885)
+    $x1 = [int]($Bmp.Width * 0.955)
     $stepX = [Math]::Max(1, [int](($x1 - $x0) / 60))
     $inBand = $false; $startY = 0
     for ($y = 0; $y -lt $yLimit; $y++) {
@@ -387,20 +389,95 @@ function Get-BandTexts([System.Drawing.Bitmap]$Bmp, $Band) {
 }
 
 # ---------------- 世界判定 ----------------
+
+# 看右侧图标列里有没有「黑油」图标：
+#   主世界的第三行是黑油，图标接近纯黑、几乎没有色彩；
+#   夜世界没有黑油，四个图标（金/圣/宝石/点券）都是鲜艳色。
+# 只认「上下都被亮色图标夹住」的近黑块，避免把深色背景、兵营条之类当成图标。
+function Get-IconWorld([System.Drawing.Bitmap]$Bmp) {
+    try {
+        $W = $Bmp.Width; $H = $Bmp.Height
+        if ($W -lt 200 -or $H -lt 100) { return $null }
+        $x0 = [int]($W * 0.955); $x1 = [int]($W * 0.995)
+        $yLimit = [int]($H * 0.40)
+        if ($x1 -le $x0 -or $yLimit -lt 40) { return $null }
+
+        # 逐行取图标条的平均色，分成「亮而鲜艳」「近黑而灰」两类
+        $kind = New-Object System.Collections.Generic.List[string]
+        $ys = New-Object System.Collections.Generic.List[int]
+        for ($y = 0; $y -lt $yLimit; $y++) {
+            $sR = 0; $sG = 0; $sB = 0; $n = 0
+            for ($x = $x0; $x -lt $x1; $x += 2) {
+                $c = $Bmp.GetPixel($x, $y)
+                $sR += $c.R; $sG += $c.G; $sB += $c.B; $n++
+            }
+            if ($n -le 0) { continue }
+            $r = $sR / $n; $g = $sG / $n; $b = $sB / $n
+            $lum = 0.299 * $r + 0.587 * $g + 0.114 * $b
+            $mx = [Math]::Max($r, [Math]::Max($g, $b))
+            $mn = [Math]::Min($r, [Math]::Min($g, $b))
+            $k = ''
+            if ($lum -gt 90 -and ($mx - $mn) -gt 70) { $k = 'bright' }
+            elseif ($lum -lt 70 -and ($mx - $mn) -lt 25) { $k = 'dark' }
+            $kind.Add($k); $ys.Add($y)
+        }
+        if ($kind.Count -lt 30) { return $null }
+
+        # 合并成连续区段
+        $runs = @()
+        $cur = $kind[0]; $start = $ys[0]
+        for ($i = 1; $i -lt $kind.Count; $i++) {
+            if ($kind[$i] -ne $cur) {
+                if ($cur -and ($ys[$i] - $start) -ge 6) { $runs += @{ Kind = $cur; Y0 = $start; Y1 = $ys[$i] } }
+                $cur = $kind[$i]; $start = $ys[$i]
+            }
+        }
+        if ($cur -and ($ys[$ys.Count - 1] - $start) -ge 6) { $runs += @{ Kind = $cur; Y0 = $start; Y1 = $ys[$ys.Count - 1] } }
+
+        $brightCount = @($runs | Where-Object { $_.Kind -eq 'bright' }).Count
+        if ($brightCount -lt 2) { return $null }   # 图标列看不清，判不了
+
+        for ($i = 0; $i -lt $runs.Count; $i++) {
+            $r = $runs[$i]
+            if ($r.Kind -ne 'dark') { continue }
+            $h = $r.Y1 - $r.Y0
+            if ($h -lt 12 -or $h -gt 40) { continue }
+            $above = $false; $below = $false
+            for ($j = $i - 1; $j -ge 0; $j--) {
+                if ($runs[$j].Kind -eq 'bright') { if (($r.Y0 - $runs[$j].Y1) -lt 60) { $above = $true }; break }
+            }
+            for ($j = $i + 1; $j -lt $runs.Count; $j++) {
+                if ($runs[$j].Kind -eq 'bright') { if (($runs[$j].Y0 - $r.Y1) -lt 60) { $below = $true }; break }
+            }
+            if ($above -and $below) { return 'main' }
+        }
+        return 'bb'
+    } catch { return $null }
+}
+
 function Get-ExpectedBarCount([string]$GameVer, [string]$World) {
     if ($GameVer -eq 'cn') { if ($World -eq 'main') { return 5 } else { return 4 } }
     if ($GameVer -eq 'global') { if ($World -eq 'main') { return 4 } else { return 3 } }
     return 0
 }
 
-# 资源槽在最上面；用「第 N+1 条不是资源行」来验证某个世界假设
-function Resolve-World([string]$GameVer, [int]$TotalBands) {
+# 世界以「图标列有没有黑油」为准；条数只做交叉校验，
+# 对不上就不记录（宁可显示尚未采集，也不把主世界的数值记到夜世界名下）。
+function Resolve-World([string]$GameVer, [int]$TotalBands, [string]$IconWorld) {
     if (-not $GameVer -or $TotalBands -le 0) { return $null }
-    # 主世界条数多，先试主世界；带数够就算成立（下面多出来的计时行不影响）
     $nMain = Get-ExpectedBarCount $GameVer 'main'
-    if ($nMain -gt 0 -and $TotalBands -ge $nMain) { return [pscustomobject]@{ World = 'main'; Bars = $nMain } }
     $nBb = Get-ExpectedBarCount $GameVer 'bb'
-    if ($nBb -gt 0 -and $TotalBands -ge $nBb) { return [pscustomobject]@{ World = 'bb'; Bars = $nBb } }
+    if ($IconWorld -eq 'main') {
+        if ($nMain -gt 0 -and $TotalBands -ge $nMain) { return [pscustomobject]@{ World = 'main'; Bars = $nMain } }
+        return $null
+    }
+    if ($IconWorld -eq 'bb') {
+        if ($nBb -gt 0 -and $TotalBands -ge $nBb) { return [pscustomobject]@{ World = 'bb'; Bars = $nBb } }
+        return $null
+    }
+    # 图标列看不清时的兜底：条数必须正好等于某个世界的应有条数
+    if ($nMain -gt 0 -and $TotalBands -eq $nMain) { return [pscustomobject]@{ World = 'main'; Bars = $nMain } }
+    if ($nBb -gt 0 -and $TotalBands -eq $nBb) { return [pscustomobject]@{ World = 'bb'; Bars = $nBb } }
     return $null
 }
 
@@ -463,9 +540,10 @@ function Get-GameResources([string]$Index, [switch]$Force) {
                     $nums += , $col
                 }
                 # 保留空位：资源行位置必须和世界对应，不能把空值压掉
-                $res = Resolve-World $gameVer $group.Count
+                $iconWorld = Get-IconWorld $bmp
+                $res = Resolve-World $gameVer $group.Count $iconWorld
                 if (-not $res) {
-                    Write-Diag ("资源采样：认不出世界（版本={0} 带数={1} 数字={2}）" -f $gameVer, $group.Count, $nums.Count)
+                    Write-Diag ("资源采样：认不出世界（版本={0} 图标={1} 带数={2} 数字={3}）" -f $gameVer, $iconWorld, $group.Count, $nums.Count)
                 } else {
                     $n = [int]$res.Bars
                     $vals = @($nums | Select-Object -First $n)
@@ -491,7 +569,7 @@ function Get-GameResources([string]$Index, [switch]$Force) {
                                 Bands = $group.Count; At = $now; Stale = $false
                             }
                         }
-                        Write-Diag ("资源采样：版本={0} 世界={1} 带数={2} 数字={3} 金={4} 圣={5} 黑={6} 宝={7} 券={8}" -f $gameVer, $res.World, $group.Count, $nums.Count, $result.Gold, $result.Elixir, $result.Dark, $result.Gems, $result.Extra)
+                        Write-Diag ("资源采样：版本={0} 世界={1} 图标={2} 带数={3} 数字={4} 金={5} 圣={6} 黑={7} 宝={8} 券={9}" -f $gameVer, $res.World, $iconWorld, $group.Count, $nums.Count, $result.Gold, $result.Elixir, $result.Dark, $result.Gems, $result.Extra)
                         [void](Save-ResShot $Index $result $png)
                     }
                 }

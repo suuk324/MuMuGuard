@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq', '63-res')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -328,7 +328,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.6'
+$script:appVersion     = '2.0.4'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -841,10 +841,6 @@ $timer.Add_Tick({
         $remoteOn = ($script:cfg.RemoteEnabled -eq $true) -or ($script:cfg.OutboundEnabled -eq $true)
         $script:adbSync.Idle = (-not $remoteOn) -and (($win.WindowState -eq 'Minimized') -or (-not $win.IsVisible))
     } catch { }
-                # 每 10 秒检查一次：休眠记录和实际运行状态是否对不上（5 秒一跳，%2 = 10 秒）
-                if ($script:tickCount % 2 -eq 0) {
-                    try { Clear-StaleSleepEntries } catch { Write-Diag "清理休眠记录异常: $($_.Exception.Message)" }
-                }
     Update-Ui
     if ($script:tickCount % 6 -eq 0) {
         try {
@@ -865,6 +861,24 @@ $script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardM
 $script:guardTimer.Add_Tick({
     [void](Invoke-GuardCleanup)
     Update-Ui
+})
+
+# ---------------- 资源采样（游戏在前台时每 3 秒抓一次）----------------
+$script:resSampling = $false
+$resTimer = New-Object System.Windows.Threading.DispatcherTimer
+$resTimer.Interval = [TimeSpan]::FromSeconds(3)
+$resTimer.Add_Tick({
+    if ($script:resSampling) { return }
+    $script:resSampling = $true
+    try {
+        $script:resTickCount = [int]$script:resTickCount + 1
+        $cand = @($script:lastInstances | Where-Object { $_ -and $_.Online -eq $true })
+        if ($script:resTickCount % 10 -eq 1) { Write-Diag ("采样轮询：候选实例 {0} 个，函数可用={1}" -f $cand.Count, [bool](Get-Command Update-ResSamples -ErrorAction SilentlyContinue)) }
+        foreach ($r in $cand) {
+            if (-not $r -or $r.Index -eq '-') { continue }
+            try { [void](Update-ResSamples "$($r.Index)") } catch { Write-Diag "采样单实例失败: $($_.Exception.Message)" }
+        }
+    } catch { Write-Diag "采样轮询异常: $($_.Exception.Message)" } finally { $script:resSampling = $false }
 })
 
 # 掉线检测：看护运行时按间隔检查，脚本掉了自动拉起
@@ -916,12 +930,14 @@ $updateTimer.Interval = [TimeSpan]::FromSeconds(20)
 $updateTimer.Add_Tick({
     $updateTimer.Stop()
     try { Invoke-AutoUpdateCheck } catch { }
+            if ($env:MMG_SHOW_DETAIL) { try { Show-InstanceDetail $env:MMG_SHOW_DETAIL } catch { Write-Diag "调试详情失败: $($_.Exception.Message)" } }
 })
 $win.Add_Loaded({
     Invoke-LogRotation
     $updateTimer.Start()
+    $resTimer.Start()
     Load-Trend
-    # 旧版操作状态已并入 config.json，不再单独加载
+    try { Load-OpState } catch { }
     Set-View $(if ($env:MMG_COMPACT -eq '1') { 'compact' } else { 'shell' })
     if ($txtVersion) { $txtVersion.Text = 'v' + $script:appVersion }
     Update-SleepButton

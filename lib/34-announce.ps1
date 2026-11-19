@@ -25,12 +25,12 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.0.20'
+        Title = 'MuMuGuard 2.0.21'
         Lines = @(
-            '修好了「资源数据和截图过一会儿就没了」：后台采样线程之前把新截图写到了用户目录，'
-            '而界面和手机读取的是面板目录，所以看起来像数据被删了（其实没删）。'
-            '现在统一写回面板目录，旧目录里已有的截图会自动迁移回来。'
-            '重启面板后会用磁盘上最近一次的数据先补上（标「上次」），不用等下一次采样。'
+            '修好了「休眠/关机后实例详情里资源和截图都没了」：之前详情页只在实例运行时才读资源和截图，'
+            '一休眠就整段不显示；现在会显示磁盘上最近一次采集的数据和截图（标「上次」）。'
+            '截图下面会显示采集时间，休眠中的实例也能看到休眠计划和唤醒剩余时间。'
+            '另外：后台采样写错目录的问题已在 2.0.20 修复，现有数据已全部迁移回面板目录。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

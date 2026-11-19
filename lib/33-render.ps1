@@ -1222,8 +1222,7 @@ function Show-InstanceDetail([string]$Index) {
     } catch { }
     try {
         if (-not (Get-ResStable "$Index")) { [void](Update-ResSamples "$Index") }
-        if ($row.Online) {
-            $verTag = ''
+        $verTag = ''
             # 主世界和夜世界各显示一行；没采到就写「尚未采集」，两个都始终可见
             foreach ($w in @('main', 'bb')) {
                 $res = Get-ResStable "$Index" $w
@@ -1281,7 +1280,8 @@ function Show-InstanceDetail([string]$Index) {
                 [void]$pnlShots.Children.Add($box)
             }
             if ($pnlShots.Children.Count -gt 0) { $pnlShots.Visibility = 'Visible' }
-        }
+        # 已关机/休眠的实例：设备读不到，但磁盘上还有上次采集的数据和截图，照样显示
+        if (-not $row.Online) { & $addRow '采集数据' '已关机/休眠 · 显示上次采集' '#6E6E78' }
     } catch { Write-Diag "详情·资源读取失败: $($_.Exception.Message)" }
     if ($slp -and $slp.WakeAt) {
         $wi = Get-WakeInfo $slp.WakeAt
@@ -1295,6 +1295,7 @@ function Show-InstanceDetail([string]$Index) {
     try {
         $schedOn = $null
         if ($row.Online) { $schedOn = Get-ZkqUpgradeSchedule "$Index" }
+        if ($null -eq $schedOn) { try { $schedOn = Get-ZkqSchedCached "$Index" } catch { } }
         if ($null -eq $schedOn) {
             & $addRow '升级上号' '—' '#6E6E78'
         } else {

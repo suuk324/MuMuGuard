@@ -40,6 +40,41 @@ function Switch-ShellPage([int]$n) {
 # 无边框窗口的拖动：必须等鼠标真的移动超过阈值再 DragMove。
 # 直接在 MouseLeftButtonDown 里调 DragMove 会抢走鼠标捕获，
 # 子按钮的 MouseLeftButtonUp 永远收不到 —— 表现就是整个界面点不动。
+# WPF 事件里的 GetNewClosure() 闭包访问不到 $script: 变量（会变成 $null），
+# 所以闭包里要读写配置/界面状态时，统一走下面这几个小函数。
+function Get-CfgValue([string]$Key) {
+    try { return $script:cfg[$Key] } catch { return $null }
+}
+function Set-CfgValue([string]$Key, $Value) {
+    try { $script:cfg[$Key] = $Value } catch { }
+}
+function Set-ShellFilterState([string]$Mode) {
+    $script:shellFilter = $Mode
+}
+function Toggle-BoolSetting([string]$Key) {
+    Set-CfgValue $Key (-not [bool](Get-CfgValue $Key))
+    if ($Key -eq 'StartWithWindows') { try { [void](Set-Autostart ([bool](Get-CfgValue $Key))); Update-TrayMenu } catch { } }
+    Save-Config
+    Update-Ui
+}
+function Toggle-DetectSetting([string]$Index) {
+    $cur = @($script:cfg.DetectOff | Where-Object { $_ -ne $null -and "$_" -ne '' })
+    if (@($cur | Where-Object { "$_" -eq $Index }).Count -gt 0) {
+        $script:cfg.DetectOff = @($cur | Where-Object { "$_" -ne $Index })
+    } else {
+        $script:cfg.DetectOff = @($cur + $Index)
+    }
+    Save-Config
+    Update-Ui
+}
+function Apply-SettingSideEffect([string]$Key) {
+    try {
+        if ($Key -eq 'GuardMinute' -and $script:guardTimer) { $script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute) }
+        if ($Key -eq 'RecoverCheckSec' -and $script:recoverTimer) { $script:recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec) }
+        if ($Key -eq 'StartWithWindows') { [void](Set-Autostart ([bool]$script:cfg.StartWithWindows)); Update-TrayMenu }
+    } catch { }
+}
+
 function Enable-WindowDrag($Element, $Window) {
     if (-not $Element -or -not $Window) { return }
     $st = @{ Pending = $false; Start = $null }
@@ -77,7 +112,7 @@ function Initialize-Shell {
         $btn = $Win.FindName($pair[0])
         if ($btn) {
             $mode = $pair[1]
-            $btn.Add_MouseLeftButtonUp({ $script:shellFilter = $mode; Update-FilterChips; Update-Ui }.GetNewClosure())
+            $btn.Add_MouseLeftButtonUp({ Set-ShellFilterState $mode; Update-FilterChips; Update-Ui }.GetNewClosure())
         }
     }
     Update-FilterChips
@@ -424,6 +459,9 @@ if ($r.UpName) { $subTxt = "$($r.UpName) Lv.$($r.UpLvl)" }
 elseif ("$($r.SleepUpgrade)" -and "$($r.SleepUpgrade)" -ne '') { $subTxt = "$($r.SleepUpgrade)" }
 else { $subTxt = '无升级任务' }
 if ($r.UpLeft -and -not $r.Sleeping) { $subTxt += " · 剩 $($r.UpLeft)" }
+if ($r.Sleeping -and $r.WakeAt) {
+    $subTxt = ('{0} 唤醒 · {1}' -f ([datetime]$r.WakeAt).ToString('HH:mm'), $subTxt)
+}
 $sub = New-ShellText ("{0} · {1}" -f $r.Judge, $subTxt) 10.5 '#6E6E78'
         $sub.Margin = New-Object System.Windows.Thickness(0, 2, 0, 0)
         [void]$sp.Children.Add($sub)
@@ -437,14 +475,7 @@ $sub = New-ShellText ("{0} · {1}" -f $r.Judge, $subTxt) 10.5 '#6E6E78'
 
         $detOff = (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains $idx)
         $btnDet = New-ShellButton $(if ($detOff) { '恢复检测' } else { '暂停检测' }) '#9E9EA6' '#1AFFFFFF' ({
-            $cur = @($script:cfg.DetectOff | Where-Object { $_ -ne $null -and "$_" -ne '' })
-            if (@($cur | Where-Object { "$_" -eq $idx }).Count -gt 0) {
-                $script:cfg.DetectOff = @($cur | Where-Object { "$_" -ne $idx })
-            } else {
-                $script:cfg.DetectOff = @($cur + $idx)
-            }
-            Save-Config
-            Update-Ui
+            Toggle-DetectSetting $idx
         }.GetNewClosure())
         $btnDet.Margin = New-Object System.Windows.Thickness(0, 0, 6, 0)
         [void]$ops.Children.Add($btnDet)
@@ -653,11 +684,8 @@ function Render-ShellSettings {
                 $pill.Cursor = 'Hand'
                 [System.Windows.Controls.Grid]::SetColumn($pill, 1)
                 $pill.Add_MouseLeftButtonUp({
-                    $script:cfg[$key] = -not [bool]$script:cfg[$key]
-                    if ($key -eq 'StartWithWindows') { try { [void](Set-Autostart ([bool]$script:cfg[$key])); Update-TrayMenu } catch { } }
-                    Save-Config
-                    Update-Ui
-                })
+                    Toggle-BoolSetting $key
+                }.GetNewClosure())
                 [void]$row.Children.Add($pill)
             }
             elseif ($kind -eq 'theme') {
@@ -699,8 +727,8 @@ function Render-ShellSettings {
                 $btn.Child = $bt
                 [System.Windows.Controls.Grid]::SetColumn($btn, 1)
                 $btn.Add_MouseLeftButtonUp({
-                    Show-SettingInput -Key $key -Label $label -Desc $desc -Value $script:cfg[$key] -Unit $unit
-                })
+                    Show-SettingInput -Key $key -Label $label -Desc $desc -Value (Get-CfgValue $key) -Unit $unit
+                }.GetNewClosure())
                 [void]$row.Children.Add($btn)
             }
 
@@ -1018,13 +1046,9 @@ function Show-SettingInput {
         }
         if (-not $ok) { $dlg.FindName('Err').Text = '请输入有效数字'; return }
         try {
-            $script:cfg.$Key = $v
+            Set-CfgValue $Key $v
             # 改了间隔类的值要立刻作用到定时器，否则要重启才生效
-            try {
-                if ($Key -eq 'GuardMinute' -and $script:guardTimer) { $script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute) }
-                if ($Key -eq 'RecoverCheckSec' -and $script:recoverTimer) { $script:recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec) }
-                if ($Key -eq 'StartWithWindows') { [void](Set-Autostart ([bool]$script:cfg.StartWithWindows)); Update-TrayMenu }
-            } catch { }
+            Apply-SettingSideEffect $Key
             Save-Config
             $dlg.Close()
             Update-Ui

@@ -210,6 +210,7 @@ $script:remoteServerScript = {
             $sync.RemotePort = $tryPort
             $sync.ServerError = ''
             $bound = $true
+            try { $sync.Listener = $listener } catch { }
             break
         } catch { $sync.ServerError = $_.Exception.Message }
     }
@@ -261,9 +262,18 @@ $script:remoteServerScript = {
     }
 
     while ($true) {
-        if ($sync.Stop) { break }
+        if ($sync.Stop -or $sync.RemoteStop) { break }
         $client = $null
-        try { $client = $listener.AcceptTcpClient() } catch { break }
+        # 原来这里是阻塞 Accept：点「刷新令牌」时服务线程出不来、端口不释放，
+        # 新服务只能绑到下一个端口（二维码端口漂移）。改成小步轮询。
+        while ($null -eq $client) {
+            if ($sync.Stop -or $sync.RemoteStop) { break }
+            try {
+                if ($listener.Pending()) { $client = $listener.AcceptTcpClient() }
+                else { Start-Sleep -Milliseconds 60 }
+            } catch { break }
+        }
+        if ($null -eq $client) { break }
         try {
             $req = Read-Req $client
             $first = ($req -split "`r`n")[0]
@@ -755,12 +765,30 @@ function Start-RemoteServer {
 
 function Stop-RemoteServer {
     try { if ($script:adbSync) { $script:adbSync.RemoteStop = $true } } catch { }
+    # 先关监听套接字：服务线程阻塞在 Accept 上，不关它线程退不出来、端口一直占着
+    try { if ($script:adbSync -and $script:adbSync.Listener) { $script:adbSync.Listener.Stop() } } catch { }
     try { if ($script:remotePs) { [void]$script:remotePs.Stop() } } catch { }
     try { if ($script:remotePs) { $script:remotePs.Dispose() } } catch { }
     try { if ($script:remoteRs) { $script:remoteRs.Close(); $script:remoteRs.Dispose() } } catch { }
     $script:remotePs = $null
     $script:remoteRs = $null
     $script:remoteHandle = $null
+    # 等端口真正释放再返回（最多 3 秒）：刷新令牌/重启服务才能继续用同一个端口
+    $port = 0
+    try { if ($script:adbSync -and $script:adbSync.RemotePort) { $port = [int]$script:adbSync.RemotePort } } catch { }
+    if ($port -gt 0) {
+        for ($wait = 0; $wait -lt 30; $wait++) {
+            $busy = $false
+            $probe = $null
+            try {
+                $probe = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $port)
+                $probe.Start()
+            } catch { $busy = $true }
+            finally { try { if ($probe) { $probe.Stop() } } catch { } }
+            if (-not $busy) { break }
+            Start-Sleep -Milliseconds 100
+        }
+    }
 }
 
 # ---------------- 指令处理（UI 线程） ----------------

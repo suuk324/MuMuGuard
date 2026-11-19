@@ -193,9 +193,11 @@ while ($true) {
     $remain = @()
     foreach ($item in $list) {
         $idx = "$($item.Index)"
+        # 重试时间单独放 RetryAt：WakeAt 保持「原计划唤醒时间」不变，面板/手机显示才一致
+        $wakeRaw = "$($item.WakeAt)"
+        if ($item.PSObject.Properties.Name -contains 'RetryAt' -and "$($item.RetryAt)") { $wakeRaw = "$($item.RetryAt)" }
         $wakeAt = $null
-        try { $wakeAt = [datetime]::Parse("$($item.WakeAt)") } catch { }
-
+        try { $wakeAt = [datetime]::Parse($wakeRaw) } catch { }
         if (-not $wakeAt) {
             Write-Log "实例 $idx 的唤醒时间无效，移除"
             Write-Event 'WAKE_FAIL' "实例$idx" '唤醒时间无效'
@@ -219,7 +221,9 @@ while ($true) {
                 if ($tries -lt 3) {
                     if ($item.PSObject.Properties.Name -contains 'Retry') { $item.Retry = $tries }
                     else { $item | Add-Member -NotePropertyName Retry -NotePropertyValue $tries -Force }
-                    $item.WakeAt = (Get-Date).AddMinutes(3).ToString('yyyy-MM-ddTHH:mm:ss')
+                    $retryAt = (Get-Date).AddMinutes(3).ToString('yyyy-MM-ddTHH:mm:ss')
+                    if ($item.PSObject.Properties.Name -contains 'RetryAt') { $item.RetryAt = $retryAt }
+                    else { $item | Add-Member -NotePropertyName RetryAt -NotePropertyValue $retryAt -Force }
                     $remain += $item
                     Write-Log ("实例 {0} 唤醒失败（第 {1}/3 次），3 分钟后重试" -f $idx, $tries)
                     Write-Event 'WAKE_RETRY' "实例$idx" ("第 {0}/3 次失败，3 分钟后重试" -f $tries)

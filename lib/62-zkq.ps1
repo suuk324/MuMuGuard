@@ -57,11 +57,27 @@ function ConvertFrom-ZkqMemory([string]$Json) {
         Raw          = $j
     }
 
+    # 升级完成时间必须和「主界面 / 休眠调度」用同一套口径：
+    # 多账号时取所有号里最早完成、且还没完成的那条（90-pure 的 Get-UpgradeFromMemoryJson）。
+    # 以前这里只读当前账号的槽位，导致详情页的升级时间和概览/休眠时间对不上。
+    $sharedUp = $null
+    try { if (Get-Command Get-UpgradeFromMemoryJson -ErrorAction SilentlyContinue) { $sharedUp = Get-UpgradeFromMemoryJson -Text $Json } } catch { }
+    if ($sharedUp) {
+        $res.NextName = [string]$sharedUp.Name
+        try { $res.NextLevel = [int]$sharedUp.Lvl } catch { }
+        $tsU = 0.0
+        try { $tsU = [double]$sharedUp.Ts } catch { }
+        if ($tsU -gt 0) {
+            $epoch = New-Object datetime 1970,1,1,0,0,0,([DateTimeKind]::Utc)
+            $res.NextComplete = $epoch.AddSeconds($tsU).ToLocalTime()
+        }
+    }
+
     # 账号槽可能和 accountNumber 不一致，逐个试 1..3
     $slots = @($acct, 1, 2, 3) | Where-Object { $_ -ge 1 } | Select-Object -Unique
 
     foreach ($s in $slots) {
-        if (-not $res.NextName) {
+        if (-not $res.NextName -and -not $sharedUp) {
             $nu = $null
             $prop = $j.PSObject.Properties | Where-Object { $_.Name -eq "NextUpgrade$s" } | Select-Object -First 1
             if ($prop -and $prop.Value) {

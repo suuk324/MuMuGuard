@@ -52,6 +52,8 @@
   .toast.show{opacity:1}
   footer{text-align:center;color:var(--dim);font-size:11px;margin-top:14px}
   .err{color:var(--red);font-size:12px;padding:6px 0}
+  .stale{margin:0 0 12px;padding:11px 13px;border-radius:11px;background:rgba(255,159,10,.14);border:1px solid rgba(255,159,10,.35);color:#FFCF80;font-size:12.5px;line-height:1.6}
+  .stale span{color:#C9A96A;font-size:11px}
   .sub{padding:0 2px 12px;font-size:11.5px;color:var(--dim)}
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 6px;text-align:center}
@@ -77,6 +79,7 @@
 </header>
 
 <div class="sub" id="subLine">正在读取…</div>
+<div class="stale" id="staleTip" style="display:none">数据已停止更新（电脑可能已重新配对）<br><span>请用面板里最新的二维码重新扫码</span></div>
 
 <div class="stats">
   <div class="stat"><b id="statTotal">–</b><span>总数</span></div>
@@ -156,6 +159,26 @@ function setConn(ok, text){
   });
 }
 
+function setStale(bad){
+  const el = document.getElementById('staleTip');
+  if (!el) return;
+  el.style.display = bad ? '' : 'none';
+  staleShown = bad;
+  if (bad) {
+    ['bGuard','bSleep','bClean','bWakeAll'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
+  }
+}
+
+// 每 2 秒看一眼：状态多久没更新了 / 指令等回执多久了
+setInterval(function(){
+  const since = lastStateAt || pageOpenedAt;
+  if (connected && Date.now() - since > 15000) { if (!staleShown) setStale(true); }
+  if (pending && Date.now() - pending.at > 12000) {
+    toast('✗ ' + pending.label + '：设备无响应（可能已重新配对）');
+    pending = null;
+  }
+}, 2000);
+
 function connect(){
   if (!UID) {
     document.getElementById('instances').innerHTML = '<div class="err">缺少配对信息，请重新扫码</div>';
@@ -211,18 +234,27 @@ function bufToHex(buf){
 async function send(cmd){
   if (!connected) return;
   if (!KEY) { toast('缺少配对密钥，请重新扫码'); return; }
+  if (pending) { toast('上一条指令还在执行'); return; }
+  const labelMap = { guard: '切换看护', sleep: '切换自动休眠', clean: '清理', wakeall: '唤醒全部' };
+  const label = labelMap[cmd] || '执行';
   try {
     const ts = Math.floor(Date.now() / 1000);
     const key = await ensureKey();
     const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(cmd + '|' + ts));
+    pending = { cmd: cmd, at: Date.now(), label: label };
     ws.send(PUB(TOPIC_CMD, JSON.stringify({ cmd, ts, sig: bufToHex(sigBuf) })));
-    toast('已发送');
-  } catch(e){ toast('发送失败'); }
+    toast('正在' + label + '…');
+  } catch(e){ pending = null; toast('发送失败'); }
 }
 
 // ---------------- 渲染 ----------------
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 let last = null;
+let lastStateAt = 0;
+const pageOpenedAt = Date.now();
+let staleShown = false;
+let pending = null;
+let lastSeenTs = '';
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -243,6 +275,20 @@ async function handleState(raw){
   if (!key) return markBad();
   const sig = bufToHex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(env.d)));
   if (sig !== env.s.toLowerCase()) return markBad();
+  lastStateAt = Date.now();
+  if (staleShown) setStale(false);
+  // 指令回执：电脑执行完会带一条 last（cmd/ok/msg/ts）
+  try {
+    const stObj = JSON.parse(env.d);
+    const rc = stObj && stObj.last;
+    if (rc && rc.ts && rc.ts !== lastSeenTs) {
+      lastSeenTs = rc.ts;
+      if (pending && rc.cmd === pending.cmd) {
+        toast((rc.ok ? '✓ ' : '✗ ') + (rc.msg || (rc.ok ? '已完成' : '执行失败')));
+        pending = null;
+      }
+    }
+  } catch(e){ }
   render(env.d);
 }
 function markBad(){

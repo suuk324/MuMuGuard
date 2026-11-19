@@ -1070,8 +1070,15 @@ function Show-RemoteDialog {
                 if ($urls.Count -gt 0) { $url = $urls[0].Url }
                 if ($url) {
                     $txtUrl.Text = $url
-                    $qrBox.Visibility = 'Visible'
-                    try { $imgQr.Source = New-QrBitmap $url 8 3 } catch { $imgQr.Source = $null }
+                    try {
+                        $imgQr.Source = New-QrBitmap $url 8 3
+                        $qrBox.Visibility = 'Visible'
+                    } catch {
+                        $imgQr.Source = $null
+                        $qrBox.Visibility = 'Collapsed'
+                        $hint.Text = '二维码生成失败（地址太长），请把下面的网址手动输入手机浏览器。'
+                        Write-Diag "二维码生成失败: $($_.Exception.Message)"
+                    }
                 } else {
                     $txtUrl.Text = '没有找到可用的局域网地址'
                     $qrBox.Visibility = 'Collapsed'
@@ -1079,8 +1086,15 @@ function Show-RemoteDialog {
             } else {
                 $url = Get-OutboundPageUrl
                 $txtUrl.Text = $url
-                $qrBox.Visibility = 'Visible'
-                try { $imgQr.Source = New-QrBitmap $url 8 3 } catch { $imgQr.Source = $null }
+                try {
+                    $imgQr.Source = New-QrBitmap $url 8 3
+                    $qrBox.Visibility = 'Visible'
+                } catch {
+                    $imgQr.Source = $null
+                    $qrBox.Visibility = 'Collapsed'
+                    $hint.Text = '二维码生成失败（地址太长），请把下面的网址手动输入手机浏览器。'
+                    Write-Diag "二维码生成失败: $($_.Exception.Message)"
+                }
             }
         } else {
             $btnPower.Content = '开启服务'

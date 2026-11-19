@@ -58,18 +58,23 @@ function Get-QrEcc([int[]]$data, [int]$ecLen) {
 # 版本参数（EC 等级 M）
 $script:QrVersions = @{
     1  = @{ Total = 26;  Data = 16;  Ec = 10; Blocks = 1; Align = @() }
-    2  = @{ Total = 44;  Data = 28;  Ec = 16; Blocks = 1; Align = @(6) }
+    2  = @{ Total = 44;  Data = 28;  Ec = 16; Blocks = 1; Align = @(6, 18) }
     3  = @{ Total = 70;  Data = 44;  Ec = 26; Blocks = 1; Align = @(6, 22) }
     4  = @{ Total = 100; Data = 64;  Ec = 18; Blocks = 2; Align = @(6, 26) }
     5  = @{ Total = 134; Data = 86;  Ec = 24; Blocks = 2; Align = @(6, 30) }
     6  = @{ Total = 172; Data = 108; Ec = 16; Blocks = 4; Align = @(6, 34) }
+    7  = @{ Total = 196; Data = 124; Ec = 18; Blocks = 4; Align = @(6, 22, 38) }
+    8  = @{ Total = 242; Data = 154; Ec = 22; Blocks = 4; Align = @(6, 24, 42) }
+    9  = @{ Total = 292; Data = 182; Ec = 22; Blocks = 5; Align = @(6, 26, 46) }
+    10 = @{ Total = 346; Data = 216; Ec = 26; Blocks = 5; Align = @(6, 28, 50) }
 }
 
 function Get-QrVersionFor([int]$byteLen) {
-    for ($v = 1; $v -le 6; $v++) {
+    for ($v = 1; $v -le 10; $v++) {
         $info = $script:QrVersions[$v]
-        # 模式(4) + 长度(8) + 数据 + 终止符，向上取整到字节
-        $needBits = 4 + 8 + ($byteLen * 8)
+        # 模式(4) + 长度(8/16) + 数据；v10 起字节模式长度字段是 16 位
+        $lenBits = if ($v -le 9) { 8 } else { 16 }
+        $needBits = 4 + $lenBits + ($byteLen * 8)
         $capBits = $info.Data * 8
         if ($needBits -le $capBits) { return $v }
     }
@@ -91,7 +96,8 @@ function New-QrMatrix([string]$text) {
         for ($i = $count - 1; $i -ge 0; $i--) { $bits.Add((($val -shr $i) -band 1)) }
     }
     AddBits 4 4                       # 模式：Byte
-    AddBits $bytes.Length 8           # 长度（v1~6 固定 8 位）
+    $lenBits = if ($ver -le 9) { 8 } else { 16 }
+    AddBits $bytes.Length $lenBits    # 长度（v1~9 为 8 位，v10 起 16 位）
     foreach ($b in $bytes) { AddBits $b 8 }
 
     $capBits = $info.Data * 8
@@ -194,6 +200,18 @@ function New-QrMatrix([string]$text) {
     for ($i = 0; $i -le 7; $i++) { $m[($size - 1 - $i), 8] = [bool](($fmt -shr $i) -band 1) }
     for ($i = 8; $i -le 14; $i++) { $m[8, ($size - 15 + $i)] = [bool](($fmt -shr $i) -band 1) }
     $m[8, ($size - 8)] = $true
+
+    # 版本信息（v7 起必须有，18 位 BCH）；两处 3x6 组合
+    if ($ver -ge 7) {
+        $verBits = @{ 7 = 0x07C94; 8 = 0x085BC; 9 = 0x09A99; 10 = 0x0A4D3 }[[int]$ver]
+        for ($vi = 0; $vi -le 17; $vi++) {
+            $bit = [bool](($verBits -shr $vi) -band 1)
+            $rr = [Math]::Floor($vi / 3)
+            $cc = $size - 11 + ($vi % 3)
+            $m[$cc, $rr] = $bit
+            $m[$rr, $cc] = $bit
+        }
+    }
 
     # 记录功能区（不可放数据）
     $reserved = New-Object 'bool[,]' $size, $size

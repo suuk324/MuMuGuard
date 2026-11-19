@@ -329,7 +329,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.16'
+$script:appVersion     = '2.0.17'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -367,7 +367,16 @@ Write-Diag ("MuMuManager: {0}" -f $MuMuMgr)
 # ---------------- 单实例 ----------------
 Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue
 $script:mutex = New-Object System.Threading.Mutex($false, 'Local\MuMuGuardPanel')
-if (-not $script:mutex.WaitOne(0)) {
+$gotLock = $false
+try {
+    $gotLock = $script:mutex.WaitOne(0)
+} catch [System.Threading.AbandonedMutexException] {
+    # 上一个实例被任务管理器强杀：互斥量归我们了，继续启动（否则会误判成"已有实例"直接退出）
+    $gotLock = $true
+} catch {
+    $gotLock = $false
+}
+if (-not $gotLock) {
     try {
         $existing = Get-Process | Where-Object { $_.MainWindowTitle -eq 'MuMuGuard' } | Select-Object -First 1
         if ($existing) { [Microsoft.VisualBasic.Interaction]::AppActivate($existing.Id) | Out-Null }

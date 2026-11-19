@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -60,6 +60,22 @@
   .stat b{display:block;font-size:19px;font-weight:600;line-height:1.1}
   .stat span{display:block;font-size:9.5px;color:var(--dim);margin-top:3px}
   .c-run{color:var(--green)}.c-sleep{color:var(--amber)}.c-off{color:var(--sub)}
+  .icard{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.03);overflow:hidden}
+  .icard .row{padding:10px 12px}
+  .icard .chev{color:var(--dim);font-size:13px;margin-left:2px}
+  .sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;z-index:60}
+  .sheet{width:100%;max-width:520px;margin:0 auto;background:var(--card);border-radius:18px 18px 0 0;border-top:1px solid var(--line);padding:14px 16px 24px;max-height:84vh;overflow-y:auto}
+  .sheet-head{display:flex;align-items:center;gap:10px;padding-bottom:4px}
+  .sheet-head .who{flex:1;min-width:0}
+  .sheet-close{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.08);color:var(--sub);display:flex;align-items:center;justify-content:center;font-size:13px;flex:0 0 28px}
+  .resline{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:12.5px}
+  .resline .rk{color:var(--dim);width:52px;flex:0 0 52px}
+  .resline.dim{color:var(--dim)}
+  .resline .rw{margin-left:auto;color:var(--dim);font-size:10.5px}
+  .drow{display:flex;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-size:13px}
+  .dbtns{padding-top:12px}
+  .dbtns button{width:100%}
+  .sw.busy{opacity:.5}
   .rt{text-align:right;min-width:46px}
   .rt b{display:block;font-size:13px;font-weight:500}
   .rt span{display:block;font-size:9.5px;color:var(--dim);margin-top:1px}
@@ -111,6 +127,9 @@
 </div>
 
 <div class="card"><div class="title">最近事件</div><div id="events"><div class="empty">暂无</div></div></div>
+
+<div class="sheet-mask" id="sheetMask" style="display:none"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
 
 <script>
 // ---------------- MQTT 3.1.1 over WebSocket（最小实现） ----------------
@@ -231,18 +250,20 @@ async function ensureKey(){
 function bufToHex(buf){
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-async function send(cmd){
+async function send(cmd, extra){
   if (!connected) return;
   if (!KEY) { toast('缺少配对密钥，请重新扫码'); return; }
   if (pending) { toast('上一条指令还在执行'); return; }
-  const labelMap = { guard: '切换看护', sleep: '切换自动休眠', clean: '清理', wakeall: '唤醒全部' };
+  const labelMap = { guard: '切换看护', sleep: '切换自动休眠', clean: '清理', wakeall: '唤醒全部', restart: '重启实例', zkq: '切换升级上号' };
   const label = labelMap[cmd] || '执行';
   try {
     const ts = Math.floor(Date.now() / 1000);
     const key = await ensureKey();
     const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(cmd + '|' + ts));
     pending = { cmd: cmd, at: Date.now(), label: label };
-    ws.send(PUB(TOPIC_CMD, JSON.stringify({ cmd, ts, sig: bufToHex(sigBuf) })));
+    const payload = { cmd: cmd, ts: ts, sig: bufToHex(sigBuf) };
+    if (extra) { for (const k in extra) { if (k !== 'cmd' && k !== 'ts' && k !== 'sig') payload[k] = extra[k]; } }
+    ws.send(PUB(TOPIC_CMD, JSON.stringify(payload)));
     toast('正在' + label + '…');
   } catch(e){ pending = null; toast('发送失败'); }
 }
@@ -255,6 +276,7 @@ const pageOpenedAt = Date.now();
 let staleShown = false;
 let pending = null;
 let lastSeenTs = '';
+let detailI = null;   // 当前打开的实例卡片
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -322,6 +344,69 @@ function wakeInfo(it){
   return { main: main, sub: sub };
 }
 
+function fmtNum(n){
+  if (n === null || n === undefined) return '—';
+  n = Number(n);
+  if (!isFinite(n)) return '—';
+  if (n >= 100000000) return (Math.round(n / 1000000) / 100) + '亿';
+  if (n >= 10000) return (Math.round(n / 1000) / 10) + '万';
+  return String(n);
+}
+function resOne(label, r){
+  const isBb = (label === '夜世界');
+  if (!r) return '<div class="resline dim"><span class="rk">' + label + '</span>尚未采集</div>';
+  const parts = [];
+  if (r.g !== null && r.g !== undefined) parts.push((isBb ? '兵金 ' : '金 ') + fmtNum(r.g));
+  if (r.e !== null && r.e !== undefined) parts.push((isBb ? '兵圣 ' : '圣 ') + fmtNum(r.e));
+  if (r.d !== null && r.d !== undefined) parts.push('黑 ' + fmtNum(r.d));
+  let html = '<div class="resline"><span class="rk">' + label + '</span><span>' + (parts.length ? parts.join(' · ') : '尚未采集') + '</span>';
+  if (r.at && parts.length) html += '<span class="rw">' + esc(r.at) + (r.stale ? ' · 上次' : '') + '</span>';
+  return html + '</div>';
+}
+function stateTag(it){
+  if (!it) return { tag: '—', cls: 'off' };
+  if (it.state === 'run') return { tag: '运行中', cls: 'run' };
+  if (it.state === 'sleep') return { tag: '休眠', cls: 'sleep' };
+  if (it.state === 'unknown') return { tag: '未知', cls: 'off' };
+  return { tag: '离线', cls: 'off' };
+}
+function findInstance(i){
+  const list = (last && last.instances) || [];
+  for (let k = 0; k < list.length; k++) { if (String(list[k].i) === String(i)) return list[k]; }
+  return null;
+}
+function renderDetail(){
+  const mask = document.getElementById('sheetMask');
+  const box = document.getElementById('sheet');
+  if (!mask || !box) return;
+  const it = (detailI === null) ? null : findInstance(detailI);
+  if (!it) { closeDetail(); return; }
+  const t = stateTag(it);
+  const r = it.res || {};
+  let meta = '实例 ' + esc(it.i);
+  if (it.state === 'run' && it.extra) meta = esc(it.extra);
+  else if (it.state === 'sleep' && it.extra) meta = esc(it.extra);
+  if (it.judge && it.judge !== '正常') meta += ' · ' + esc(it.judge);
+  let h = '';
+  h += '<div class="sheet-head"><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>';
+  h += '<div class="tag ' + t.cls + '">' + t.tag + '</div><div class="sheet-close" data-close="1">✕</div></div>';
+  h += resOne('主世界', r.main) + resOne('夜世界', r.bb);
+  if (it.sched !== null && it.sched !== undefined) {
+    h += '<div class="drow"><span>升级上号</span><div class="sw' + (it.sched ? ' on' : '') + (pending ? ' busy' : '') + '" data-zkq="' + esc(it.i) + '" data-on="' + (it.sched ? 1 : 0) + '"><i></i></div></div>';
+  } else if (it.state === 'run') {
+    h += '<div class="drow"><span>升级上号</span><span class="meta">读取中…</span></div>';
+  }
+  h += '<div class="dbtns"><button data-restart="' + esc(it.i) + '">重启实例</button></div>';
+  box.innerHTML = h;
+  mask.style.display = 'flex';
+}
+function openDetail(i){ detailI = String(i); renderDetail(); }
+function closeDetail(){
+  detailI = null;
+  const mask = document.getElementById('sheetMask');
+  if (mask) mask.style.display = 'none';
+}
+
 function render(raw){
   let d = null;
   try { d = JSON.parse(raw); } catch(e){ return; }
@@ -369,9 +454,9 @@ function render(raw){
       } else {
         meta = '已关机';
       }
-      return '<div class="row"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' +
+      return '<div class="icard" data-i="' + esc(it.i) + '"><div class="row"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' +
              '<div class="rt"><b>' + esc(rt) + '</b><span>' + rs + '</span></div>' +
-             '<div class="tag ' + cls + '">' + esc(tag) + '</div></div>';
+             '<div class="tag ' + cls + '">' + esc(tag) + '</div><div class="chev">›</div></div></div>';
     }).join('');
   }
 
@@ -396,12 +481,41 @@ function render(raw){
       return '<div class="' + cls + '"><b>' + esc(e.t) + '</b>' + esc(m) + '</div>';
     }).join('');
   }
+  if (detailI !== null) renderDetail();
 }
 
 document.getElementById('bGuard').onclick = () => send('guard');
 document.getElementById('bSleep').onclick = () => send('sleep');
 document.getElementById('bClean').onclick = () => { if (confirm('立即清理？')) send('clean'); };
 document.getElementById('bWakeAll').onclick = () => { if (confirm('唤醒所有休眠实例？')) send('wakeall'); };
+
+/* 点实例 → 从底部弹出卡片；卡片里可开关升级上号、重启实例 */
+document.getElementById('instances').addEventListener('click', function(ev){
+  const row = ev.target.closest('.icard');
+  if (row) openDetail(row.getAttribute('data-i'));
+});
+document.getElementById('sheetMask').addEventListener('click', function(ev){
+  if (ev.target.id === 'sheetMask') { closeDetail(); return; }
+  if (ev.target.closest('[data-close]')) { closeDetail(); return; }
+  const zk = ev.target.closest('[data-zkq]');
+  if (zk) {
+    ev.stopPropagation(); ev.preventDefault();
+    if (pending) { toast('上一条指令还在执行'); return; }
+    const idx = zk.getAttribute('data-zkq');
+    const on = zk.getAttribute('data-on') !== '1';
+    zk.setAttribute('data-on', on ? '1' : '0');
+    zk.classList.toggle('on', on);
+    send('zkq', { i: idx, on: on });
+    return;
+  }
+  const rb = ev.target.closest('[data-restart]');
+  if (rb) {
+    ev.stopPropagation();
+    const idx = rb.getAttribute('data-restart');
+    if (confirm('确定重启实例 ' + idx + '？')) send('restart', { i: idx });
+    return;
+  }
+});
 
 connect();
 </script>

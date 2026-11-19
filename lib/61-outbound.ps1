@@ -256,6 +256,13 @@ $script:mqttScript = {
                             }
                             if ($valid) {
                                 $item = [ordered]@{ cmd = "$($cmd.cmd)"; i = "$($cmd.i)"; at = (Get-Date).ToString('HH:mm:ss') }
+                                # 透传额外字段（zkq 的 on、restart 的 i 等），否则手机上的开关/重启会缺参数
+                                try {
+                                    foreach ($p in @($cmd.PSObject.Properties)) {
+                                        if ($p.Name -in @('cmd', 'ts', 'sig', 'i', 'at')) { continue }
+                                        $item[$p.Name] = $p.Value
+                                    }
+                                } catch { }
                                 [void]$sync.RemoteQueue.Enqueue([pscustomobject]$item)
                             }
                         }

@@ -1028,6 +1028,7 @@ function Show-SettingInput {
 </Window>
 '@
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
+    Bring-DialogFront $dlg
     try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { }
     $dlg.FindName('Ttl').Text = $Label
     $dlg.FindName('Dsc').Text = $Desc
@@ -1100,6 +1101,7 @@ function Show-ClearMemoryDialog {
 </Window>
 '@
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
+    Bring-DialogFront $dlg
     try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { }
     $script:chkOn = $false
     Enable-WindowDrag $dlg.FindName('Root') $dlg
@@ -1182,6 +1184,7 @@ function Show-InstanceDetail([string]$Index) {
 </Window>
 '@
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $xaml))
+    Bring-DialogFront $dlg
     try { Set-ThemeResources $dlg (Get-ActiveTheme) } catch { }
     Enable-WindowDrag $dlg.FindName('Root') $dlg
     $dlg.FindName('ImgIcon').Source = $script:shellIcon

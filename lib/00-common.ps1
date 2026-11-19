@@ -274,3 +274,16 @@ function Get-LogRowsCached {
     } catch { return @() }
 }
 
+# 弹窗显示时抢到最前（主窗口不置顶后，模态弹窗可能被主窗口挡住，用户点不到、系统还会叮叮响）
+function Bring-DialogFront($dlg) {
+    try {
+        $dlg.Add_Loaded({
+            try {
+                $dlg.Topmost = $true
+                $dlg.Activate()
+                $dlg.Topmost = $false
+                $dlg.Activate()
+            } catch { }
+        }.GetNewClosure())
+    } catch { }
+}

@@ -25,12 +25,12 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.0.17'
+        Title = 'MuMuGuard 2.0.18'
         Lines = @(
-            '手机端：先看实例列表，点实例才弹卡片（资源、游戏截图、升级上号开关、重启）。'
-            '修好了出门在外二维码不显示：地址太长超出二维码容量，现在支持更大的二维码。'
-            '修好了上个实例被任务管理器强杀后、下次双击没反应打不开的问题。'
-            '另外修了设置页点不动、休眠时间对不上、刷新令牌后端口乱跳；去掉了强制置顶。'
+            '出门在外也能点实例看卡片了：资源、升级上号开关、重启实例，和局域网页一致。'
+            '公告窗口现在固定在面板上面，不会再被主窗口挡住（之前点不到还会叮叮响）。'
+            '各种设置/详情弹窗打开时也会自动来到最前面。'
+            '修好了出门在外二维码不显示、强杀后打不开；手机指令的回执提示也补上了。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'
@@ -132,6 +132,14 @@ function Show-Announcement {
         } catch { }
 
     # 内容
+    # 公告是模态窗口，必须压在面板上面：否则主窗口被禁用、用户点不到公告，系统会一直叮叮响
+    try {
+        if ($win -and $win.IsVisible) { $dlg.Owner = $win }
+        $dlg.Topmost = $true
+        $dlg.Activate()
+        $dlg.Add_Loaded({ try { $dlg.Activate(); $dlg.Focus() | Out-Null } catch { } }.GetNewClosure())
+    } catch { }
+
     $dlg.FindName('AnTitle').Text = $c.Title
     $dlg.FindName('AnSub').Text = ('每天第一次打开时显示 · v' + $script:appVersion + ' · ' + (Get-Date).ToString('MM月dd日'))
     $bodyHost = $dlg.FindName('AnBody')

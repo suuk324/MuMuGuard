@@ -1016,6 +1016,7 @@ function Show-RemoteDialog {
         return
     }
     $dlg = [Windows.Markup.XamlReader]::Parse((Convert-XamlTheme $script:remoteXaml))
+    Bring-DialogFront $dlg
     Set-ThemeResources $dlg (Get-ActiveTheme)
    if ($win -and $win.IsVisible) { try { $dlg.Owner = $win } catch { } }
 

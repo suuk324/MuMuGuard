@@ -94,26 +94,45 @@ function Write-Event([string]$action, [string]$instance, [string]$detail) {
     } catch { }
 }
 
-# 单实例：避免多个 waker 同时跑
+# 单实例：避免多个 waker 同时跑。
+# 上一个 waker 被强杀时互斥量会处于 Abandoned 状态，WaitOne 会抛异常但仍算拿到锁；
+# 这里必须捕获，否则唤醒器会静默退出（表现就是「到点不唤醒」）。
 $mutex = New-Object System.Threading.Mutex($false, 'Local\MuMuGuardWaker')
-if (-not $mutex.WaitOne(0)) { exit 0 }
+$gotMutex = $false
+try { $gotMutex = $mutex.WaitOne(0) }
+catch [System.Threading.AbandonedMutexException] { $gotMutex = $true }
+catch { $gotMutex = $false }
+if (-not $gotMutex) {
+    Write-Log '已有唤醒器在运行，本进程退出'
+    exit 0
+}
 
 function Get-SleepList {
     try {
         if (-not (Test-Path $SleepFile)) { return @() }
         $raw = Get-Content $SleepFile -Raw -Encoding UTF8
         if (-not $raw -or $raw.Trim() -eq '') { return @() }
-        return @(@($raw | ConvertFrom-Json) | Where-Object { $_ -ne $null })
+        # 注意 PS 5.1：ConvertFrom-Json 解析数组时是把整个数组当一个对象输出，
+        # 直接 @(... | ConvertFrom-Json) 会得到「一个元素里套着数组」，必须显式拆开
+        $j = $raw | ConvertFrom-Json
+        if ($null -eq $j) { return @() }
+        if ($j -is [System.Array]) {
+            return @($j | ForEach-Object { if ($null -ne $_) { $_ } })
+        }
+        return @($j)
     } catch { return @() }
 }
 
+# 原子写：先写临时文件再替换，避免面板同时读写时读到半截 JSON
 function Save-SleepList($list) {
     try {
         $arr = @($list | Where-Object { $_ -ne $null })
-        if ($arr.Count -eq 0) {
-            '[]' | Set-Content -Path $SleepFile -Encoding UTF8
-        } else {
-            ConvertTo-Json -InputObject $arr -Depth 5 | Set-Content -Path $SleepFile -Encoding UTF8
+        $json = $(if ($arr.Count -eq 0) { '[]' } else { ConvertTo-Json -InputObject $arr -Depth 5 })
+        $tmp = "$SleepFile.$PID.tmp"
+        [System.IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding $false))
+        for ($i = 0; $i -lt 5; $i++) {
+            try { Move-Item -LiteralPath $tmp -Destination $SleepFile -Force -ErrorAction Stop; break }
+            catch { Start-Sleep -Milliseconds 60 }
         }
     } catch { }
 }
@@ -191,6 +210,7 @@ while ($true) {
 
     $now = Get-Date
     $remain = @()
+    $dirty = $false
     foreach ($item in $list) {
         $idx = "$($item.Index)"
         # 重试时间单独放 RetryAt：WakeAt 保持「原计划唤醒时间」不变，面板/手机显示才一致
@@ -201,6 +221,7 @@ while ($true) {
         if (-not $wakeAt) {
             Write-Log "实例 $idx 的唤醒时间无效，移除"
             Write-Event 'WAKE_FAIL' "实例$idx" '唤醒时间无效'
+            $dirty = $true
             continue
         }
 
@@ -214,6 +235,7 @@ while ($true) {
             $ok = Invoke-Wake $idx
             if ($ok) {
                 Write-Event 'WAKE_OK' "实例$idx" '已唤醒并启动脚本'
+                $dirty = $true
             } else {
                 # 失败重试：最多 3 次，间隔 3 分钟
                 $tries = 1
@@ -225,11 +247,13 @@ while ($true) {
                     if ($item.PSObject.Properties.Name -contains 'RetryAt') { $item.RetryAt = $retryAt }
                     else { $item | Add-Member -NotePropertyName RetryAt -NotePropertyValue $retryAt -Force }
                     $remain += $item
+                    $dirty = $true
                     Write-Log ("实例 {0} 唤醒失败（第 {1}/3 次），3 分钟后重试" -f $idx, $tries)
                     Write-Event 'WAKE_RETRY' "实例$idx" ("第 {0}/3 次失败，3 分钟后重试" -f $tries)
                 } else {
                     Write-Log "实例 $idx 连续 3 次唤醒失败，移除任务（请手动处理）"
                     Write-Event 'WAKE_FAIL' "实例$idx" '连续 3 次唤醒失败，请手动处理'
+                    $dirty = $true
                 }
             }
             continue
@@ -240,7 +264,9 @@ while ($true) {
         if ($lastReport -ne $msg) { Write-Log $msg; $lastReport = $msg }
     }
 
-    Save-SleepList $remain
+    # 只在真的改了任务时才写文件：避免每 20 秒整表覆盖一次，
+    # 把面板刚写入的休眠记录冲掉（之前丢记录就是这个原因）
+    if ($dirty) { Save-SleepList $remain }
     if ($remain.Count -eq 0) {
         Write-Log '所有任务完成，退出'
         break

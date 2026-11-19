@@ -25,12 +25,12 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.0.21'
+        Title = 'MuMuGuard 2.0.22'
         Lines = @(
-            '修好了「休眠/关机后实例详情里资源和截图都没了」：之前详情页只在实例运行时才读资源和截图，'
-            '一休眠就整段不显示；现在会显示磁盘上最近一次采集的数据和截图（标「上次」）。'
-            '截图下面会显示采集时间，休眠中的实例也能看到休眠计划和唤醒剩余时间。'
-            '另外：后台采样写错目录的问题已在 2.0.20 修复，现有数据已全部迁移回面板目录。'
+            '修好了休眠判定的两个问题：游戏明明在前台也会被关（前台保护失效），'
+            '以及刚关机 10~20 秒后休眠记录被误撤销、导致不会按时唤醒。'
+            '现在游戏前台一定不睡；刚关机有 90 秒宽限期，连续确认 3 次才撤销记录。'
+            '唤醒器改成单实例，并只在任务有变化时才写休眠计划，不会再把记录覆盖丢。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

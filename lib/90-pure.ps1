@@ -206,7 +206,10 @@ function Get-InstanceMemBase {
 # 升级休眠状态机（纯逻辑，便于单测）
 # 返回 @{ Action = 'wait'|'gamegone'|'sleep'|'idle'; Reason = '...' }
 # 前台包名是否属于游戏（PkgGame 可能是空格分隔的多个包）
-function Test-GameForeground {
+# 注意：这里必须叫 Test-IsGamePackage，不能叫 Test-GameForeground——
+#       63-res.ps1 里也有一个 Test-GameForeground(实例号)，加载顺序会让它覆盖同名函数，
+#       之前就因此把休眠判定的前台保护弄失效了（20-actions 绑参失败被吞）。
+function Test-IsGamePackage {
     param([string]$Foreground, [string]$Packages)
     if (-not $Foreground -or -not $Packages) { return $false }
     $fg = $Foreground.Trim().ToLower()
@@ -216,6 +219,50 @@ function Test-GameForeground {
         if ($pp -and $fg -eq $pp) { return $true }
     }
     return $false
+}
+
+# 休眠记录对齐判定（纯逻辑，便于单测）
+# 返回 @{ Action = 'skip'|'reset'|'count'|'revoke'; Hits = n; Reason = '...' }
+#   skip  : 刚关机，处于宽限期（adb 还停留在关机前的在线状态）→ 不判定
+#   reset : 实例不在线或采集数据过期 → 不算运行，计数清零
+#   count : 在线且数据新鲜 → 记一次，等下一次巡检
+#   revoke: 连续 NeedHits 次确认在运行 → 撤销休眠记录
+function Get-StaleSleepDecision {
+    param(
+        [object]$Row,
+        [object]$Entry,
+        [datetime]$Now,
+        [int]$Hits = 0,
+        [double]$GraceSec = 90,
+        [double]$FreshSec = 60,
+        [int]$NeedHits = 3
+    )
+    $h = [int]$Hits
+    if (-not $Row) { return @{ Action = 'reset'; Hits = 0; Reason = 'no-row' } }
+    $idx = "$($Row.Index)"
+    if (-not $idx -or $idx -eq '-') { return @{ Action = 'reset'; Hits = 0; Reason = 'no-index' } }
+    # 关机宽限期从记录里的 ShutdownAt 算；老记录没有这个字段就退回 Since（老记录通常早已过宽限期）
+    $shut = $null
+    try {
+        if ($Entry -and ($Entry.PSObject.Properties.Name -contains 'ShutdownAt') -and "$($Entry.ShutdownAt)") {
+            $shut = [datetime]::Parse("$($Entry.ShutdownAt)")
+        } elseif ($Entry -and ($Entry.PSObject.Properties.Name -contains 'Since') -and "$($Entry.Since)") {
+            $shut = [datetime]::Parse("$($Entry.Since)")
+        }
+    } catch { }
+    if ($shut -and $GraceSec -gt 0 -and ($Now - $shut).TotalSeconds -lt $GraceSec) {
+        return @{ Action = 'skip'; Hits = $h; Reason = 'grace' }
+    }
+    $online = ($Row.Online -eq $true)
+    $fresh = $false
+    try {
+        if ($Row.At) { $fresh = (((($Now - [datetime]$Row.At).TotalSeconds)) -le $FreshSec) }
+    } catch { }
+    if (-not $online) { return @{ Action = 'reset'; Hits = 0; Reason = 'offline' } }
+    if (-not $fresh) { return @{ Action = 'reset'; Hits = 0; Reason = 'stale-data' } }
+    $h++
+    if ($h -ge $NeedHits) { return @{ Action = 'revoke'; Hits = $h; Reason = 'running-confirmed' } }
+    return @{ Action = 'count'; Hits = $h; Reason = 'running' }
 }
 
 function Get-SleepStage {

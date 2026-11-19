@@ -67,6 +67,20 @@ function Get-SleepList {
 }
 
 
+# 原子写 JSON：先写临时文件再替换，避免 Waker/面板同时读写时读到半截文件
+function Write-JsonAtomic([string]$Path, [string]$Json) {
+    try {
+        $dir = Split-Path $Path -Parent
+        if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        $tmp = "$Path.$PID.tmp"
+        [System.IO.File]::WriteAllText($tmp, $Json, (New-Object System.Text.UTF8Encoding $false))
+        for ($i = 0; $i -lt 5; $i++) {
+            try { Move-Item -LiteralPath $tmp -Destination $Path -Force -ErrorAction Stop; break }
+            catch { Start-Sleep -Milliseconds 60 }
+        }
+    } catch { }
+}
+
 function Save-SleepList($list) {
     try {
         $arr = @($list | Where-Object { $_ -ne $null })
@@ -74,11 +88,8 @@ function Save-SleepList($list) {
         $uniq = [ordered]@{}
         foreach ($e in $arr) { $uniq["$($e.Index)"] = $e }
         $arr = @($uniq.Values)
-        if ($arr.Count -eq 0) {
-            '[]' | Set-Content -Path $SleepFile -Encoding UTF8
-        } else {
-            ConvertTo-Json -InputObject $arr -Depth 5 | Set-Content -Path $SleepFile -Encoding UTF8
-        }
+        $json = $(if ($arr.Count -eq 0) { '[]' } else { ConvertTo-Json -InputObject $arr -Depth 5 })
+        Write-JsonAtomic $SleepFile $json
     } catch { }
 }
 
@@ -173,46 +184,57 @@ function Invoke-CatchUpWake {
 
 # 实例实际已经在运行 -> 撤销它的休眠记录
 # 独立于「自动休眠」开关：即使不开自动休眠，休眠记录也不该和实际状态对不上
+# 防误撤：
+#   1) 刚关机 90 秒内不判定（adb 采集还是关机前的在线状态）
+#   2) 只有「在线 + 采集数据新鲜（60 秒内）」才算在运行
+#   3) 连续 3 次（约 30 秒）确认才撤销，撤销后把计数清零
 function Clear-StaleSleepEntries {
     try {
         $list = @(Get-SleepList)
         if ($list.Count -eq 0) { return }
-        $running = @{}
+        $now = Get-Date
+        if (-not $script:staleSleepHits) { $script:staleSleepHits = @{} }
+        $rows = @{}
         foreach ($r in @($script:lastInstances)) {
             if (-not $r) { continue }
             $idx = "$($r.Index)"
             if (-not $idx -or $idx -eq '-') { continue }
-            if ($r.Online -eq $true) { $running[$idx] = $true }
+            $rows[$idx] = $r
         }
-        if ($running.Count -eq 0) { return }
-        if (-not $script:staleSleepHits) { $script:staleSleepHits = @{} }
         $keep = @()
         $changed = $false
         foreach ($s in $list) {
             $idx = "$($s.Index)"
-            $hit = $false
-            if ($running.ContainsKey($idx)) {
-                $n = 0
-                if ($script:staleSleepHits.ContainsKey($idx)) { $n = [int]$script:staleSleepHits[$idx] }
-                $n++
-                $script:staleSleepHits[$idx] = $n
-                if ($n -ge 2) { $hit = $true }
-            } else {
-                if ($script:staleSleepHits.ContainsKey($idx)) { $script:staleSleepHits.Remove($idx) }
+            $hits = 0
+            if ($script:staleSleepHits.ContainsKey($idx)) { $hits = [int]$script:staleSleepHits[$idx] }
+            $row = $null
+            if ($rows.ContainsKey($idx)) { $row = $rows[$idx] }
+            $dec = Get-StaleSleepDecision -Row $row -Entry $s -Now $now -Hits $hits
+            switch ("$($dec.Action)") {
+                'skip' {
+                    # 关机宽限期：既不撤销也不计数
+                    $keep += $s
+                }
+                'reset' {
+                    if ($script:staleSleepHits.ContainsKey($idx)) { $script:staleSleepHits.Remove($idx) }
+                    $keep += $s
+                }
+                'count' {
+                    $script:staleSleepHits[$idx] = [int]$dec.Hits
+                    $keep += $s
+                }
+                'revoke' {
+                    Write-GuardLog 'WAKE_MANUAL' "实例$idx" '实例已在运行，撤销休眠记录'
+                    Write-Diag ("实例{0} 已在运行（连续 {1} 次确认），撤销休眠记录" -f $idx, $dec.Hits)
+                    try { $script:staleSleepHits.Remove($idx) } catch { }
+                    try { Reset-InstanceMemory $idx } catch { }
+                    $changed = $true
+                }
             }
-            if ($hit) {
-                Write-GuardLog 'WAKE_MANUAL' "实例$idx" '实例已在运行，撤销休眠记录'
-                Write-Diag "实例$idx 已在运行，已撤销休眠记录"
-                try { Reset-InstanceMemory $idx } catch { }
-                $changed = $true
-                continue
-            }
-            $keep += $s
         }
         if ($changed) { Save-SleepList $keep }
     } catch { }
 }
-
 function Invoke-AutoSleep {
     if ($script:cfg.AutoSleep -ne $true) { return }
     if (-not $script:guardRunning) { return }
@@ -227,21 +249,9 @@ function Invoke-AutoSleep {
 
     if (-not $script:sleepStage) { $script:sleepStage = @{} }
 
-    # 已在休眠列表里的实例：如果已经恢复运行，撤销记录并清记忆
-    $runningIdx = @{}
-    foreach ($r in @($script:lastInstances)) { $runningIdx["$($r.Index)"] = $true }
-    $keep = @()
-    foreach ($s in $list) {
-        $idx = "$($s.Index)"
-        if ($runningIdx.ContainsKey($idx)) {
-            Write-GuardLog 'WAKE_MANUAL' "实例$idx" '已恢复运行，撤销休眠记录'
-            try { Reset-InstanceMemory $idx } catch { }
-            $changed = $true
-            continue
-        }
-        $keep += $s
-    }
-    $list = $keep
+    # 休眠记录和实际状态的对齐统一由 Clear-StaleSleepEntries 处理（每 10 秒一次，
+    # 带关机宽限期和连续确认）。这里不再用「实例行是否存在」判断，
+    # 否则刚发出 shutdown 时实例还在 lastInstances 里，会立刻把记录撤销。
 
     foreach ($r in @($script:lastInstances)) {
         $idx = "$($r.Index)"
@@ -272,11 +282,16 @@ function Invoke-AutoSleep {
         }
 
         # 前台判定：游戏不在前台持续够久 = 脚本在等升级（紫孔雀会把游戏切后台）
+        # 注意用 Test-IsGamePackage（90-pure 的纯函数）；Test-GameForeground 是 63-res 的
+        # adb 查询版本（按实例号），两者不能同名，否则加载顺序会覆盖导致这里绑参失败。
         $fgPkg = ''
         try { if ($r.PSObject.Properties.Name -contains 'Foreground') { $fgPkg = [string]$r.Foreground } } catch { }
         $gameFg = $false
-        try { $gameFg = Test-GameForeground -Foreground $fgPkg -Packages ([string]$script:cfg.PkgGame) } catch { }
-        if ($r.Game -eq $true -and -not $gameFg) {
+        if ($fgPkg) {
+            try { $gameFg = Test-IsGamePackage -Foreground $fgPkg -Packages ([string]$script:cfg.PkgGame) } catch { }
+        }
+        # 取不到前台包名（adb 解析失败/窗口切换瞬间）时不累计后台空闲，宁可晚睡也不误睡
+        if ($r.Game -eq $true -and $fgPkg -and -not $gameFg) {
             if (-not $st['IdleSince']) { $st['IdleSince'] = $now }
         } else {
             $st['IdleSince'] = $null
@@ -322,6 +337,7 @@ function Invoke-AutoSleep {
             DoneAt  = $doneAt.ToString('yyyy-MM-ddTHH:mm:ss')
             Upgrade = ('{0} Lv.{1}' -f $r.UpName, $r.UpLvl)
             Since   = $now.ToString('yyyy-MM-ddTHH:mm:ss')
+            ShutdownAt = $now.ToString('yyyy-MM-ddTHH:mm:ss')
         }
         $list += $entry
         $changed = $true

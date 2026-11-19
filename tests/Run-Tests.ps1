@@ -505,15 +505,15 @@ Test-Case '后台空闲够久但升级快完成 → 不睡' {
 
 
 Test-Case '前台包名判断：游戏包 → 是游戏在前台' {
-    Assert-Equal 'True' "$(Test-GameForeground -Foreground 'com.supercell.clashofclans' -Packages 'com.tencent.tmgp.supercell.clashofclans com.supercell.clashofclans')"
+    Assert-Equal 'True' "$(Test-IsGamePackage -Foreground 'com.supercell.clashofclans' -Packages 'com.tencent.tmgp.supercell.clashofclans com.supercell.clashofclans')"
 }
 
 Test-Case '前台包名判断：脚本包 → 不算游戏前台' {
-    Assert-Equal 'False' "$(Test-GameForeground -Foreground 'com.coc.zkqcode' -Packages 'com.supercell.clashofclans')"
+    Assert-Equal 'False' "$(Test-IsGamePackage -Foreground 'com.coc.zkqcode' -Packages 'com.supercell.clashofclans')"
 }
 
 Test-Case '前台包名判断：取不到 → 不算游戏前台' {
-    Assert-Equal 'False' "$(Test-GameForeground -Foreground '' -Packages 'com.supercell.clashofclans')"
+    Assert-Equal 'False' "$(Test-IsGamePackage -Foreground '' -Packages 'com.supercell.clashofclans')"
 }
 Test-Case '多号同时等：取最早完成的那个' {
     $now = [int64](([datetime]::UtcNow - (New-Object datetime 1970,1,1,0,0,0,([DateTimeKind]::Utc))).TotalSeconds)
@@ -533,6 +533,72 @@ Test-Case '升级全部过期：返回当前号那条做兜底' {
     $json = '{"NextUpgrade1":"{\"name\":\"旧\",\"lvl\":1,\"completionTs\":1000}","accountNumber":"1"}'
     $u = Get-UpgradeFromMemoryJson -Text $json
     Assert-Equal '旧' "$($u.Name)"
+}
+# ---------------- 休眠记录对齐（防误撤销）----------------
+$nowT = Get-Date
+$entryFresh = [pscustomobject]@{ Index = '2'; Since = $nowT.AddMinutes(-5).ToString('yyyy-MM-ddTHH:mm:ss'); ShutdownAt = $nowT.AddMinutes(-5).ToString('yyyy-MM-ddTHH:mm:ss') }
+$entryJustShut = [pscustomobject]@{ Index = '2'; Since = $nowT.AddSeconds(-10).ToString('yyyy-MM-ddTHH:mm:ss'); ShutdownAt = $nowT.AddSeconds(-10).ToString('yyyy-MM-ddTHH:mm:ss') }
+
+Test-Case '休眠对齐：关机宽限期内跳过（adb 还报在线也不算运行）' {
+    $row = [pscustomobject]@{ Index = '2'; Online = $true; At = $nowT }
+    $r = Get-StaleSleepDecision -Row $row -Entry $entryJustShut -Now $nowT
+    Assert-Equal 'skip' "$($r.Action)"
+}
+
+Test-Case '休眠对齐：宽限期后在线且数据新鲜 → 记一次' {
+    $row = [pscustomobject]@{ Index = '2'; Online = $true; At = $nowT }
+    $r = Get-StaleSleepDecision -Row $row -Entry $entryFresh -Now $nowT
+    Assert-Equal 'count' "$($r.Action)"
+}
+
+Test-Case '休眠对齐：连续 3 次确认才撤销' {
+    $row = [pscustomobject]@{ Index = '2'; Online = $true; At = $nowT }
+    $r1 = Get-StaleSleepDecision -Row $row -Entry $entryFresh -Now $nowT -Hits 0
+    $r2 = Get-StaleSleepDecision -Row $row -Entry $entryFresh -Now $nowT -Hits ([int]$r1.Hits)
+    $r3 = Get-StaleSleepDecision -Row $row -Entry $entryFresh -Now $nowT -Hits ([int]$r2.Hits)
+    Assert-Equal 'revoke' "$($r3.Action)"
+}
+
+Test-Case '休眠对齐：采集数据过期 → 清零不撤销' {
+    $row = [pscustomobject]@{ Index = '2'; Online = $true; At = $nowT.AddSeconds(-120) }
+    $r = Get-StaleSleepDecision -Row $row -Entry $entryFresh -Now $nowT -Hits 2
+    Assert-Equal 'reset' "$($r.Action)"
+}
+
+Test-Case '休眠对齐：离线 → 清零' {
+    $row = [pscustomobject]@{ Index = '2'; Online = $false; At = $nowT }
+    $r = Get-StaleSleepDecision -Row $row -Entry $entryFresh -Now $nowT -Hits 2
+    Assert-Equal 'reset' "$($r.Action)"
+}
+
+Test-Case '休眠对齐：没有实例行 → 清零' {
+    $r = Get-StaleSleepDecision -Row $null -Entry $entryFresh -Now $nowT -Hits 2
+    Assert-Equal 'reset' "$($r.Action)"
+}
+
+# ---------------- 防函数重名回归 ----------------
+Test-Case 'lib 模块没有新增重名函数（白名单除外）' {
+    $allowed = @('New-RingCell', 'Update-Ui', 'Set-View', 'Write-Diag')
+    $seen = @{}
+    $dups = @()
+    Get-ChildItem (Join-Path $root 'lib') -Filter '*.ps1' | ForEach-Object {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$null)
+        $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) | ForEach-Object {
+            $nm = $_.Name
+            if ($seen.ContainsKey($nm)) {
+                if ($allowed -notcontains $nm) { $dups += $nm }
+            } else { $seen[$nm] = $_.Extent.File }
+        }
+    }
+    if ($dups.Count -gt 0) { return ("重名函数: " + (($dups | Select-Object -Unique) -join ', ')) }
+    return $true
+}
+
+Test-Case '休眠判定调用的是 Test-IsGamePackage（防再次绑参失败）' {
+    $txt = Get-Content (Join-Path $root 'lib\20-actions.ps1') -Raw -Encoding UTF8
+    if ($txt -match 'Test-GameForeground\s+-Foreground') { return '20-actions 仍在用 Test-GameForeground -Foreground（会被 63-res 覆盖）' }
+    if ($txt -notmatch 'Test-IsGamePackage') { return '20-actions 没调用 Test-IsGamePackage' }
+    return $true
 }
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {

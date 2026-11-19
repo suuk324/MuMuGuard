@@ -201,6 +201,7 @@ function Group-ResourceBands($Bands) {
 }
 
 # 整列一次性 OCR：资源条整块裁下来识别一次（实测比逐条稳，且快）
+# 返回每行文本 + 该行在裁剪图里的纵向中心（Y），供上层按「行位置」对齐两种语言的识别结果
 function Get-OcrLines([string]$Path, [string]$LangTag) {
     if (-not $script:ocrAsTask) { return @() }
     $eng = Get-OcrEngine $LangTag
@@ -212,7 +213,13 @@ function Get-OcrLines([string]$Path, [string]$LangTag) {
         $bitmap = Await-Op ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
         $res = Await-Op ($eng.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
         $lines = @()
-        foreach ($ln in $res.Lines) { $lines += $ln.Text }
+        foreach ($ln in $res.Lines) {
+            $ys = @()
+            try { foreach ($wd in $ln.Words) { $r = $wd.BoundingRect; $ys += ($r.Y + $r.Height / 2) } } catch { }
+            $cy = $null
+            if ($ys.Count -gt 0) { $cy = ($ys | Measure-Object -Average).Average }
+            $lines += [pscustomobject]@{ Text = "$($ln.Text)"; Y = $cy }
+        }
         try { $stream.Dispose() } catch { }
         return $lines
     } catch { return @() }
@@ -240,35 +247,82 @@ function Read-ResourceColumn([System.Drawing.Bitmap]$Bmp, $Bands) {
         $g.DrawImage($Bmp, (New-Object System.Drawing.Rectangle 0, 0, ($w * $scale), ($h * $scale)),
                      (New-Object System.Drawing.Rectangle $x0, $y0, $w, $h), [System.Drawing.GraphicsUnit]::Pixel)
         $g.Dispose()
+        # 把绿色「+」按钮整块涂黑：它中间的白色十字会被 OCR 认成数字
+        # （"6 395" 曾被读成 "46.395"）。按钮是饱和度极高的亮绿，草地达不到这个亮度，
+        # 只在左侧按钮区域（<0.90W）抹除，右侧宝石图标不动。
+        try {
+            $gb = [System.Drawing.Graphics]::FromImage($crop)
+            $br = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::Black)
+            $xLimit = [int]($Bmp.Width * 0.90)
+            for ($y = $y0; $y -le $y1; $y++) {
+                $mn = [int]::MaxValue; $mx = -1
+                for ($x = $x0; $x -le $xLimit; $x++) {
+                    $c = $Bmp.GetPixel($x, $y)
+                    if ($c.G -ge 205 -and ($c.G - $c.R) -ge 90 -and ($c.G - $c.B) -ge 120) {
+                        if ($x -lt $mn) { $mn = $x }
+                        if ($x -gt $mx) { $mx = $x }
+                    }
+                }
+                if ($mx -ge 0 -and ($mx - $mn) -ge 6) {
+                    $gb.FillRectangle($br, [int](($mn - $x0 - 1) * $scale), [int](($y - $y0) * $scale),
+                                      [int](($mx - $mn + 2) * $scale), ([int]$scale + 1))
+                }
+            }
+            $br.Dispose(); $gb.Dispose()
+        } catch { }
         $crop.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Png)
         $crop.Dispose()
         foreach ($lang in @('en-US', 'zh-Hans-CN')) {
-            $vals = @()
+            $cands = @()
             $lines = @(Get-OcrLines $tmp $lang)
             foreach ($ln in $lines) {
                 if (-not $ln) { continue }
-                $l2 = [regex]::Replace($ln, '[\u4e00-\u9fa5]', '')
-                if (-not $l2) { continue }
-                $v = ConvertTo-BestDigits @($l2) 9
-                if ($null -ne $v) { $vals += $v }
+                $raw = "$($ln.Text)"
+                if (-not $raw) { continue }
+                $clean = [regex]::Replace($raw, '[\u4e00-\u9fa5]', '')
+                if (-not $clean) { continue }
+                $v = ConvertTo-BestDigits @($clean) 9
+                if ($null -eq $v) { continue }
+                $cy = -1
+                if ($null -ne $ln.Y) { $cy = [double]$ln.Y }
+                $cands += [pscustomobject]@{ Y = $cy; Value = $v }
             }
-            $byLang[$lang] = $vals
+            $byLang[$lang] = $cands
         }
     } catch { } finally {
         try { Remove-Item $tmp -Force -ErrorAction SilentlyContinue } catch { }
     }
-    # 两种语言按行位置合并：同一行取位数更多的那个（更可能是完整数字）
+
+    # 关键：两种语言按「行在图片里的纵向位置」对齐，不能按下标。
+    # 两个引擎经常会漏行（中文漏第一行、英文漏最后一行），按下标合并会把上一行的数字顶到下一行。
+    $rowCenters = @()
+    foreach ($b in $arr) { $rowCenters += (((($b.Y0 + $b.Y1) / 2) - $y0) * $scale) }
+    $tol = [Math]::Max(8, 0.55 * $avgH * $scale)
+
     $en = @($byLang['en-US'])
     $zh = @($byLang['zh-Hans-CN'])
-    $n = [Math]::Max($en.Count, $zh.Count)
+    $pick = {
+        param($Cands, $Cy)
+        $best = $null; $bestD = [double]::MaxValue
+        foreach ($c in $Cands) {
+            if ($c.Y -lt 0) { continue }
+            $d = [Math]::Abs($c.Y - $Cy)
+            if ($d -lt $bestD) { $bestD = $d; $best = $c }
+        }
+        if ($best -and $bestD -le $tol) { return $best }
+        return $null
+    }
+    $lens = { param($x) if ($null -eq $x) { return -1 } else { return ("$([long]$x)").Length } }
     $merged = @()
-    for ($i = 0; $i -lt $n; $i++) {
-        $a = $(if ($i -lt $en.Count) { $en[$i] } else { $null })
-        $b = $(if ($i -lt $zh.Count) { $zh[$i] } else { $null })
-        $lens = { param($x) if ($null -eq $x) { return -1 } else { return ("$([long]$x)").Length } }
-        $la = & $lens $a
-        $lb = & $lens $b
-        if ($la -ge $lb) { $merged += $a } else { $merged += $b }
+    for ($i = 0; $i -lt $rowCenters.Count; $i++) {
+        $cy = $rowCenters[$i]
+        $a = & $pick $en $cy
+        $b = & $pick $zh $cy
+        $va = $(if ($a) { $a.Value } else { $null })
+        $vb = $(if ($b) { $b.Value } else { $null })
+        $la = & $lens $va
+        $lb = & $lens $vb
+        $merged += $(if ($la -ge $lb) { $va } else { $vb })
     }
     return $merged
 }

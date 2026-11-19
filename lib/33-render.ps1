@@ -1094,6 +1094,7 @@ function Show-InstanceDetail([string]$Index) {
         <StackPanel x:Name="PnlRows"/>
       </Border>
 
+        <StackPanel x:Name="PnlShots" Orientation="Horizontal" Margin="0,12,0,0" Visibility="Collapsed"/>
       <Grid Margin="0,14,0,0">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
@@ -1146,24 +1147,65 @@ function Show-InstanceDetail([string]$Index) {
         }
     } catch { }
     try {
-            if (-not (Get-ResStable "$Index")) { [void](Update-ResSamples "$Index") }
+        if (-not (Get-ResStable "$Index")) { [void](Update-ResSamples "$Index") }
         if ($row.Online) {
-            $res = Get-ResStable "$Index"
-            $verTag = $(if ("$($res.GameVer)" -eq 'cn') { '国服' } elseif ("$($res.GameVer)" -eq 'global') { '国际服' } else { '' })
-            if ($res -and $res.World -eq 'main') {
-                $ln = "金 $(Format-ResAmount $res.Gold) · 圣 $(Format-ResAmount $res.Elixir) · 黑 $(Format-ResAmount $res.Dark)"
+            $verTag = ''
+            # 主世界和夜世界各显示一行；没采到就写「尚未采集」，两个都始终可见
+            foreach ($w in @('main', 'bb')) {
+                $res = Get-ResStable "$Index" $w
+                $wName = $(if ($w -eq 'main') { '主世界' } else { '夜世界' })
+                if ($res) {
+                    $verTag = $(if ("$($res.GameVer)" -eq 'cn') { '国服' } elseif ("$($res.GameVer)" -eq 'global') { '国际服' } else { '' })
+                }
+                $label = $(if ($verTag) { "$verTag $wName" } else { $wName })
+                if (-not $res) {
+                    & $addRow $label '尚未采集' '#6E6E78'
+                    continue
+                }
+                if ($w -eq 'main') {
+                    $ln = "金 $(Format-ResAmount $res.Gold) · 圣 $(Format-ResAmount $res.Elixir) · 黑 $(Format-ResAmount $res.Dark)"
+                } else {
+                    $ln = "兵金 $(Format-ResAmount $res.Gold) · 兵圣 $(Format-ResAmount $res.Elixir)"
+                }
                 if ($res.Stale) { $ln += '（上次）' }
                 if ($res.Samples -ge 2) { $ln += " · $($res.Samples)次" }
-                & $addRow $(if ($verTag) { "$verTag 主世界" } else { '主世界' }) $ln ''
-            } elseif ($res -and $res.World -eq 'bb') {
-                $ln = "兵金 $(Format-ResAmount $res.Gold) · 兵圣 $(Format-ResAmount $res.Elixir)"
-                if ($res.Stale) { $ln += '（上次）' }
-                if ($res.Samples -ge 2) { $ln += " · $($res.Samples)次" }
-                & $addRow $(if ($verTag) { "$verTag 夜世界" } else { '夜世界' }) $ln ''
-            } else {
-                & $addRow '资源' '游戏不在前台，读不到' '#6E6E78'
+                & $addRow $label $ln ''
             }
+            # 截图：主世界/夜世界各一张，放在数值下面
+            $pnlShots = $dlg.FindName('PnlShots')
+            foreach ($w in @('main', 'bb')) {
+                $shot = Get-ResShot "$Index" $w
+                $wName = $(if ($w -eq 'main') { '主世界' } else { '夜世界' })
+                $box = New-Object System.Windows.Controls.StackPanel
+                $box.Margin = New-Object System.Windows.Thickness(0, 0, 8, 0)
+                $bd = New-Object System.Windows.Controls.Border
+                $bd.Background = Brush '#1A1A1E'
+                $bd.CornerRadius = New-Object System.Windows.CornerRadius 8
+                $bd.Padding = New-Object System.Windows.Thickness 3
+                $img = New-Object System.Windows.Controls.Image
+                $img.Width = 172
+                $img.Stretch = 'Uniform'
+                if ($shot -and (Test-Path $shot.Path)) {
+                    try {
+                        $bi = New-Object System.Windows.Media.Imaging.BitmapImage
+                        $bi.BeginInit()
+                        $bi.CacheOption = 'OnLoad'
+                        $bi.DecodePixelWidth = 344
+                        $bi.UriSource = New-Object System.Uri($shot.Path)
+                        $bi.EndInit()
+                        $img.Source = $bi
+                    } catch { }
+                }
+                if ($shot -and (Test-Path $shot.Path)) { $bd.Child = $img } else { $bd.Height = 120; $ph = New-ShellText '暂无截图' 10.5 '#3A3A42'; $ph.HorizontalAlignment = 'Center'; $ph.VerticalAlignment = 'Center'; $bd.Child = $ph }
+                [void]$box.Children.Add($bd)
+                $capTxt = $(if ($shot) { "$wName · $($shot.At.ToString('HH:mm'))" } else { "$wName · 暂无截图" })
+                $cap = New-ShellText $capTxt 10 '#6E6E78'
+                $cap.Margin = New-Object System.Windows.Thickness(0, 4, 0, 0)
+                [void]$box.Children.Add($cap)
+                [void]$pnlShots.Children.Add($box)
             }
+            if ($pnlShots.Children.Count -gt 0) { $pnlShots.Visibility = 'Visible' }
+        }
     } catch { Write-Diag "详情·资源读取失败: $($_.Exception.Message)" }
     if ($slp -and $slp.WakeAt) {
         $wi = Get-WakeInfo $slp.WakeAt

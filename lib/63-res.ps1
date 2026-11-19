@@ -492,6 +492,7 @@ function Get-GameResources([string]$Index, [switch]$Force) {
                             }
                         }
                         Write-Diag ("资源采样：版本={0} 世界={1} 带数={2} 数字={3} 金={4} 圣={5} 黑={6} 宝={7} 券={8}" -f $gameVer, $res.World, $group.Count, $nums.Count, $result.Gold, $result.Elixir, $result.Dark, $result.Gems, $result.Extra)
+                        [void](Save-ResShot $Index $result $png)
                     }
                 }
             } finally { try { $bmp.Dispose() } catch { } }
@@ -515,6 +516,61 @@ function Get-GameResources([string]$Index, [switch]$Force) {
 }
 
 # ---------------- 连续采样（游戏在前台时每 3 秒一次）----------------
+# ---------------- 成功采集时把截图留下来（卡片里做可视化）----------------
+$script:resShotInfo = @{}
+
+function Get-ResShotDir {
+    $dir = $null
+    try { if ($DataDir) { $dir = Join-Path $DataDir 'shots' } } catch { }
+    if (-not $dir) { $dir = Join-Path $env:LOCALAPPDATA 'MuMuGuard\shots' }
+    try { if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null } } catch { }
+    return $dir
+}
+
+# 只裁右上角那摞资源条，存成图；同一实例同一世界只保留最新一张
+function Save-ResShot([string]$Index, $Sample, [string]$Png) {
+    try {
+        if (-not $Png -or -not (Test-Path $Png)) { return $null }
+        $dir = Get-ResShotDir
+        if (-not $dir) { return $null }
+        Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+        $src = [System.Drawing.Bitmap]::FromFile($Png)
+        try {
+            $x0 = [int]($src.Width * 0.775)
+            $y0 = 0
+            $w = $src.Width - $x0
+            $h = [int]($src.Height * 0.365)
+            if ($w -lt 40 -or $h -lt 40) { return $null }
+            $out = Join-Path $dir ("{0}_{1}.png" -f $Index, $Sample.World)
+            $crop = New-Object System.Drawing.Bitmap $w, $h
+            $g = [System.Drawing.Graphics]::FromImage($crop)
+            $g.InterpolationMode = 'HighQualityBicubic'
+            $g.DrawImage($src, (New-Object System.Drawing.Rectangle 0, 0, $w, $h),
+                         (New-Object System.Drawing.Rectangle $x0, $y0, $w, $h), [System.Drawing.GraphicsUnit]::Pixel)
+            $g.Dispose()
+            $crop.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)
+            $crop.Dispose()
+            if (-not $script:resShotInfo.ContainsKey($Index)) { $script:resShotInfo[$Index] = @{} }
+            $script:resShotInfo[$Index]["$($Sample.World)"] = @{ Path = $out; At = (Get-Date) }
+            return $out
+        } finally { try { $src.Dispose() } catch { } }
+    } catch { return $null }
+}
+
+# 取某个实例某个世界最近一次的截图信息
+function Get-ResShot([string]$Index, [string]$World) {
+    try {
+        if ($script:resShotInfo.ContainsKey($Index) -and $script:resShotInfo[$Index].ContainsKey($World)) {
+            $info = $script:resShotInfo[$Index][$World]
+            if ($info -and (Test-Path $info.Path)) { return $info }
+        }
+        $dir = Get-ResShotDir
+        if (-not $dir) { return $null }
+        $p = Join-Path $dir ("{0}_{1}.png" -f $Index, $World)
+        if (Test-Path $p) { return @{ Path = $p; At = (Get-Item $p).LastWriteTime } }
+    } catch { }
+    return $null
+}
 function Update-ResSamples([string]$Index) {
     if (-not (Test-GameForeground $Index)) { return $null }
     $r = Get-GameResources $Index -Force
@@ -528,11 +584,10 @@ function Update-ResSamples([string]$Index) {
     return $r
 }
 
-function Get-ResStable([string]$Index) {
+function Get-ResStable([string]$Index, [string]$World) {
     if (-not $script:resSamples.ContainsKey($Index)) { return $null }
     $all = @($script:resSamples[$Index])
-    if ($all.Count -eq 0) { return $null }
-    $world = "$($all[$all.Count - 1].World)"
+    $world = $(if ($World) { $World } else { "$($all[$all.Count - 1].World)" })
     $same = @($all | Where-Object { "$($_.World)" -eq $world })
     if ($same.Count -lt 2) {
         $one = $same[0]

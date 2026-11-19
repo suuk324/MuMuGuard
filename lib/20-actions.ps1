@@ -134,9 +134,12 @@ function Remove-SleepEntry([string]$index) {
 
 function Start-Waker {
     try {
-        $running = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-                   Where-Object { $_.CommandLine -like '*Waker.ps1*' }
-        if ($running) { return }
+        # 只认真正的唤醒器（-File ...Waker.ps1）。不能只匹配 '*Waker.ps1*'，
+        # 否则任何命令行里带这个文件名的进程（编辑器、调试脚本）都会被当成唤醒器已启动，
+        # 结果面板以为有人在唤醒，实际没有。
+        $running = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -and $_.CommandLine -match '-File\s+"?[^"]*Waker\.ps1(?:"|\s|$)' })
+        if ($running.Count -gt 0) { return }
     } catch { }
 
     try {

@@ -25,12 +25,12 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.0.22'
+        Title = 'MuMuGuard 2.0.23'
         Lines = @(
-            '修好了休眠判定的两个问题：游戏明明在前台也会被关（前台保护失效），'
-            '以及刚关机 10~20 秒后休眠记录被误撤销、导致不会按时唤醒。'
-            '现在游戏前台一定不睡；刚关机有 90 秒宽限期，连续确认 3 次才撤销记录。'
-            '唤醒器改成单实例，并只在任务有变化时才写休眠计划，不会再把记录覆盖丢。'
+            '修好了「有休眠任务但到点不唤醒」：公告弹窗是模态的，以前会挡住后面的启动流程，'
+            '没点掉公告时唤醒器根本没启动。现在先启动唤醒器和看护计时器，再弹公告。'
+            '另外收紧了唤醒器进程检测，不会被命令行里带 Waker.ps1 的无关进程误判。'
+            '2.0.22 已修前台误睡、休假记录被误撤销、唤醒器覆盖记录，建议一起升级。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

@@ -329,7 +329,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.22'
+$script:appVersion     = '2.0.23'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -983,7 +983,21 @@ $win.Add_Loaded({
     Update-SleepButton
     Update-Ui
     if ($script:viewMode -eq 'detail') { Sync-Trend }
+    # 先把唤醒器和看护计时器拉起来，再弹公告。
+    # 公告是模态的（ShowDialog 会挡住后面代码），如果先弹公告，用户不点掉就不会启动唤醒器，
+    # 结果就是「有休眠任务但到点不唤醒」。
     # 有休眠任务就确保唤醒进程在跑；错过时间的立即补唤醒
+    Invoke-CatchUpWake
+    # 恢复上次的看护状态
+    if ($script:cfg.GuardRunning -eq $true) {
+        $script:guardRunning = $true
+        $script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
+        $guardTimer.Start()
+        $script:recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
+        $recoverTimer.Start()
+        Update-Ui
+    }
+    # 公告放在最后弹，即使一直不点，唤醒器和看护也已经在跑
     try {
         if (Test-AnnounceDue) { Show-Announcement } else { Write-Diag '公告：今天已提醒过' }
     } catch { Write-Diag "公告调用失败: $($_.Exception.Message)" }
@@ -997,16 +1011,6 @@ $win.Add_Loaded({
             [Environment]::Exit(0)
         })
         $script:uiTestTimer.Start()
-    }
-    Invoke-CatchUpWake
-    # 恢复上次的看护状态
-    if ($script:cfg.GuardRunning -eq $true) {
-        $script:guardRunning = $true
-        $script:guardTimer.Interval = [TimeSpan]::FromMinutes([double]$script:cfg.GuardMinute)
-        $guardTimer.Start()
-        $script:recoverTimer.Interval = [TimeSpan]::FromSeconds([double]$script:cfg.RecoverCheckSec)
-        $recoverTimer.Start()
-        Update-Ui
     }
     $timer.Start()
     # 启动时把自己弹到最前：如果开机时前台是别的全屏程序（浏览器/画图工具），

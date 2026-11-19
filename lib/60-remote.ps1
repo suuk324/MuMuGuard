@@ -443,6 +443,13 @@ function Get-RemotePage {
   .shot span{position:absolute;left:6px;bottom:5px;font-size:10px;color:#fff;background:rgba(0,0,0,.5);padding:1px 6px;border-radius:6px}
   .shot.empty{display:flex;align-items:center;justify-content:center}
   .shot.empty::after{content:'暂无截图';color:var(--dim);font-size:11px}
+  /* 实例详情：点实例后从底部弹出的卡片 */
+  .sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;z-index:60}
+  .sheet{width:100%;max-height:84vh;overflow-y:auto;background:var(--card);border-radius:18px 18px 0 0;border-top:1px solid var(--line);padding:14px 16px 24px}
+  .sheet-head{display:flex;align-items:center;gap:10px;padding-bottom:6px}
+  .sheet-head .who{flex:1;min-width:0}
+  .sheet-close{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.08);color:var(--sub);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex:0 0 28px}
+  .sheet .ires{padding:2px 0 8px}
   .sw.busy{opacity:.45}
   .icard .chev{color:var(--dim);font-size:11px;margin-left:4px}
 </style>
@@ -484,6 +491,7 @@ function Get-RemotePage {
 <div class="card"><div class="title">最近事件</div><div id="events"><div class="empty">暂无</div></div></div>
 
 <footer>每 2 秒刷新 · 数据仅在本机与手机之间</footer>
+<div class="sheet-mask" id="sheetMask" style="display:none"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -550,7 +558,55 @@ function shotsRow(it, ts){
   return '<div class="shots">' + shotBox('main', '主世界', it.i, ts) + shotBox('bb', '夜世界', it.i, ts) + '</div>';
 }
 
-let openSet = [];
+/* 点实例才弹出的详情卡片 */
+function findInstance(i){
+  const list = (lastState && lastState.instances) || [];
+  for (let k = 0; k < list.length; k++) { if (String(list[k].i) === String(i)) return list[k]; }
+  return null;
+}
+function stateTag(it){
+  if (!it) return { tag: '—', cls: 'off' };
+  if (it.state === 'run') return { tag: '运行中', cls: 'run' };
+  if (it.state === 'sleep') return { tag: '休眠', cls: 'sleep' };
+  if (it.state === 'unknown') return { tag: '未知', cls: 'off' };
+  return { tag: '离线', cls: 'off' };
+}
+function renderDetail(){
+  const mask = document.getElementById('sheetMask');
+  const box = document.getElementById('sheet');
+  if (!mask || !box) return;
+  const it = (detailI === null) ? null : findInstance(detailI);
+  if (!it) { mask.style.display = 'none'; detailI = null; return; }
+  const t = stateTag(it);
+  const r = it.res || {};
+  let meta = '实例 ' + esc(it.i);
+  if (it.state === 'run' && it.extra) meta = esc(it.extra);
+  else if (it.state === 'sleep' && it.extra) meta = esc(it.extra);
+  if (it.judge && it.judge !== '正常') meta += ' · ' + esc(it.judge);
+  let html = '';
+  html += '<div class="sheet-head"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>'
+        + '<div class="tag ' + t.cls + '">' + t.tag + '</div>'
+        + '<div class="sheet-close" data-close="1">✕</div></div>';
+  html += '<div class="ires">' + resOne('主世界', r.main) + resOne('夜世界', r.bb) + '</div>';
+  html += shotsRow(it, lastState ? lastState.ts : Date.now());
+  if (it.sched !== null && it.sched !== undefined) {
+    html += '<div class="drow"><span>升级上号</span><div class="sw' + (it.sched ? ' on' : '') + (pending ? ' busy' : '') + '" data-zkq="' + esc(it.i) + '" data-on="' + (it.sched ? 1 : 0) + '"><i></i></div></div>';
+  } else if (it.state === 'run') {
+    html += '<div class="drow"><span>升级上号</span><span class="meta">读取中…</span></div>';
+  }
+  html += '<div class="dbtns"><button data-restart="' + esc(it.i) + '">重启实例</button></div>';
+  box.innerHTML = html;
+  mask.style.display = 'flex';
+}
+function openDetail(i){ detailI = String(i); renderDetail(); }
+function closeDetail(){
+  detailI = null;
+  const mask = document.getElementById('sheetMask');
+  if (mask) mask.style.display = 'none';
+}
+
+let detailI = null;        // 当前打开的实例编号（null = 没开卡片）
+let pendingOpenI = null;   // 首次加载时用 #i3 直接打开
 let pending = null;
 let lastSeen = '';
 
@@ -642,24 +698,14 @@ const _so = document.getElementById("statOff"); if(_so) _so.textContent = _off;
         else if(it.state === 'sleep'){ tag = '休眠'; cls = 'sleep'; if(it.extra) meta = esc(it.extra); }
         else if(it.state === 'unknown'){ tag = '未知'; cls = 'off'; }
         if(it.judge && it.judge !== '正常'){ meta += ' · ' + esc(it.judge); }
-        const open = openSet.indexOf(String(it.i)) >= 0;
-        const r = it.res || {};
-        let resHtml = resOne('主世界', r.main) + resOne('夜世界', r.bb);
-        let det = '';
-        if(it.sched !== null && it.sched !== undefined){
-          det += '<div class="drow"><span>升级上号</span><div class="sw' + (it.sched ? ' on' : '') + (pending ? ' busy' : '') + '" data-zkq="' + esc(it.i) + '" data-on="' + (it.sched ? 1 : 0) + '"><i></i></div></div>';
-        } else if(it.state === 'run'){
-          det += '<div class="drow"><span>升级上号</span><span class="meta">读取中…</span></div>';
-        }
-        det += shotsRow(it, d.ts);
-        det += '<div class="dbtns"><button data-restart="' + esc(it.i) + '">重启实例</button></div>';
-        return '<div class="icard' + (open ? ' open' : '') + '" data-i="' + esc(it.i) + '">'
+        return '<div class="icard" data-i="' + esc(it.i) + '">'
           + '<div class="ihead"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>'
-          + '<div class="tag ' + cls + '">' + esc(tag) + '</div></div>'
-          + '<div class="ires">' + resHtml + '</div>'
-          + '<div class="idet">' + det + '</div></div>';
+          + '<div class="tag ' + cls + '">' + esc(tag) + '</div><div class="chev">›</div></div></div>';
       }).join('');
     }
+    // 卡片开着的时候跟着刷新（不是每次都重建，避免截图闪烁）
+    if (detailI !== null) { renderDetail(); }
+    if (pendingOpenI !== null) { const _pi = pendingOpenI; pendingOpenI = null; openDetail(_pi); }
 
     const used = d.host ? d.host.used : 0, total = d.host ? d.host.total : 0;
     const pct = total ? Math.min(100, Math.round(used / total * 100)) : 0;
@@ -692,26 +738,24 @@ document.getElementById('bSleep').onclick   = () => act('sleep');
 document.getElementById('bClean').onclick   = () => { if(confirm('立即清理？')) act('clean'); };
 document.getElementById('bWakeAll').onclick = () => { if(confirm('唤醒所有休眠实例？')) act('wakeall'); };
 
-/* 卡片交互：点标题展开/收起，开关和重启按钮各自处理 */
+/* 交互：点实例行 → 从底部弹出详情卡片；卡片里可以开关升级上号、重启 */
 document.getElementById('instances').addEventListener('click', function(ev){
+  const row = ev.target.closest('.icard');
+  if(row){ openDetail(row.getAttribute('data-i')); }
+});
+document.getElementById('sheetMask').addEventListener('click', function(ev){
+  if(ev.target.id === 'sheetMask'){ closeDetail(); return; }
+  if(ev.target.closest('[data-close]')){ closeDetail(); return; }
   const zk = ev.target.closest('[data-zkq]');
   if(zk){ ev.stopPropagation(); toggleZkq(zk); return; }
   const rb = ev.target.closest('[data-restart]');
   if(rb){ ev.stopPropagation(); askRestart(rb.getAttribute('data-restart')); return; }
-  const head = ev.target.closest('.ihead');
-  if(head){
-    const card = head.parentNode;
-    const i = card.getAttribute('data-i');
-    const k = openSet.indexOf(i);
-    if(k >= 0) openSet.splice(k, 1); else openSet.push(i);
-    card.classList.toggle('open');
-  }
 });
 
 /* #i3 可以直接打开某个实例的卡片（方便分享/调试） */
 try {
   const mm = location.hash.match(/#i(\d+)/);
-  if (mm && openSet.indexOf(mm[1]) < 0) { openSet.push(mm[1]); }
+  if (mm) { pendingOpenI = mm[1]; }
 } catch(e){}
 tick();
 setInterval(tick, 2000);
@@ -1105,11 +1149,9 @@ try { Enable-WindowDrag ($dlg.FindName('TxtTitle')) $dlg } catch { }
     [void]$dlg.ShowDialog()
     # 面板是从 ShowDialog 里开的，直接 Show 容易被别的窗口压住，这里强制提到最前
     try {
-        $dlg.Topmost = $true
+        # 不再临时置顶（用户要求不要强制置顶）
         $dlg.Activate()
         $dlg.Focus()
-        $dlg.Topmost = $false
-        $dlg.Activate()
     } catch { }
     try { $dlg.Activate() } catch { }
 }

@@ -328,7 +328,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.15'
+$script:appVersion     = '2.0.16'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -1003,9 +1003,8 @@ $win.Add_Loaded({
     # 窗口会开在它后面，没有任务栏按钮时用户会以为程序没起来
     try {
         $win.ShowInTaskbar = $true
+        # 不再临时置顶（用户要求不要强制置顶），只激活一次
         $win.Activate() | Out-Null
-        $win.Topmost = $true
-        $win.Topmost = $false
         $win.Focus() | Out-Null
     } catch { }
 })

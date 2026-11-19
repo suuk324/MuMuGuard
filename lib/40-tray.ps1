@@ -19,9 +19,8 @@ function Show-Panel {
         if ($win.Height -lt 300 -or $win.Width -lt 300) {
             try { Set-View $script:viewMode } catch { }
         }
+        # 只激活窗口，不再临时置顶（用户要求不要强制置顶）
         $win.Activate()
-        $win.Topmost = $true
-        $win.Topmost = $false
         try { Update-Ui } catch { }
     } catch { Write-Diag "显示面板失败: $($_.Exception.Message)" }
 }

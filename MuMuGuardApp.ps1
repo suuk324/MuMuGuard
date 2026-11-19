@@ -328,7 +328,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.12'
+$script:appVersion     = '2.0.13'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -881,13 +881,21 @@ $script:guardTimer.Add_Tick({
 # ---------------- 资源采样 ----------------
 # 一次 OCR 要 1~2 秒。以前直接跑在 UI 线程上，界面每隔 3 秒就卡一下。
 # 现在整轮采样在后台 runspace 里跑，这里只负责把实例的 adb 序列号同步过去（纯内存操作）。
+# ---------------- 资源采样（后台线程做 OCR，这里只同步实例的 adb 序列号）----------------
 $resTimer = New-Object System.Windows.Threading.DispatcherTimer
 $resTimer.Interval = [TimeSpan]::FromSeconds(5)
 $resTimer.Add_Tick({
     try {
         $serials = @{}
         foreach ($k in @($script:adbSync.Data.Keys)) {
-            try { $s = "$($script:adbSync.Data[$k].Serial)"; if ($s) { $serials["$k"] = $s } } catch { }
+            try {
+                $ent = $script:adbSync.Data[$k]
+                if ($ent -and "$($ent.Online)" -eq 'True') {
+                    $sn = [string]$ent.Serial
+                    if (-not $sn) { $sn = [string](Get-DeviceSerial "$k") }
+                    if ($sn) { $serials["$k"] = $sn }
+                }
+            } catch { }
         }
         if ($serials.Count -gt 0) { Update-ResSerials $serials }
     } catch { }
@@ -951,9 +959,10 @@ $win.Add_Loaded({
     try {
         $serials0 = @{}
         foreach ($k in @($script:adbSync.Data.Keys)) {
-            try { $s = "$($script:adbSync.Data[$k].Serial)"; if ($s) { $serials0["$k"] = $s } } catch { }
+            try { $ent = $script:adbSync.Data[$k]; if ($ent -and "$($ent.Online)" -eq 'True') { $sn0 = [string]$ent.Serial; if (-not $sn0) { $sn0 = [string](Get-DeviceSerial "$k") }; if ($sn0) { $serials0["$k"] = $sn0 } } } catch { }
         }
-        [void](Start-ResBackground -Root $Root -DataDir $DataDir -MuMuRoot ([string]$script:cfg.MuMuRoot) -AdbExe $AdbExe -Serials $serials0)
+        $okBg = Start-ResBackground -Root $Root -DataDir $DataDir -MuMuRoot ([string]$script:cfg.MuMuRoot) -AdbExe $AdbExe -Serials $serials0
+        Write-Diag ("后台采样启动结果: ok={0} 初始序列号={1}" -f $okBg, $serials0.Count)
     } catch { Write-Diag "后台采样启动异常: $($_.Exception.Message)" }
     $updateTimer.Start()
     $resTimer.Start()

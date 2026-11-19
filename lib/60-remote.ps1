@@ -49,6 +49,27 @@ function Get-RemoteUrls {
 }
 
 # ---------------- 状态快照（UI 线程调用） ----------------
+# ---------------- 状态快照（给手机端） ----------------
+# 实例的资源读数（主世界/夜世界），数值保持原始数字，格式交给手机端处理
+function Get-RemoteRes([string]$Index) {
+    $out = [ordered]@{}
+    foreach ($w in @('main', 'bb')) {
+        $s = $null
+        try { $s = Get-ResStable $Index $w } catch { }
+        if (-not $s) { continue }
+        $atTxt = ''
+        try { $atTxt = ([datetime]$s.At).ToString('HH:mm') } catch { }
+        $out[$w] = [ordered]@{
+            g     = $(if ($null -ne $s.Gold) { [double]$s.Gold } else { $null })
+            e     = $(if ($null -ne $s.Elixir) { [double]$s.Elixir } else { $null })
+            d     = $(if ($null -ne $s.Dark) { [double]$s.Dark } else { $null })
+            at    = $atTxt
+            stale = [bool]$s.Stale
+        }
+    }
+    return $out
+}
+
 function Build-RemoteState {
     $list = @()
     try {
@@ -79,6 +100,8 @@ function Build-RemoteState {
                 judge = "$($r.Judge)"
                 mem   = [int]$r.Private
                 cores = [double]$r.Cores
+                sched = $(try { Get-ZkqSchedCached "$($r.Index)" } catch { $null })
+                res   = $(try { Get-RemoteRes "$($r.Index)" } catch { $null })
             }
         }
     } catch { }
@@ -169,8 +192,9 @@ function Build-RemoteState {
         host      = $hostInfo
         instances = $list
         events    = $events
+        last      = $script:remoteLast
     }
-    try { return ($obj | ConvertTo-Json -Depth 6 -Compress) } catch { return '{}' }
+    try { return ($obj | ConvertTo-Json -Depth 8 -Compress) } catch { return '{}' }
 }
 
 # ---------------- 服务端脚本（后台 runspace 运行） ----------------
@@ -266,6 +290,13 @@ $script:remoteServerScript = {
                     Send-Res $client 200 'application/json; charset=utf-8' '{"ok":false,"msg":"bad request"}'
                 } else {
                     $item = [ordered]@{ cmd = "$($cmd.cmd)"; i = "$($cmd.i)"; at = (Get-Date).ToString('HH:mm:ss') }
+            # 除 cmd/i 外的字段（比如 zkq 的 on）也要透传，否则开关指令会丢参数
+            try {
+                foreach ($p in @($cmd.PSObject.Properties)) {
+                    if ($p.Name -in @('cmd', 'i', 'at')) { continue }
+                    $item[$p.Name] = $p.Value
+                }
+            } catch { }
                     [void]$sync.RemoteQueue.Enqueue([pscustomobject]$item)
                     Send-Res $client 200 'application/json; charset=utf-8' '{"ok":true}'
                 }
@@ -353,6 +384,22 @@ function Get-RemotePage {
   .memrow{display:flex;align-items:flex-end;padding:8px 0 0}
   .memrow b{font-size:24px;font-weight:600;line-height:1}
   .memrow em{font-style:normal;font-size:11px;color:var(--dim);margin:0 0 3px 5px}
+  .icard{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+  .ihead{display:flex;align-items:center;gap:10px;padding:11px 12px}
+  .icard .tag{margin-left:auto}
+  .ires{padding:0 12px 10px}
+  .idet{display:none;border-top:1px solid var(--line);padding:2px 12px 12px}
+  .icard.open .idet{display:block}
+  .resline{font-size:12.5px;color:var(--sub);padding:3px 0;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;flex-wrap:wrap;gap:6px}
+  .resline .rk{color:var(--dim);font-size:11px;flex:0 0 42px}
+  .resline .rw{color:var(--dim);font-size:10px;margin-left:auto}
+  .resline.dim{color:var(--dim)}
+  .drow{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
+  .drow span{font-size:13px}
+  .dbtns{display:flex;gap:9px;padding-top:8px}
+  .dbtns button{flex:1;padding:10px 8px;font-size:12.5px}
+  .sw.busy{opacity:.45}
+  .icard .chev{color:var(--dim);font-size:11px;margin-left:4px}
 </style>
 </head>
 <body>
@@ -424,6 +471,55 @@ const EVMAP = {CLEAN_CEF:'清理', SLEEP:'休眠', SLEEP_BG:'后台休眠', WAKE
 function evText(s){ return String(s==null?'':s).replace(/^([A-Z][A-Z_]+)\s+/, function(x, c){ return (EVMAP[c] || c) + ' '; }); }
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* 资源卡片：数字沿用游戏里的「万 / 亿」习惯 */
+function fmtNum(n){
+  if(n === null || n === undefined) return '—';
+  n = Number(n);
+  if(!isFinite(n)) return '—';
+  if(n >= 100000000) return (Math.round(n/1000000)/100) + '亿';
+  if(n >= 10000) return (Math.round(n/1000)/10) + '万';
+  return String(n);
+}
+function resOne(label, r){
+  const isBb = (label === '夜世界');
+  if(!r) return '<div class="resline dim"><span class="rk">' + label + '</span>尚未采集</div>';
+  const parts = [];
+  if(r.g !== null && r.g !== undefined) parts.push((isBb ? '兵金 ' : '金 ') + fmtNum(r.g));
+  if(r.e !== null && r.e !== undefined) parts.push((isBb ? '兵圣 ' : '圣 ') + fmtNum(r.e));
+  if(r.d !== null && r.d !== undefined) parts.push('黑 ' + fmtNum(r.d));
+  let html = '<div class="resline"><span class="rk">' + label + '</span><span>' + (parts.length ? parts.join(' · ') : '尚未采集') + '</span>';
+  if(r.at && parts.length) html += '<span class="rw">' + esc(r.at) + (r.stale ? ' · 上次' : '') + '</span>';
+  html += '</div>';
+  return html;
+}
+
+let openSet = [];
+let pending = null;
+let lastSeen = '';
+
+function sendAction(payload, label){
+  if(pending){ toast('上一条指令还在执行'); return; }
+  pending = { cmd: payload.cmd, i: (payload.i || ''), at: Date.now(), label: label };
+  toast('正在' + label + '…');
+  fetch('/api/action?k=' + encodeURIComponent(K), {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); })
+    .then(function(j){ if(!j || !j.ok){ pending = null; toast('发送失败'); } })
+    .catch(function(){ pending = null; toast('网络错误'); });
+}
+
+function toggleZkq(el){
+  const i = el.getAttribute('data-zkq');
+  const on = el.getAttribute('data-on') === '1';
+  sendAction({cmd:'zkq', i: i, on: on ? 0 : 1}, on ? '关闭升级上号' : '开启升级上号');
+}
+
+function askRestart(i){
+  if(!confirm('重启实例 ' + i + '？')) return;
+  sendAction({cmd:'restart', i: i}, '重启实例');
+}
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -435,15 +531,8 @@ async function act(cmd, i){
     const now = lastState ? (cmd === 'guard' ? lastState.guard : lastState.sleep) : null;
     if(now === null) return;
   }
-  try{
-    const r = await fetch('/api/action?k=' + encodeURIComponent(K), {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(i ? {cmd:cmd, i:i} : {cmd:cmd})
-    });
-    const j = await r.json();
-    toast(j.ok ? '已发送' : '发送失败');
-    setTimeout(tick, 400);
-  }catch(e){ toast('网络错误'); }
+  const label = ({guard:'切换看护', sleep:'切换自动休眠', clean:'清理', wakeall:'唤醒全部', restart:'重启实例'})[cmd] || '执行';
+  sendAction(i ? {cmd:cmd, i:i} : {cmd:cmd}, label);
 }
 
 async function tick(){
@@ -452,6 +541,21 @@ async function tick(){
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
     lastState = d;
+
+    /* 指令回执：桌面端执行完会带一条 last（cmd/ok/msg/ts），据此告诉用户到底成没成 */
+    try{
+      if(d.last && d.last.ts && d.last.ts !== lastSeen){
+        lastSeen = d.last.ts;
+        if(pending && d.last.cmd === pending.cmd && (String(d.last.i || '') === String(pending.i || '') || !pending.i)){
+          toast((d.last.ok ? '✓ ' : '✗ ') + (d.last.msg || (d.last.ok ? '已完成' : '执行失败')));
+          pending = null;
+        }
+      }
+      if(pending && (Date.now() - pending.at) > 12000){
+        toast('✗ ' + pending.label + '：等不到回执');
+        pending = null;
+      }
+    }catch(e){ }
 
     const dot = document.getElementById('dot');
     dot.className = 'dot' + (d.guard ? '' : ' off');
@@ -476,14 +580,27 @@ const _so = document.getElementById("statOff"); if(_so) _so.textContent = _off;
     if(!d.instances || !d.instances.length){
       box.innerHTML = '<div class="empty">没有检测到实例</div>';
     } else {
-      box.innerHTML = d.instances.map(it => {
+      box.innerHTML = d.instances.map(function(it){
         let tag = '离线', cls = 'off', meta = '实例 ' + esc(it.i);
         if(it.state === 'run'){ tag = '运行中'; cls = 'run'; if(it.extra) meta = esc(it.extra); }
         else if(it.state === 'sleep'){ tag = '休眠'; cls = 'sleep'; if(it.extra) meta = esc(it.extra); }
         else if(it.state === 'unknown'){ tag = '未知'; cls = 'off'; }
         if(it.judge && it.judge !== '正常'){ meta += ' · ' + esc(it.judge); }
-        return '<div class="row"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>' + '<div class="rt"><b>' + esc(it.state === 'sleep' ? ((wakeInfo(it) || {}).main || it.wake || '—') : (it.state === 'run' && it.extra ? String(it.extra).replace(/^剩\s*/, '') : '—')) + '</b><span>' + (it.state === 'sleep' ? ((wakeInfo(it) || {}).sub || '唤醒') : (it.state === 'run' ? '剩余' : '无任务')) + '</span></div>' +
-               '<div class="tag ' + cls + '">' + esc(tag) + '</div></div>';
+        const open = openSet.indexOf(String(it.i)) >= 0;
+        const r = it.res || {};
+        let resHtml = resOne('主世界', r.main) + resOne('夜世界', r.bb);
+        let det = '';
+        if(it.sched !== null && it.sched !== undefined){
+          det += '<div class="drow"><span>升级上号</span><div class="sw' + (it.sched ? ' on' : '') + (pending ? ' busy' : '') + '" data-zkq="' + esc(it.i) + '" data-on="' + (it.sched ? 1 : 0) + '"><i></i></div></div>';
+        } else if(it.state === 'run'){
+          det += '<div class="drow"><span>升级上号</span><span class="meta">读取中…</span></div>';
+        }
+        det += '<div class="dbtns"><button data-restart="' + esc(it.i) + '">重启实例</button></div>';
+        return '<div class="icard' + (open ? ' open' : '') + '" data-i="' + esc(it.i) + '">'
+          + '<div class="ihead"><div class="ico"></div><div class="who"><div class="name">' + esc(it.name) + '</div><div class="meta">' + meta + '</div></div>'
+          + '<div class="tag ' + cls + '">' + esc(tag) + '</div></div>'
+          + '<div class="ires">' + resHtml + '</div>'
+          + '<div class="idet">' + det + '</div></div>';
       }).join('');
     }
 
@@ -517,6 +634,22 @@ document.getElementById('bGuard').onclick   = () => act('guard');
 document.getElementById('bSleep').onclick   = () => act('sleep');
 document.getElementById('bClean').onclick   = () => { if(confirm('立即清理？')) act('clean'); };
 document.getElementById('bWakeAll').onclick = () => { if(confirm('唤醒所有休眠实例？')) act('wakeall'); };
+
+/* 卡片交互：点标题展开/收起，开关和重启按钮各自处理 */
+document.getElementById('instances').addEventListener('click', function(ev){
+  const zk = ev.target.closest('[data-zkq]');
+  if(zk){ ev.stopPropagation(); toggleZkq(zk); return; }
+  const rb = ev.target.closest('[data-restart]');
+  if(rb){ ev.stopPropagation(); askRestart(rb.getAttribute('data-restart')); return; }
+  const head = ev.target.closest('.ihead');
+  if(head){
+    const card = head.parentNode;
+    const i = card.getAttribute('data-i');
+    const k = openSet.indexOf(i);
+    if(k >= 0) openSet.splice(k, 1); else openSet.push(i);
+    card.classList.toggle('open');
+  }
+});
 
 tick();
 setInterval(tick, 2000);
@@ -587,24 +720,72 @@ function Invoke-RemoteCommands {
     while ($n -lt 8 -and $q.TryDequeue([ref]$obj)) {
         $n++
         $did = $true
+        $cmd = "$($obj.cmd)"
+        $ok = $false
+        $msg = ''
         try {
-            switch ("$($obj.cmd)") {
-                'guard'   { Set-GuardState; Write-Diag '远程：切换看护' }
+            switch ($cmd) {
+                'guard'   {
+                    Set-GuardState; Write-Diag '远程：切换看护'
+                    $ok = $true; $msg = $(if ($script:guardRunning) { '已开始看护' } else { '已停止看护' })
+                }
                 'sleep'   {
                     $script:cfg.AutoSleep = -not [bool]$script:cfg.AutoSleep
                     Save-Config; Update-SleepButton
                     Write-Diag ("远程：升级休眠 = {0}" -f $script:cfg.AutoSleep)
+                    $ok = $true; $msg = $(if ($script:cfg.AutoSleep) { '已开启自动休眠' } else { '已关闭自动休眠' })
                 }
-                'clean'   { Invoke-GuardCleanup; Write-Diag '远程：立即清理' }
+                'clean'   {
+                    Invoke-GuardCleanup; Write-Diag '远程：立即清理'
+                    $ok = $true; $msg = '清理完成'
+                }
                 'restart' {
-                    if ($obj.i) { Start-InstanceRecover "$($obj.i)"; Write-Diag "远程：重启实例 $($obj.i)" }
+                    if ($obj.i) {
+                        Start-InstanceRecover "$($obj.i)"; Write-Diag "远程：重启实例 $($obj.i)"
+                        $ok = $true; $msg = "实例 $($obj.i) 已下发重启"
+                    } else { $msg = '缺少实例编号' }
                 }
-                'wakeall' { try { Start-Waker } catch { }; Write-Diag '远程：全部唤醒' }
-                default   { write-Diag "远程：未知指令 $($obj.cmd)" }
+                'wakeall' {
+                    try { Start-Waker } catch { }
+                    Write-Diag '远程：全部唤醒'
+                    $ok = $true; $msg = '已触发全部唤醒'
+                }
+                'zkq' {
+                    # 手机端切换「升级时间上号」：改设备上的紫孔雀配置，改完读回校验
+                    $idx = "$($obj.i)"
+                    $on = [bool]$obj.on
+                    if (-not $idx) { $msg = '缺少实例编号' }
+                    else {
+                        $r = $null
+                        try { $r = Set-ZkqUpgradeSchedule $idx $on } catch { }
+                        if ($r -eq $true) {
+                            try { Set-ZkqSchedCached $idx $on } catch { }
+                            Write-Diag ("远程：实例{0} 升级上号 = {1}" -f $idx, $(if ($on) { '开' } else { '关' }))
+                            $ok = $true
+                            $msg = $(if ($on) { '已开启升级上号' } else { '已关闭升级上号' })
+                        } elseif ($null -eq $r) {
+                            $msg = '切换失败：实例未运行或紫孔雀没开'
+                        } else {
+                            $msg = '切换失败：读回校验不一致'
+                        }
+                    }
+                }
+                default   { Write-Diag "远程：未知指令 $cmd"; $msg = '未知指令' }
             }
         } catch {
-            Write-Diag "远程指令执行失败（$($obj.cmd)）: $($_.Exception.Message)"
+            $msg = '执行失败：' + $_.Exception.Message
+            Write-Diag "远程指令执行失败（$cmd）: $($_.Exception.Message)"
         }
+        # 给手机端一个明确的执行结果（对/错 + 原因），前端据此弹提示
+        try {
+            $script:remoteLast = [ordered]@{
+                cmd = $cmd
+                i   = "$($obj.i)"
+                ok  = $ok
+                msg = $(if ($msg) { $msg } else { $(if ($ok) { '已完成' } else { '执行失败' }) })
+                ts  = (Get-Date).ToString('HH:mm:ss.fff')
+            }
+        } catch { }
     }
     # 快照交给服务线程。
     # 原来每 0.5 秒无条件重建一次（全量解析事件 CSV + 查 WMI 内存），把 UI 线程拖慢了；

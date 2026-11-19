@@ -119,6 +119,18 @@ foreach ($a in @('MuMuGuard.ico', 'icon.png')) {
     $embedLines.Add(("`$script:EmbeddedAssets['{0}'] = [Convert]::FromBase64String('{1}')" -f $a, $b64))
 }
 
+# 内嵌后台线程要用的模块（单文件 exe 里没有 lib 目录，后台 runspace 无法 dot-source 文件）
+$embedLines.Add('')
+$embedLines.Add('# ---------------- 内嵌模块（后台采样线程用）----------------')
+$embedLines.Add('$script:EmbeddedLib = @{}')
+foreach ($m in @('62-zkq', '63-res')) {
+    $mp = Join-Path $root ('lib\' + $m + '.ps1')
+    if (-not (Test-Path $mp)) { throw "缺少模块: $mp" }
+    $txt = [System.IO.File]::ReadAllText($mp, [System.Text.Encoding]::UTF8)
+    $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($txt))
+    $embedLines.Add(("`$script:EmbeddedLib['{0}'] = '{1}'" -f $m, $b64))
+}
+
 $anchor = "`$ErrorActionPreference = 'Continue'"
 $ai = $merged.IndexOf($anchor)
 if ($ai -ge 0) {

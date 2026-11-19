@@ -839,6 +839,7 @@ $script:resBgScript = {
     $script:resSamples = @{}
     $script:resShotInfo = @{}
     $script:resCache = @{}
+    if ($Sync.ZkqModule -and (Test-Path "$($Sync.ZkqModule)")) { . "$($Sync.ZkqModule)" }
     . "$($Sync.ResModule)"
 
     while (-not $Sync.Stop) {
@@ -850,6 +851,10 @@ $script:resBgScript = {
                 $ser = "$($Sync.Serials[$k])"
                 if (-not $ser) { continue }
                 $script:adbSync = [pscustomobject]@{ Data = @{ $idx = [pscustomobject]@{ Serial = $ser } } }
+                try {
+                    $sv = Get-ZkqUpgradeSchedule $idx
+                    $Sync.Sched[$idx] = $sv
+                } catch { if (-not $Sync.Dbg) { $Sync.Dbg = 1; Write-Diag "后台读升级上号异常: $($_.Exception.Message)" } }
                 $r = Update-ResSamples $idx
                 $Sync.Busy = $false
                 if (-not $r) { continue }
@@ -880,16 +885,41 @@ function Start-ResBackground {
     )
     try {
         if ($script:resBg -and $script:resBg.PS -and -not $script:resBg.PS.IsCompleted) { return $true }
+        $resModPath = Join-Path $Root 'lib\63-res.ps1'
+        $zkqModPath = Join-Path $Root 'lib\62-zkq.ps1'
+        if (-not (Test-Path $resModPath)) {
+            # 单文件 exe：没有 lib 目录，后台 runspace 没法 dot-source 文件。
+            # 构建时把这两个模块以 base64 内嵌进来了，这里释放到本地缓存再用。
+            try {
+                $cacheDir = Join-Path $env:LOCALAPPDATA 'MuMuGuard\libcache'
+                if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null }
+                foreach ($nm in @('62-zkq', '63-res')) {
+                    $b64 = $null
+                    try { if ($script:EmbeddedLib) { $b64 = "$($script:EmbeddedLib[$nm])" } } catch { }
+                    if ($b64) {
+                        $txt = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64))
+                        [System.IO.File]::WriteAllText((Join-Path $cacheDir ($nm + '.ps1')), $txt, (New-Object System.Text.UTF8Encoding $true))
+                    }
+                }
+                if (Test-Path (Join-Path $cacheDir '63-res.ps1')) {
+                    $resModPath = Join-Path $cacheDir '63-res.ps1'
+                    $zkqModPath = Join-Path $cacheDir '62-zkq.ps1'
+                }
+            } catch { }
+        }
         $sync = [hashtable]::Synchronized(@{
             Stop      = $false
             Busy      = $false
+            Dbg       = 0
             Snap      = [hashtable]::Synchronized(@{})
             Last      = [hashtable]::Synchronized(@{})
             Serials   = [hashtable]::Synchronized(@{})
+            Sched     = [hashtable]::Synchronized(@{})
             MuMuRoot  = "$MuMuRoot"
             AdbExe    = "$AdbExe"
             DataDir   = "$DataDir"
-            ResModule = (Join-Path $Root 'lib\63-res.ps1')
+            ResModule = $resModPath
+            ZkqModule = $zkqModPath
         })
         if ($Serials) {
             foreach ($k in $Serials.Keys) { $sync.Serials["$k"] = "$($Serials[$k])" }
@@ -938,4 +968,18 @@ function Get-ResLatest([string]$Index) {
         if ($script:resBg -and $script:resBg.Sync.Last.ContainsKey("$Index")) { return $script:resBg.Sync.Last["$Index"] }
     } catch { }
     return $null
+}
+
+# 后台线程读到的「升级上号」开关状态（避免 UI 线程为了读它去调 adb）
+function Get-ZkqSchedCached([string]$Index) {
+    try {
+        if ($script:resBg -and $script:resBg.Sync.Sched.ContainsKey("$Index")) { return $script:resBg.Sync.Sched["$Index"] }
+    } catch { }
+    return $null
+}
+
+function Set-ZkqSchedCached([string]$Index, $Value) {
+    try {
+        if ($script:resBg) { $script:resBg.Sync.Sched["$Index"] = $Value }
+    } catch { }
 }

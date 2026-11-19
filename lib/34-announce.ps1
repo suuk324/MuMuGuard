@@ -25,12 +25,12 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.0.23'
+        Title = 'MuMuGuard 2.0.24'
         Lines = @(
-            '修好了「有休眠任务但到点不唤醒」：公告弹窗是模态的，以前会挡住后面的启动流程，'
-            '没点掉公告时唤醒器根本没启动。现在先启动唤醒器和看护计时器，再弹公告。'
-            '另外收紧了唤醒器进程检测，不会被命令行里带 Waker.ps1 的无关进程误判。'
-            '2.0.22 已修前台误睡、休假记录被误撤销、唤醒器覆盖记录，建议一起升级。'
+            '修好了「手机上休眠/关机的实例看不到资源量」：手机端状态里休眠和已关机实例是单独补进列表的，'
+            '之前补的时候没带资源读数，所以只显示「尚未采集」。现在会带上磁盘上最近一次的采集结果。'
+            '主世界/夜世界资源、兵金兵圣都能看到，并标「上次」和时间。'
+            '桌面端详情页也一并受益，不影响正在运行的实例。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

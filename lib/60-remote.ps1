@@ -175,8 +175,15 @@ function Build-RemoteState {
             try { if ($script:instanceMap -and $script:instanceMap.ContainsKey($si)) { $sic = $script:instanceMap[$si] } } catch { }
             $nm = "实例 $si"
             try { $dn = Get-InstanceDisplayName -Config $sic -Aliases $script:cfg.Aliases; if ($dn) { $nm = "$dn" } } catch { }
+            # 休眠实例也必须带资源读数：Get-ResStable 会从磁盘回退到上次采集，
+            # 不带的话手机卡片只会显示「尚未采集」
+            $sres = $null
+            try { $sres = Get-RemoteRes $si } catch { }
+            $ssch = $null
+            try { $ssch = Get-ZkqSchedCached $si } catch { }
             $list += [pscustomobject][ordered]@{
                 i = $si; name = $nm; state = 'sleep'; wake = $wk; wakeAt = "$wakeAt2"; extra = $ex; judge = '' ; mem = 0; cores = 0
+                res = $sres; sched = $ssch
             }
         }
     } catch { }
@@ -198,7 +205,10 @@ function Build-RemoteState {
                 $dn2 = Get-InstanceDisplayName -Config $acf -Aliases $script:cfg.Aliases
                 if ($dn2) { $anm = "$dn2" }
             } catch { }
-            $list += [pscustomobject][ordered]@{ i = $as; name = $anm; state = 'off'; wake = ''; extra = ''; judge = ''; mem = 0; cores = 0 }
+            # 已关机实例同样带上磁盘上的上次资源读数
+            $ores = $null
+            try { $ores = Get-RemoteRes $as } catch { }
+            $list += [pscustomobject][ordered]@{ i = $as; name = $anm; state = 'off'; wake = ''; extra = ''; judge = ''; mem = 0; cores = 0; res = $ores }
         }
     } catch { }
 

@@ -575,6 +575,16 @@ function Get-ResShot([string]$Index, [string]$World) {
     } catch { }
     return $null
 }
+
+# 清理异常退出留下的 OCR 临时图（正常情况用完就删了）
+function Clear-OrphanTempShots {
+    try {
+        $cut = (Get-Date).AddHours(-1)
+        Get-ChildItem $env:TEMP -Filter 'mmg-*.png' -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -lt $cut } |
+            ForEach-Object { try { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue } catch { } }
+    } catch { }
+}
 function Update-ResSamples([string]$Index) {
     if (-not (Test-GameForeground $Index)) { return $null }
     $r = Get-GameResources $Index -Force

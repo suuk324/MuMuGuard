@@ -934,6 +934,7 @@ $updateTimer.Add_Tick({
 })
 $win.Add_Loaded({
     Invoke-LogRotation
+    try { Clear-OrphanTempShots } catch { }
     $updateTimer.Start()
     $resTimer.Start()
     Load-Trend

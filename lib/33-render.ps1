@@ -248,8 +248,10 @@ function Get-ShellRows {
 }
 # ---------- 页1 概览 ----------
 function Render-ShellOverview {
+    $tOv = [System.Diagnostics.Stopwatch]::StartNew(); $tRows = 0; $tRebuild = 0; $tEv = 0; $tHealth = 0
     $win = $script:shellWin
     $rows = @(Get-ShellRows)
+    $tRows = $tOv.ElapsedMilliseconds
     $sleep = @(Get-SleepList)
     $run = @($rows | Where-Object { $_.Script -eq $true })
     $slp = @($rows | Where-Object { $_.WakeAt })
@@ -264,7 +266,14 @@ function Render-ShellOverview {
     # 实例行：概览只显示运行中 / 休眠中的，关机的只在统计卡里计数
     $viewRows = @($rows | Where-Object { $_.WakeAt -or $_.Script -eq $true -or $_.Online -eq $true })
     $pnl = $win.FindName('PnlInstances')
-    if ($pnl) {
+    # 行内容没变就不重建控件：每 5 秒清空重建整列是界面顿卡的主因
+    $rowSig = (@($viewRows | ForEach-Object {
+        "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}|{8}" -f $_.Index, $_.Name, $_.Judge, $_.Online, $_.Script, $_.WakeAt, $_.UpName, $_.UpLvl, $_.UpLeft
+    }) -join ';')
+    $rowDue = (-not $script:ovRowsBuiltAt) -or (((Get-Date) - $script:ovRowsBuiltAt).TotalSeconds -ge 20)
+    if ($pnl -and $rowSig -ne $script:ovRowsSig -and $rowDue) {
+        $script:ovRowsBuiltAt = Get-Date
+        $script:ovRowsSig = $rowSig
         $pnl.Children.Clear()
         if ($viewRows.Count -eq 0) {
             $empty = New-ShellText '所有实例都已关机' 11 '#6E6E78'
@@ -287,7 +296,9 @@ function Render-ShellOverview {
     }
 
     # 事件（最近 4 条）
+    $tRebuild = $tOv.ElapsedMilliseconds
     Render-ShellEvents -Target 'PnlEvents' -Limit 4
+    $tEv = $tOv.ElapsedMilliseconds
 
     # 内存
     $hm = Get-HostMemory
@@ -308,6 +319,7 @@ function Render-ShellOverview {
 
     # 健康摘要
     $items = @(Get-Health $hm)
+    $tHealth = $tOv.ElapsedMilliseconds
     $bad = @($items | Where-Object { -not $_.Ok })
     # 旧版健康条已移除
     $gl = $win.FindName('HealthGlyph'); $ht = $win.FindName('TxtHealthTitle'); $hs = $win.FindName('TxtHealthSub')
@@ -368,6 +380,7 @@ function Render-ShellOverview {
     $wt = $win.FindName('TxtWakeToday'); if ($wt) { $wt.Text = "$($tc.wake) 次" }
     $ct = $win.FindName('TxtCleanToday'); if ($ct) { $ct.Text = "$($tc.clean) 次" }
     $rt = $win.FindName('TxtRecoverToday'); if ($rt) { $rt.Text = "$($tc.recover) 次" }
+    if ($tOv.ElapsedMilliseconds -gt 120) { try { Write-Diag ("概览渲染 总{0}ms | 取数{1} | 行重建{2} | 事件{3} | 健康{4} | 其余{5}" -f $tOv.ElapsedMilliseconds, $tRows, ($tRebuild-$tRows), ($tEv-$tRebuild), ($tHealth-$tEv), ($tOv.ElapsedMilliseconds-$tHealth)) } catch { } }
 }
 
 # ---------- 页2 实例管理 ----------
@@ -510,9 +523,7 @@ function Render-ShellEvents {
     $pnl = $win.FindName($Target)
     if (-not $pnl) { return }
 
-    $file = Get-LogFile
-    $rows = @()
-    if (Test-Path $file) { try { $rows = @(Import-Csv $file -ErrorAction Stop) } catch { } }
+    $rows = @(Get-LogRowsCached)
     if ($script:shellFilter -eq 'warn') {
         $warn = @('LOW_MEM', 'ALERT_SPIN', 'ALERT_MEM', 'ALERT_SCRIPT', 'RECOVER_FAIL', 'CEF_HIGH', 'ROOT_FAIL', 'SLEEP_FAIL', 'WAKE_LATE')
         $rows = @($rows | Where-Object { $warn -contains $_.Action })
@@ -528,6 +539,11 @@ function Render-ShellEvents {
     }
     if ($rows.Count -gt 1) { [array]::Reverse($rows) }
     $rows = @($rows | Select-Object -First $Limit)
+
+    # 内容没变就别重建控件（每 5 秒重建一次事件列表很费）
+    $sig = "{0}|{1}|{2}|{3}|{4}" -f $script:shellFilter, $script:shellQuery, $Limit, $rows.Count, $(if ($rows.Count -gt 0) { "$($rows[0].Time)#$($rows[0].Action)#$($rows[0].Detail)" } else { '' })
+    if ($sig -eq $script:evRenderSig) { return }
+    $script:evRenderSig = $sig
 
     $pnl.Children.Clear()
     if ($rows.Count -eq 0) {
@@ -715,10 +731,9 @@ function Update-Ui {
 function Get-TodayCounts {
     $c = @{ wake = 0; clean = 0; recover = 0; sleep = 0 }
     try {
-        $file = Get-LogFile
-        if (Test-Path $file) {
+        $rowsAll = @(Get-LogRowsCached)
             $today = (Get-Date).ToString('yyyy-MM-dd')
-            foreach ($r in @(Import-Csv $file)) {
+            foreach ($r in $rowsAll) {
                 if (-not ("$($r.Time)" -like "$today*")) { continue }
                 $a = "$($r.Action)"
                 if ($a -like '*WAKE*') { $c.wake++ }
@@ -726,7 +741,6 @@ function Get-TodayCounts {
                 elseif ($a -like '*RECOVER*' -or $a -like '*RESTART*') { $c.recover++ }
                 elseif ($a -like '*SLEEP*') { $c.sleep++ }
             }
-        }
     } catch { }
     return $c
 }

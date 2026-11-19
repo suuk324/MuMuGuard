@@ -753,6 +753,24 @@ function Get-ResMeta([string]$Index, [string]$World) {
 }
 
 function Get-ResStable([string]$Index, [string]$World) {
+    # 后台采样线程算好的结果优先（UI 线程只读，不再自己跑 OCR）
+    try {
+        if ($script:resLive) {
+            $lk = "$Index|$World"
+            if ($script:resLive.ContainsKey($lk)) {
+                $lv = $script:resLive[$lk]
+                if ($lv) {
+                    # 超过 60 秒没刷新就标成「上次」，不把旧读数当实时值
+                    try {
+                        if ($lv.At -and ((Get-Date) - [datetime]$lv.At).TotalSeconds -gt 60) {
+                            $lv | Add-Member -NotePropertyName Stale -NotePropertyValue $true -Force
+                        }
+                    } catch { }
+                    return $lv
+                }
+            }
+        }
+    } catch { }
     if (-not $script:resSamples.ContainsKey($Index)) { return (Get-ResMeta $Index $World) }
     $all = @($script:resSamples[$Index])
     $world = $(if ($World) { $World } else { "$($all[$all.Count - 1].World)" })
@@ -794,4 +812,130 @@ function Format-ResAmount($v) {
     if ($n -ge 100000000) { return ('{0:0.##}亿' -f ($n / 100000000)) }
     if ($n -ge 10000) { return ('{0:0.#}万' -f ($n / 10000)) }
     return ('{0:0}' -f $n)
+}
+
+# ---------------- 后台采样线程 ----------------
+# 一次 OCR 要 1~2 秒，如果跑在 UI 线程上，界面每隔几秒就会卡住一下。
+# 这里把整轮采样放到独立 runspace 里，UI 线程只用 Get-ResStable 读结果（纯内存，微秒级）。
+$script:resLive = $null
+$script:resBg = $null
+
+$script:resBgScript = {
+    param($Sync)
+    $ErrorActionPreference = 'SilentlyContinue'
+
+    function Write-Diag([string]$msg) {
+        try {
+            $p = Join-Path $Sync.DataDir 'logs\diag.log'
+            $line = "[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg
+            [System.IO.File]::AppendAllText($p, $line + "`r`n", (New-Object System.Text.UTF8Encoding $false))
+        } catch { }
+    }
+
+    # 后台线程自己的模块上下文
+    $script:cfg = [pscustomobject]@{ MuMuRoot = "$($Sync.MuMuRoot)" }
+    $script:adbSync = [pscustomobject]@{ Data = @{} }
+    $script:AdbExe = "$($Sync.AdbExe)"
+    $script:resSamples = @{}
+    $script:resShotInfo = @{}
+    $script:resCache = @{}
+    . "$($Sync.ResModule)"
+
+    while (-not $Sync.Stop) {
+        $keys = @($Sync.Serials.Keys)
+        foreach ($k in $keys) {
+            if ($Sync.Stop) { break }
+            try {
+                $idx = "$k"
+                $ser = "$($Sync.Serials[$k])"
+                if (-not $ser) { continue }
+                $script:adbSync = [pscustomobject]@{ Data = @{ $idx = [pscustomobject]@{ Serial = $ser } } }
+                $r = Update-ResSamples $idx
+                $Sync.Busy = $false
+                if (-not $r) { continue }
+                $Sync.Last[$idx] = $r
+                foreach ($w in @('main', 'bb')) {
+                    $st = Get-ResStable $idx $w
+                    if ($st) { $Sync.Snap["$idx|$w"] = $st }
+                }
+            } catch {
+                try { Write-Diag "后台采样异常（$k）: $($_.Exception.Message)" } catch { }
+            }
+        }
+        # 分片睡眠，停止命令能及时生效
+        for ($i = 0; $i -lt 25; $i++) {
+            if ($Sync.Stop) { break }
+            Start-Sleep -Milliseconds 100
+        }
+    }
+}
+
+function Start-ResBackground {
+    param(
+        [string]$Root,
+        [string]$DataDir,
+        [string]$MuMuRoot,
+        [string]$AdbExe,
+        $Serials           # 形如 @{ '3' = '127.0.0.1:16480' }
+    )
+    try {
+        if ($script:resBg -and $script:resBg.PS -and -not $script:resBg.PS.IsCompleted) { return $true }
+        $sync = [hashtable]::Synchronized(@{
+            Stop      = $false
+            Busy      = $false
+            Snap      = [hashtable]::Synchronized(@{})
+            Last      = [hashtable]::Synchronized(@{})
+            Serials   = [hashtable]::Synchronized(@{})
+            MuMuRoot  = "$MuMuRoot"
+            AdbExe    = "$AdbExe"
+            DataDir   = "$DataDir"
+            ResModule = (Join-Path $Root 'lib\63-res.ps1')
+        })
+        if ($Serials) {
+            foreach ($k in $Serials.Keys) { $sync.Serials["$k"] = "$($Serials[$k])" }
+        }
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.ApartmentState = 'MTA'
+        $rs.ThreadOptions = 'ReuseThread'
+        $rs.Open()
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript($script:resBgScript).AddArgument($sync)
+        $h = $ps.BeginInvoke()
+        $script:resBg = @{ PS = $ps; Handle = $h; Runspace = $rs; Sync = $sync }
+        $script:resLive = $sync.Snap
+        return $true
+    } catch {
+        Write-Diag "后台采样启动失败: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Update-ResSerials($Map) {
+    try {
+        if (-not $script:resBg) { return }
+        $q = $script:resBg.Sync.Serials
+        if (-not $Map) { return }
+        foreach ($k in @($Map.Keys)) { $q["$k"] = "$($Map[$k])" }
+    } catch { }
+}
+
+function Stop-ResBackground {
+    try {
+        if (-not $script:resBg) { return }
+        $script:resBg.Sync.Stop = $true
+        try { [void]$script:resBg.PS.EndInvoke($script:resBg.Handle) } catch { }
+        try { $script:resBg.PS.Dispose() } catch { }
+        try { $script:resBg.Runspace.Dispose() } catch { }
+    } catch { }
+    $script:resBg = $null
+    $script:resLive = $null
+}
+
+# 后台最新一次原始读数（不含中位数处理），给手机端和调试用
+function Get-ResLatest([string]$Index) {
+    try {
+        if ($script:resBg -and $script:resBg.Sync.Last.ContainsKey("$Index")) { return $script:resBg.Sync.Last["$Index"] }
+    } catch { }
+    return $null
 }

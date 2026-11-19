@@ -1070,7 +1070,9 @@ function Sync-Trend {
 
 function Update-Ui {
     try {
+    $swU = [System.Diagnostics.Stopwatch]::StartNew(); $pData = 0; $pMem = 0
         $data = @(Get-InstanceData)
+    $pData = $swU.ElapsedMilliseconds
         $script:lastInstances = $data
 
         # 休眠中的实例进程已关闭，补进显示列表（不参与检测与恢复）
@@ -1109,6 +1111,7 @@ function Update-Ui {
         $script:shortLabels = $short
 
         $hm = Get-HostMemory
+    $pMem = $swU.ElapsedMilliseconds
         $usedPct = 0
         if ($script:totalMB -gt 0) { $usedPct = [int](100 - ($hm.AvailableMB / $script:totalMB * 100)) }
         if ($usedPct -lt 0)   { $usedPct = 0 }
@@ -1247,6 +1250,7 @@ function Update-Ui {
         elseif ($level -eq 'warn') { $txtInfo.Foreground = Brush '#D29922' }
         else { $txtInfo.Foreground = Brush '#9BA5B4' }
 
+    if ($swU.ElapsedMilliseconds -gt 150) { try { Write-Diag ("界面刷新耗时 {0}ms（实例 {1} / 内存 {2} / 界面 {3}）" -f $swU.ElapsedMilliseconds, $pData, ($pMem - $pData), ($swU.ElapsedMilliseconds - $pMem)) } catch { } }
     } catch {
         $txtInfo.Text = '刷新出错：' + $_.Exception.Message
     }

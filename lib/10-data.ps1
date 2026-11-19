@@ -232,6 +232,8 @@ function Get-HostMemory {
 
 
 function Get-Health($hm) {
+    $nowH = Get-Date
+    if ($script:healthCache -and ($nowH - $script:healthCache.Time).TotalSeconds -lt 30) { return $script:healthCache.Items }
     $items = @()
 
     $comp = [bool](Get-Process -Name 'Memory Compression' -ErrorAction SilentlyContinue)
@@ -269,6 +271,7 @@ function Get-Health($hm) {
         }
     }
 
+    $script:healthCache = @{ Time = (Get-Date); Items = $items }
     return $items
 }
 

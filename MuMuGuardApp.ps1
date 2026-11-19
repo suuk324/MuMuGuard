@@ -328,7 +328,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.11'
+$script:appVersion     = '2.0.12'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -835,17 +835,25 @@ $timer = New-Object System.Windows.Threading.DispatcherTimer
 $timer.Interval = [TimeSpan]::FromSeconds(5)
 $timer.Add_Tick({
     $script:tickCount++
+    $tp = [System.Diagnostics.Stopwatch]::StartNew()
+    $msPre = 0; $msClean = 0; $msUi = 0
     # 通知后台采集：窗口不可见时降频
     try {
         # 开了远程（局域网或出门用）就别降频，否则手机端拿不到实例
         $remoteOn = ($script:cfg.RemoteEnabled -eq $true) -or ($script:cfg.OutboundEnabled -eq $true)
         $script:adbSync.Idle = (-not $remoteOn) -and (($win.WindowState -eq 'Minimized') -or (-not $win.IsVisible))
     } catch { }
-                # 每 10 秒检查一次：休眠记录和实际运行状态是否对不上（5 秒一跳，%2 = 10 秒）
-                if ($script:tickCount % 2 -eq 0) {
-                    try { Clear-StaleSleepEntries } catch { Write-Diag "清理休眠记录异常: $($_.Exception.Message)" }
-                }
-    Update-Ui
+    $msPre = $tp.ElapsedMilliseconds
+    # 每 10 秒检查一次：休眠记录和实际运行状态是否对不上（5 秒一跳，%2 = 10 秒）
+    if ($script:tickCount % 2 -eq 0) {
+        try { Clear-StaleSleepEntries } catch { Write-Diag "清理休眠记录异常: $($_.Exception.Message)" }
+    }
+    $msClean = $tp.ElapsedMilliseconds
+    # 窗口最小化/隐藏时没必要每 5 秒重绘整页；每 60 秒兜底刷一次
+    $uiVisible = $true
+    try { $uiVisible = ($win -and $win.IsVisible -and $win.WindowState -ne 'Minimized') } catch { }
+    if ($uiVisible -or ($script:tickCount % 12 -eq 0)) { Update-Ui }
+    $msUi = $tp.ElapsedMilliseconds
     if ($script:tickCount % 6 -eq 0) {
         try {
             $mi2 = [MemInfo]::Get()
@@ -858,6 +866,9 @@ $timer.Add_Tick({
         Invoke-LogRotation
         Save-Trend
     }
+    if ($tp.ElapsedMilliseconds -gt 150) {
+        try { Write-Diag ("刷新偏慢 总{0}ms | 前置{1} 清理休眠{2} | Update-Ui{3} | 其余{4}" -f $tp.ElapsedMilliseconds, $msPre, ($msClean - $msPre), ($msUi - $msClean), ($tp.ElapsedMilliseconds - $msUi)) } catch { }
+    }
 })
 
 $script:guardTimer = New-Object System.Windows.Threading.DispatcherTimer
@@ -867,22 +878,19 @@ $script:guardTimer.Add_Tick({
     Update-Ui
 })
 
-# ---------------- 资源采样（游戏在前台时每 3 秒抓一次）----------------
-$script:resSampling = $false
+# ---------------- 资源采样 ----------------
+# 一次 OCR 要 1~2 秒。以前直接跑在 UI 线程上，界面每隔 3 秒就卡一下。
+# 现在整轮采样在后台 runspace 里跑，这里只负责把实例的 adb 序列号同步过去（纯内存操作）。
 $resTimer = New-Object System.Windows.Threading.DispatcherTimer
-$resTimer.Interval = [TimeSpan]::FromSeconds(3)
+$resTimer.Interval = [TimeSpan]::FromSeconds(5)
 $resTimer.Add_Tick({
-    if ($script:resSampling) { return }
-    $script:resSampling = $true
     try {
-        $script:resTickCount = [int]$script:resTickCount + 1
-        $cand = @($script:lastInstances | Where-Object { $_ -and $_.Online -eq $true })
-        if ($script:resTickCount % 10 -eq 1) { Write-Diag ("采样轮询：候选实例 {0} 个，函数可用={1}" -f $cand.Count, [bool](Get-Command Update-ResSamples -ErrorAction SilentlyContinue)) }
-        foreach ($r in $cand) {
-            if (-not $r -or $r.Index -eq '-') { continue }
-            try { [void](Update-ResSamples "$($r.Index)") } catch { Write-Diag "采样单实例失败: $($_.Exception.Message)" }
+        $serials = @{}
+        foreach ($k in @($script:adbSync.Data.Keys)) {
+            try { $s = "$($script:adbSync.Data[$k].Serial)"; if ($s) { $serials["$k"] = $s } } catch { }
         }
-    } catch { Write-Diag "采样轮询异常: $($_.Exception.Message)" } finally { $script:resSampling = $false }
+        if ($serials.Count -gt 0) { Update-ResSerials $serials }
+    } catch { }
 })
 
 # 掉线检测：看护运行时按间隔检查，脚本掉了自动拉起
@@ -939,6 +947,14 @@ $updateTimer.Add_Tick({
 $win.Add_Loaded({
     Invoke-LogRotation
     try { Clear-OrphanTempShots } catch { }
+    # 资源 OCR 交给后台线程，界面不再每隔几秒卡一下
+    try {
+        $serials0 = @{}
+        foreach ($k in @($script:adbSync.Data.Keys)) {
+            try { $s = "$($script:adbSync.Data[$k].Serial)"; if ($s) { $serials0["$k"] = $s } } catch { }
+        }
+        [void](Start-ResBackground -Root $Root -DataDir $DataDir -MuMuRoot ([string]$script:cfg.MuMuRoot) -AdbExe $AdbExe -Serials $serials0)
+    } catch { Write-Diag "后台采样启动异常: $($_.Exception.Message)" }
     $updateTimer.Start()
     $resTimer.Start()
     Load-Trend
@@ -1010,6 +1026,8 @@ $win.Add_Closed({
     $timer.Stop()
     $guardTimer.Stop()
     $recoverTimer.Stop()
+    $resTimer.Stop()
+    try { Stop-ResBackground } catch { }
     try { Stop-RemoteServer } catch { }
     try { Stop-Outbound } catch { }
     $script:adbSync.Stop = $true

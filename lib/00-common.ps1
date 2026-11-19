@@ -258,3 +258,19 @@ public class PrivProbe {
     $res.MuMuElevated = ($blocked -gt 0)
     return $res
 }
+
+# ---------------- 事件日志缓存 ----------------
+# 事件日志一天会涨到几百行，Import-Csv 全量解析一次要几十到两百毫秒。
+# 界面每 5 秒刷一次、手机端也要读，这里按文件修改时间做一层缓存。
+function Get-LogRowsCached {
+    try {
+        $file = Get-LogFile
+        if (-not (Test-Path $file)) { return @() }
+        $mt = (Get-Item $file).LastWriteTimeUtc.Ticks
+        if ($script:logRowsCache -and $script:logRowsCache.Time -eq $mt) { return $script:logRowsCache.Rows }
+        $rows = @(Import-Csv $file -ErrorAction Stop)
+        $script:logRowsCache = @{ Time = $mt; Rows = $rows }
+        return $rows
+    } catch { return @() }
+}
+

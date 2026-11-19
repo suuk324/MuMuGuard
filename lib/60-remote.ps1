@@ -126,28 +126,38 @@ function Build-RemoteState {
     } catch { }
 
     $hostInfo = [ordered]@{ used = 0; total = 0; avail = 0 }
-    try {
-        $mi = [MemInfo]::Get()
-        $totalMB = [math]::Round($mi[0] / 1MB)
-        $freeMB  = [math]::Round($mi[1] / 1MB)
-        $hostInfo.total = $totalMB
-        $hostInfo.avail = $freeMB
-        $hostInfo.used  = $totalMB - $freeMB
-    } catch { }
+    # 内存查询走 WMI，很贵；缓存 3 秒（快照本身也不会更快变化）
+    $memCache = $script:remoteMemCache
+    if (-not $memCache -or ((Get-Date) - $memCache.At).TotalSeconds -gt 3) {
+        try {
+            $mi = [MemInfo]::Get()
+            $memCache = @{ At = (Get-Date); Total = [math]::Round($mi[0] / 1MB); Free = [math]::Round($mi[1] / 1MB) }
+            $script:remoteMemCache = $memCache
+        } catch { }
+    }
+    if ($memCache) {
+        $hostInfo.total = $memCache.Total
+        $hostInfo.avail = $memCache.Free
+        $hostInfo.used  = $memCache.Total - $memCache.Free
+    }
 
     $events = @()
+    # 事件日志有几十 KB，每 0.5 秒全量解析一遍会拖垮 UI 线程：按文件修改时间缓存
     try {
         $csv = Get-LogFile
         if (Test-Path $csv) {
-            $rows = @(Import-Csv $csv -ErrorAction Stop)
-            $events = @($rows | Select-Object -Last 8 | ForEach-Object {
-                $t = ''
-                try { $t = ([datetime]$_.Time).ToString('HH:mm:ss') } catch { $t = [string]$_.Time }
-                [pscustomobject][ordered]@{ t = $t; m = ([string]('{0} {1}' -f $_.Action, $_.Detail)).Trim() }
-            })
-            # 最新的排在最前，和桌面端一致
-            $events = @($events)
-            if ($events.Count -gt 1) { [array]::Reverse($events) }
+            $mt = (Get-Item $csv).LastWriteTimeUtc.Ticks
+            if (-not $script:remoteEvCache -or $script:remoteEvCache.Time -ne $mt) {
+                $rows = @(Import-Csv $csv -ErrorAction Stop)
+                $ev = @($rows | Select-Object -Last 8 | ForEach-Object {
+                    $t = ''
+                    try { $t = ([datetime]$_.Time).ToString('HH:mm:ss') } catch { $t = [string]$_.Time }
+                    [pscustomobject][ordered]@{ t = $t; m = ([string]('{0} {1}' -f $_.Action, $_.Detail)).Trim() }
+                })
+                if ($ev.Count -gt 1) { [array]::Reverse($ev) }
+                $script:remoteEvCache = @{ Time = $mt; Events = $ev }
+            }
+            $events = @($script:remoteEvCache.Events)
         }
     } catch { }
 
@@ -573,8 +583,10 @@ function Invoke-RemoteCommands {
     $q = $sync.RemoteQueue
     $obj = $null
     $n = 0
+    $did = $false
     while ($n -lt 8 -and $q.TryDequeue([ref]$obj)) {
         $n++
+        $did = $true
         try {
             switch ("$($obj.cmd)") {
                 'guard'   { Set-GuardState; Write-Diag '远程：切换看护' }
@@ -594,7 +606,11 @@ function Invoke-RemoteCommands {
             Write-Diag "远程指令执行失败（$($obj.cmd)）: $($_.Exception.Message)"
         }
     }
-    # 快照交给服务线程
+    # 快照交给服务线程。
+    # 原来每 0.5 秒无条件重建一次（全量解析事件 CSV + 查 WMI 内存），把 UI 线程拖慢了；
+    # 现在只在下发过指令或每 2 秒刷新一次。
+    $script:remoteStateTick = [int]$script:remoteStateTick + 1
+    if (-not $did -and ($script:remoteStateTick % 4) -ne 0) { return }
     try { $sync.RemoteState = Build-RemoteState } catch { }
 }
 

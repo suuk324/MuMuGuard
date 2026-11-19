@@ -9,22 +9,28 @@ function Test-AnnounceDue {
     try {
         if ($env:MMG_UITEST -eq '1') { return $false }
         if ($env:MMG_ANNOUNCE -eq '1') { return $true }
-        return ("$($script:cfg.AnnounceMuteDate)" -ne (Get-AnnounceDateKey))
+        # 每天第一次打开会弹；装了新版本后再弹一次（同一版本点了不再提醒就不会再出现）
+        if ("$($script:cfg.AnnounceMuteDate)" -ne (Get-AnnounceDateKey)) { return $true }
+        $seen = ''
+        try { $seen = [string]$script:cfg.AnnounceSeenVer } catch { }
+        return ($seen -ne [string]$script:appVersion)
     } catch { return $false }
 }
 
 function Set-AnnounceMuteToday {
     $script:cfg.AnnounceMuteDate = Get-AnnounceDateKey
+    try { $script:cfg.AnnounceSeenVer = [string]$script:appVersion } catch { }
     Save-Config
 }
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 已更新'
+        Title = 'MuMuGuard 2.0.16'
         Lines = @(
-            '界面全部重做：概览、实例管理、健康检查、事件记录、设置五个页面，外加紧凑环视图和手机页。'
-            '看护、掉线恢复、升级休眠的判断逻辑没有变，可以照常用。'
-            '用得顺手的话，欢迎到群里聊聊，或者直接提需求。'
+            '手机端改成「先列表、点实例弹卡片」：卡片里能看主世界/夜世界资源、游戏截图、开关升级上号、重启实例。'
+            '资源识别挪到后台线程，界面不再隔几秒卡一下；窗口最小化后也不再空转重绘。'
+            '修了三个老问题：设置页点不动、概览和详情的休眠时间对不上、刷新令牌后端口乱跳。'
+            '去掉了强制置顶；出门在外页数据停更会提示重新扫码，指令会显示执行结果。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'
@@ -47,7 +53,7 @@ function Show-Announcement {
     $xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="公告" Width="452" Height="304"
+        Title="公告" Width="452" Height="356"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
         FontFamily="Microsoft YaHei UI">
@@ -72,7 +78,7 @@ function Show-Announcement {
         </Border>
         <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
           <TextBlock x:Name="AnTitle" Text="公告" FontSize="16" FontWeight="SemiBold" Foreground="#F2F2F5"/>
-          <TextBlock x:Name="AnSub" Text="每天打开时显示一次" FontSize="10.5" Foreground="#6E6E78" Margin="0,2,0,0"/>
+          <TextBlock x:Name="AnSub" Text="有更新时提示一次" FontSize="10.5" Foreground="#6E6E78" Margin="0,2,0,0"/>
         </StackPanel>
       </StackPanel>
 

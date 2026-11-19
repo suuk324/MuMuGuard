@@ -276,7 +276,8 @@ $defaultCfg = [ordered]@{
     AutoUpdateCheck  = $true
     LastUpdateCheck  = ''
     SkippedVersion   = ''
-    AnnounceMuteDate = ''
+AnnounceMuteDate = ''
+    AnnounceSeenVer  = ''
     WindowLeft   = $null
     WindowTop    = $null
 }

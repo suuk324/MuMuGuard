@@ -4,7 +4,7 @@
 
 盯着每个实例，掉线自动拉起，等升级时休眠省内存，醒来自动接着跑。
 
-![版本](https://img.shields.io/badge/version-2.2.1-3DDC84)
+![版本](https://img.shields.io/badge/version-2.3.0-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
 ![QQ 群](https://img.shields.io/badge/QQ%E7%BE%A4-1128379535-12B7F5)
@@ -22,6 +22,12 @@ MuMuGuard 是给 MuMu 模拟器多开用的看护面板，运行在 Windows 10 /
 项目地址：[github.com/suuk324/MuMuGuard](https://github.com/suuk324/MuMuGuard)
 
 ---
+
+## 2.3.0 更新了什么
+
+- **唤醒/重启时先执行「启动后操作」，完成后再启动紫孔雀**：例如国际服唤醒时先自动连外星仔 VPN，连上后再开紫孔雀，避免紫孔雀先起来把加速器挤到后台。
+- 定时唤醒、实例详情里的「唤醒」、主列表的「唤醒」、自动恢复重启，全部统一走这个顺序；紫孔雀的开机自启会被先停掉，等启动后操作结束再主动拉起。
+- 其他功能未改动。
 
 ## 2.2.1 更新了什么
 

@@ -675,6 +675,20 @@ Test-Case '休眠判定调用的是 Test-IsGamePackage（防再次绑参失败�
     if ($txt -notmatch 'Test-IsGamePackage') { return '20-actions 没调用 Test-IsGamePackage' }
     return $true
 }
+Test-Case '唤醒/重启顺序：启动后操作先于紫孔雀' {
+    $w = Get-Content (Join-Path $root 'Waker.ps1') -Raw -Encoding UTF8
+    $r = Get-Content (Join-Path $root 'Restart-Instance.ps1') -Raw -Encoding UTF8
+    $wc = $w.IndexOf('$hookOk = Invoke-StartHook')
+    $wp = $w.LastIndexOf('app launch -pkg')
+    if ($wc -lt 0) { return 'Waker 没有调用启动后操作' }
+    if ($wp -lt 0 -or $wc -gt $wp) { return 'Waker 中启动后操作不在启动紫孔雀之前' }
+    if ($w.IndexOf('am force-stop $PkgScript') -lt 0 -or $w.IndexOf('am force-stop $PkgScript') -gt $wc) { return 'Waker 没有在启动后操作前停掉紫孔雀自启' }
+    $rc = $r.IndexOf('$hookOk = Invoke-StartHook')
+    $rp = $r.LastIndexOf('app launch -pkg')
+    if ($rc -lt 0) { return 'Restart-Instance 没有调用启动后操作' }
+    if ($rp -lt 0 -or $rc -gt $rp) { return 'Restart 中启动后操作不在启动紫孔雀之前' }
+    return $true
+}
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {
     Write-Host ("全部通过：{0} 个测试" -f $script:pass) -ForegroundColor Green

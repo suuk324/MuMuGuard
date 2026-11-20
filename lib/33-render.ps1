@@ -494,7 +494,19 @@ $sub = New-ShellText ("{0} · {1}" -f $r.Judge, $subTxt) 10.5 '#6E6E78'
         $actText = $(if ($isSleep) { '唤醒' } elseif ($r.Online) { '重启' } else { '启动' })
         $btnAct = New-ShellButton $actText '#1F1F23' '#F2F2F5' ({
             if ($isSleep) {
-                try { Remove-SleepEntry $idx; Start-Instance "$idx"; Write-GuardLog 'WAKE_MANUAL' "实例$idx" '手动唤醒' } catch { }
+                # 统一走唤醒器：先执行该实例的「启动后操作」（如连 VPN），再启动紫孔雀
+                try {
+                    $targetIdx = "$idx"
+                    $list = @(Get-SleepList | Where-Object { "$($_.Index)" -ne $targetIdx })
+                    Save-SleepList $list
+                    $nowStr = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
+                    $list2 = @(Get-SleepList)
+                    $list2 += [pscustomobject]@{ Index = $targetIdx; WakeAt = $nowStr; DoneAt = $nowStr; Upgrade = '手动唤醒'; Since = $nowStr }
+                    Save-SleepList $list2
+                    Start-Waker
+                    Write-GuardLog 'WAKE_MANUAL' "实例$idx" '手动唤醒（先执行启动后操作）'
+                    Reset-InstanceMemory $idx
+                } catch { Write-Diag ("手动唤醒异常: " + $_.Exception.Message) }
             } elseif ($r.Online) {
                 try { Start-InstanceRecover $idx } catch { }
             } else {

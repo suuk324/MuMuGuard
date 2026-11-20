@@ -26,10 +26,10 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.2.1'
+        Title = 'MuMuGuard 2.3.0'
         Lines = @(
-            '修复了一些问题。',
-            '移除了「启动后操作」里的内置预设按钮，避免误点覆盖已有配置；现在只保留自动启动应用、启动后命令、启动后脚本三项，按需填写。'
+            '唤醒/重启顺序调整：先执行「启动后操作」（例如连 VPN），完成后再启动紫孔雀。',
+            '定时唤醒、详情唤醒、主列表唤醒、自动恢复重启都统一走这个顺序；其他功能未改动。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

@@ -14,16 +14,20 @@
 param(
     [Parameter(Mandatory = $true)][int]$Index,
     [switch]$SkipScript,
-    [string]$LogFile
+    [string]$LogFile,
+    [string]$DataDir
 )
 
 $ErrorActionPreference = 'Continue'
 $Root = $PSScriptRoot
 if (-not $LogFile) { $LogFile = Join-Path $Root 'logs\restart.log' }
+# 打包后 helper 在 LOCALAPPDATA，config.json / hooks 在数据目录（由面板传入）
+if (-not $DataDir) { $DataDir = $Root }
+if (-not (Test-Path $DataDir)) { $DataDir = $Root }
 
 # ---- 读取配置（路径与包名可自定义）----
 $cfg = @{}
-$cfgPath = Join-Path $Root 'config.json'
+$cfgPath = Join-Path $DataDir 'config.json'
 if (Test-Path $cfgPath) {
     try {
         $j = Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -139,6 +143,119 @@ function Test-MuMuPresent {
     return $true
 }
 
+# ---- 「启动后操作」：重启开机后先执行（例如连 VPN），完成后再启动紫孔雀 ----
+$HookDataDir = $DataDir
+$HookStatusFile = Join-Path $HookDataDir 'hooks-status.json'
+$HookLogFile = Join-Path $HookDataDir 'hooks.log'
+
+function Write-HookLog([string]$msg) {
+    try { Add-Content -Path $HookLogFile -Value ('[{0:yyyy-MM-dd HH:mm:ss}] 重启器: {1}' -f (Get-Date), $msg) -Encoding UTF8 } catch { }
+}
+
+function Write-HookStatus([string]$idx, [string]$state, [string]$msg, [string]$launchTime) {
+    $all = @{}
+    try {
+        if (Test-Path $HookStatusFile) {
+            $raw = Get-Content $HookStatusFile -Raw -Encoding UTF8
+            if ($raw -and $raw.Trim()) {
+                $obj = $raw | ConvertFrom-Json
+                foreach ($p in $obj.PSObject.Properties) { $all[$p.Name] = $p.Value }
+            }
+        }
+    } catch { }
+    $nowTxt = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+    $all["$idx"] = [ordered]@{
+        State = $state; Message = $msg; UpdatedAt = $nowTxt; LastRunAt = $nowTxt; LastLaunchTime = $launchTime
+    }
+    try {
+        $tmp = "$HookStatusFile.tmp"
+        ($all | ConvertTo-Json -Depth 5) | Set-Content -Path $tmp -Encoding UTF8
+        Move-Item -Path $tmp -Destination $HookStatusFile -Force
+    } catch { }
+}
+
+function Get-InstanceHookCfg([string]$idx) {
+    try {
+        $store = $cfg['InstanceHooks']
+        if ($store -and $store.PSObject.Properties.Name -contains "$idx") { return $store."$idx" }
+    } catch { }
+    return $null
+}
+
+function Get-InstancePid([string]$idx) {
+    for ($i = 0; $i -lt 20; $i++) {
+        try {
+            $raw = (& $MuMuMgr info -v $idx 2>&1 | Out-String)
+            if ($raw -match '"index"') {
+                $j = $raw | ConvertFrom-Json
+                if ($j.pid) { return "$($j.pid)" }
+            }
+        } catch { }
+        Start-Sleep -Milliseconds 500
+    }
+    return ''
+}
+
+function Invoke-StartHook([string]$idx, [string]$serial, [string]$instancePid) {
+    $hook = Get-InstanceHookCfg $idx
+    if (-not $hook) { return $true }
+    $on = $false; try { $on = [bool]$hook.Enabled } catch { }
+    if (-not $on) { return $true }
+
+    $delay = 0; try { $delay = [int]$hook.DelaySec } catch { }
+    Write-HookStatus $idx 'running' '重启器：执行启动后操作' $instancePid
+    if ($delay -gt 0) { Start-Sleep -Seconds $delay }
+    $errs = @()
+    foreach ($pkg in @($hook.AutoStartApps)) {
+        $p = "$pkg".Trim()
+        if (-not $p) { continue }
+        Write-HookLog "实例$idx 启动应用 $p"
+        try { $null = (& $AdbExe -s $serial shell "monkey -p $p -c android.intent.category.LAUNCHER 1" 2>&1) } catch { $errs += $_.Exception.Message }
+        Start-Sleep -Seconds 2
+    }
+    foreach ($c in @($hook.PostStartCommands)) {
+        $cmd = "$c".Trim()
+        if (-not $cmd) { continue }
+        Write-HookLog "实例$idx 执行命令 $cmd"
+        try { $null = (& $AdbExe -s $serial shell $cmd 2>&1) } catch { $errs += $_.Exception.Message }
+    }
+    $sc = "$($hook.PostStartScript)".Trim()
+    if ($sc) {
+        $path = $sc
+        if (-not [System.IO.Path]::IsPathRooted($path)) { $path = Join-Path $HookDataDir $path }
+        if (Test-Path $path) {
+            Write-HookLog "实例$idx 执行脚本 $path"
+            $env:MMG_INSTANCE = "$idx"
+            $env:MMG_SERIAL = $serial
+            $env:MMG_ADB = $AdbExe
+            $env:MMG_DATA_DIR = $HookDataDir
+            try {
+                $psi = New-Object System.Diagnostics.ProcessStartInfo
+                $psi.FileName = 'powershell.exe'
+                $psi.Arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $path + '"'
+                $psi.UseShellExecute = $false
+                $psi.CreateNoWindow = $true
+                $psi.RedirectStandardOutput = $true
+                $psi.RedirectStandardError = $true
+                $child = [System.Diagnostics.Process]::Start($psi)
+                $done = $child.WaitForExit(240000)
+                if (-not $done) { try { $child.Kill() } catch { }; $errs += '脚本超时（240秒）' }
+                elseif ([int]$child.ExitCode -ne 0) { $errs += "脚本退出码 $($child.ExitCode)" }
+                try { $null = $child.StandardOutput.ReadToEnd() } catch { }
+                try { $null = $child.StandardError.ReadToEnd() } catch { }
+            } catch { $errs += $_.Exception.Message }
+        } else { $errs += "脚本不存在: $sc" }
+    }
+    if ($errs.Count -gt 0) {
+        Write-HookStatus $idx 'error' ('重启器：部分失败: ' + ($errs -join '; ')) $instancePid
+        Write-HookLog "实例$idx 启动后操作失败: $($errs -join '; ')"
+        return $false
+    }
+    Write-HookStatus $idx 'ok' '重启器：启动后操作完成' $instancePid
+    Write-HookLog "实例$idx 启动后操作完成"
+    return $true
+}
+
 Write-Log '开始重启'
 
 if (-not (Test-MuMuPresent)) { exit 1 }
@@ -187,6 +304,15 @@ if ($SkipScript) {
     Write-Log '已跳过脚本启动'
     exit 0
 }
+
+# 2.5) 先执行「启动后操作」（如连 VPN），脚本成功退出后再启动紫孔雀
+# 紫孔雀有开机自启广播，可能抢在 VPN 前面起来：先停掉，等启动后操作完成再主动启动
+try { $null = (& $AdbExe -s $serial shell "am force-stop $PkgScript" 2>&1) } catch { }
+Start-Sleep -Seconds 2
+$hookPid = Get-InstancePid $Index
+$hookOk = $true
+try { $hookOk = Invoke-StartHook $Index $serial $hookPid } catch { Write-Log ('启动后操作异常: ' + $_.Exception.Message) }
+if ($hookOk) { Write-Log '启动后操作完成，继续启动紫孔雀' } else { Write-Log '启动后操作未完全成功，继续启动紫孔雀（不阻塞上号）' }
 
 # 3) 拉起紫孔雀
 try {

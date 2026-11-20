@@ -146,7 +146,7 @@ function Start-Waker {
         Start-Process -FilePath 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' `
             -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
                           '-File', (Get-HelperScript 'Waker.ps1'),
-                          '-SleepFile', $SleepFile `
+                          '-SleepFile', $SleepFile, '-DataDir', $DataDir `
             -WindowStyle Hidden | Out-Null
     } catch {
         Write-Diag "启动唤醒器失败: $($_.Exception.Message)"
@@ -386,7 +386,7 @@ function Start-InstanceRecover([string]$index) {
         Start-Process -FilePath 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' `
             -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
                           '-File', (Get-HelperScript 'Restart-Instance.ps1'),
-                          '-Index', "$index", '-LogFile', $log `
+                          '-Index', "$index", '-LogFile', $log, '-DataDir', $DataDir `
             -WindowStyle Hidden | Out-Null
         Write-GuardLog 'AUTO_RESTART' "实例$index" 'restart instance + launch script'
     } catch {

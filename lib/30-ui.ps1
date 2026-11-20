@@ -691,7 +691,7 @@ function Sync-Cards($data) {
                     Start-Process -FilePath 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' `
                         -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
                                       '-File', (Get-HelperScript 'Restart-Instance.ps1'),
-                                      '-Index', "$i", '-LogFile', $log `
+                                      '-Index', "$i", '-LogFile', $log, '-DataDir', $DataDir `
                         -WindowStyle Hidden | Out-Null
                     Reset-InstanceMemory $i
                     $txtInfo.Text = "已开始重启实例 $i，完成后会自动启动紫孔雀"

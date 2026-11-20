@@ -1,10 +1,10 @@
-﻿<img src="icon.png" width="80" align="left" style="margin-right:14px" alt="MuMuGuard">
+<img src="icon.png" width="80" align="left" style="margin-right:14px" alt="MuMuGuard">
 
 # MuMuGuard：MuMu 模拟器多开看护面板
 
 盯着每个实例，掉线自动拉起，等升级时休眠省内存，醒来自动接着跑。
 
-![版本](https://img.shields.io/badge/version-2.0.24-3DDC84)
+![版本](https://img.shields.io/badge/version-2.1.1-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
 ![QQ 群](https://img.shields.io/badge/QQ%E7%BE%A4-1128379535-12B7F5)
@@ -23,6 +23,10 @@ MuMuGuard 是给 MuMu 模拟器多开用的看护面板，运行在 Windows 10 /
 
 ---
 
+## 2.1.1 更新了什么
+
+- **修复了一些问题**。
+- **实例内存统计更准确**：新 MuMu 引擎把虚拟机内存放在 MuMuVMMHeadless.exe，之前只统计前端进程，6G 实例会显示成 0.1GB；现在合并统计，概览 / 实例管理 / 实例详情 / 手机端一致；实例详情页的内存占用行也恢复显示。
 ## 2.0.24 更新了什么
 
 - **修复「手机上休眠/关机实例看不到资源量」**：手机端（局域网页和出门在外共用）状态里，休眠和已关机实例是单独补进列表的，补的时候漏了资源字段，所以只显示「尚未采集」。现在会带上磁盘上最近一次的采集结果（主世界金/圣/黑、夜世界兵金/兵圣），并标「上次」和采集时间。

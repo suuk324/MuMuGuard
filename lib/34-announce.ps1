@@ -25,12 +25,10 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.0.24'
+        Title = 'MuMuGuard 2.1.1'
         Lines = @(
-            '修好了「手机上休眠/关机的实例看不到资源量」：手机端状态里休眠和已关机实例是单独补进列表的，'
-            '之前补的时候没带资源读数，所以只显示「尚未采集」。现在会带上磁盘上最近一次的采集结果。'
-            '主世界/夜世界资源、兵金兵圣都能看到，并标「上次」和时间。'
-            '桌面端详情页也一并受益，不影响正在运行的实例。'
+            '修复了一些问题。',
+            '实例内存统计更准确：现在会把 MuMu 虚拟机进程（MuMuVMMHeadless）算进去，6G 实例不再显示成 0.1GB；实例详情页恢复显示内存占用。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

@@ -1133,7 +1133,10 @@ function Update-Ui {
         # 逐实例内存告警（持续 3 次）
         foreach ($r in $data) {
             $k = "$($r.PID)"
-            if ($r.Private -gt [int]$script:cfg.MemAlertMB) {
+            # 实例内存现在含 MuMuVMMHeadless，数值比以前大；阈值取「配置值」和「实例刻度」的较大者，避免正常实例被误报
+            $memLimit = [int]$script:cfg.MemAlertMB
+            if ($null -ne $r.MemBase -and [int]$r.MemBase -gt $memLimit) { $memLimit = [int]$r.MemBase }
+            if ($r.Private -gt $memLimit) {
                 if (-not $script:overMem.ContainsKey($k)) { $script:overMem[$k] = 0 }
                 $script:overMem[$k]++
                 if ($script:overMem[$k] -ge 3) {

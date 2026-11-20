@@ -56,7 +56,7 @@ function Get-ShellXaml {
             </Border>
             <TextBlock Text="MuMuGuard" Foreground="{DynamicResource T_UI_T1}" FontSize="15" FontWeight="SemiBold"
                        HorizontalAlignment="Center" Margin="0,9,0,0"/>
-            <TextBlock x:Name="TxtVersion" Text="v2.0.24" Foreground="{DynamicResource T_UI_T3}" FontSize="10.5"
+            <TextBlock x:Name="TxtVersion" Text="v2.1.1" Foreground="{DynamicResource T_UI_T3}" FontSize="10.5"
                        HorizontalAlignment="Center" Margin="0,2,0,0"/>
           </StackPanel>
 
@@ -578,7 +578,9 @@ function New-InstanceRowShell {
         $fill.Height = 3; $fill.CornerRadius = [System.Windows.CornerRadius]::new(2)
         $fill.Background = Brush '#0A84FF'
         $fill.HorizontalAlignment = 'Left'
-        $pct = [math]::Min(100, [math]::Max(4, ($Row.Private / 6144.0) * 100))
+        $barBase = 6144.0
+        if ($Row.PSObject.Properties.Name -contains 'MemBase' -and [double]$Row.MemBase -gt 0) { $barBase = [double]$Row.MemBase }
+        $pct = [math]::Min(100, [math]::Max(4, ($Row.Private / $barBase) * 100))
         $fill.Width = 56 * $pct / 100
         $track.Child = $fill
     }

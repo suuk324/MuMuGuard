@@ -197,11 +197,28 @@ function Test-NewerVersion {
         return ($r -ne $l)
     }
 }
+# 从 MuMu 进程命令行解析实例编号
+#   MuMuNxDevice:    -v 4 --vm MuMuPlayer-12.0-4
+#   MuMuVMMHeadless: --comment MuMuPlayer-12.0-4 --startvm <uuid>
+# 优先用 --comment；兜底用 --startvm 的 uuid 末段（本机实测末段就是实例号）
+function Get-InstanceIndexFromCommandLine {
+    param([string]$CommandLine)
+    if (-not $CommandLine) { return '' }
+    if ($CommandLine -match 'MuMuPlayer-[\d\.]+-(\d+)') { return $Matches[1] }
+    if ($CommandLine -match '--startvm\s+[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-([0-9a-fA-F]{12})') {
+        $n = 0
+        $ok = [int]::TryParse($Matches[1], [System.Globalization.NumberStyles]::HexNumber, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$n)
+        if ($ok -and $n -ge 0) { return [string]$n }
+    }
+    return ''
+}
+
 # 环的满刻度：客户机内存(GB) + 图形/转译固定开销
+# 新引擎的 guest 内存在 MuMuVMMHeadless 里，实测 6G 实例总私有约 8.9~9.0G，所以开销按 3000 算
 function Get-InstanceMemBase {
     param([int]$MemoryGB)
     if ($MemoryGB -le 0) { return 9216 }
-    return ($MemoryGB * 1024 + 2500)
+    return ($MemoryGB * 1024 + 3000)
 }
 # 升级休眠状态机（纯逻辑，便于单测）
 # 返回 @{ Action = 'wait'|'gamegone'|'sleep'|'idle'; Reason = '...' }

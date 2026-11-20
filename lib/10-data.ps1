@@ -12,10 +12,29 @@ function Get-InstanceData {
     try { $snap = [ProcSnap]::Snap() } catch { }
 
     $devPids = @()
+    $vmmPids = @()
     $cefParent = @{}
     foreach ($e in $snap) {
         if ($e.Name -eq 'MuMuNxDevice.exe') { $devPids += [int]$e.Pid }
+        elseif ($e.Name -eq 'MuMuVMMHeadless.exe') { $vmmPids += [int]$e.Pid }
         elseif ($e.Name -eq 'CefViewWing.exe') { $cefParent[[int]$e.Pid] = [int]$e.Parent }
+    }
+
+    # 每台运行中的模拟器都有一个 MuMuVMMHeadless.exe（虚拟机本体），实例内存的大头在这里；
+    # 先按实例号建索引，供下面的实例行累加（旧版 MuMu 没有该进程时自然为空，行为不变）
+    if (-not $script:vmmIndexCache) { $script:vmmIndexCache = @{} }
+    $vmmByIndex = @{}
+    foreach ($vpid in $vmmPids) {
+        if (-not $script:vmmIndexCache.ContainsKey($vpid)) {
+            $vidx = ''
+            try {
+                $vci = Get-CimInstance Win32_Process -Filter "ProcessId=$vpid" -ErrorAction Stop
+                $vidx = Get-InstanceIndexFromCommandLine -CommandLine $vci.CommandLine
+            } catch { }
+            $script:vmmIndexCache[$vpid] = $vidx
+        }
+        $vidx2 = [string]$script:vmmIndexCache[$vpid]
+        if ($vidx2 -and -not $vmmByIndex.ContainsKey($vidx2)) { $vmmByIndex[$vidx2] = [int]$vpid }
     }
 
     $rows = @()
@@ -118,10 +137,22 @@ function Get-InstanceData {
             }
         }
 
-        $privateMB = [int]($proc.PrivateMemorySize64 / 1MB)
+        # 实例内存 = 前端进程(MuMuNxDevice) + 虚拟机进程(MuMuVMMHeadless)
+        # 新引擎下 guest 内存整体在 headless 里，只算前端会显示成 0.1GB
+        $vmmPid = 0; $vmmPrivate = 0; $vmmWS = 0
+        if ($index -ne '-' -and $vmmByIndex.ContainsKey("$index")) {
+            $vmmPid = [int]$vmmByIndex["$index"]
+            $vmmProc = Get-Process -Id $vmmPid -ErrorAction SilentlyContinue
+            if ($vmmProc) {
+                $vmmPrivate = [int]($vmmProc.PrivateMemorySize64 / 1MB)
+                $vmmWS      = [int]($vmmProc.WorkingSet64 / 1MB)
+            }
+        }
+        $deviceMB  = [int]($proc.PrivateMemorySize64 / 1MB)
+        $privateMB = $deviceMB + $vmmPrivate
 
         # 环的填充比例 = 私有内存 / 该实例的内存刻度
-        # 刻度优先用实例自身配置（6G 实例 ≈ 8.6G），读不到才退回全局阈值
+        # 刻度优先用实例自身配置（6G 实例 ≈ 8.9G），读不到才退回全局阈值
         $memBase = 0
         if ($ic -and $ic.MemBaseMB -gt 0) { $memBase = [int]$ic.MemBaseMB }
         if ($memBase -le 0) {
@@ -163,7 +194,10 @@ function Get-InstanceData {
             PID     = $pidVal
             Cores   = $cores
             Private = $privateMB
-            WS      = [int]($proc.WorkingSet64 / 1MB)
+            WS      = [int]($proc.WorkingSet64 / 1MB) + $vmmWS
+            DeviceMB = $deviceMB
+            VmmPID  = $vmmPid
+            VmmMB   = $vmmPrivate
             CEF     = $cefCount
             MemPct  = $memPct
             MemBase = $memBase
@@ -191,6 +225,9 @@ function Get-InstanceData {
     }
     foreach ($k in @($script:indexCache.Keys)) {
         if ($valid -notcontains $k) { $script:indexCache.Remove($k) }
+    }
+    foreach ($k in @($script:vmmIndexCache.Keys)) {
+        if ($vmmPids -notcontains $k) { $script:vmmIndexCache.Remove($k) }
     }
 
     return @($rows | Sort-Object { [int]($_.Index -replace '\D','0') })

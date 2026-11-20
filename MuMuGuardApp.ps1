@@ -329,7 +329,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.0.24'
+$script:appVersion     = '2.1.1'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -416,6 +416,7 @@ $script:pfCache      = $null
 $script:compCache    = $null
 $script:instCache    = $null
 $script:indexCache   = @{}
+$script:vmmIndexCache = @{}
 $script:lastFilled   = -1
 $script:lastGuardState = $null
 # 自动恢复：每实例连续失败计数 / 上次恢复时间 / 正在恢复中

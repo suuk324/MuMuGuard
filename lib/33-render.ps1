@@ -949,6 +949,7 @@ function Invoke-UiSelfTest {
     # 弹窗体检：主题没注入会导致整窗透明（2.0.0 的教训）
     $script:dlgAudit = $true
     $script:dlgAuditErrs = @()
+    $script:detailMemMB = 0
     foreach ($d in @('设置输入', '清除记忆', '实例详情', '公告')) {
         try {
             switch ($d) {
@@ -971,6 +972,13 @@ function Invoke-UiSelfTest {
         $lines += "PASS  四个弹窗配色完整"
         & $flush
     }
+
+    # 实例详情内存行：$row.MemMB 笔误曾导致这行永远不显示；没有运行中的实例时跳过
+    $dm = 0
+    try { $dm = [int]$script:detailMemMB } catch { }
+    if ($dm -gt 0) { $lines += ("PASS  详情内存行 {0}MB" -f $dm) }
+    else { $lines += "SKIP  详情内存行（当前没有运行中的实例）" }
+    & $flush
 
     # 远程状态完整性：手机端总数必须等于桌面端实例总数
     try {
@@ -1288,7 +1296,9 @@ function Show-InstanceDetail([string]$Index) {
         & $addRow '休眠' ("$($wi.Main) · $($wi.Sub)") '#FF9F0A'
     }
     $mem = 0
-    try { $mem = [double]$row.MemMB } catch { }
+    # 行对象里字段叫 Private（含 MuMuVMMHeadless），以前这里误写 MemMB 导致详情页永远不显示内存
+    try { $mem = [double]$row.Private } catch { }
+    $script:detailMemMB = [int]$mem
     if ($mem -gt 0) { & $addRow '内存占用' ("{0:N0} MB" -f $mem) '' }
     $detOff = (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains "$Index")
     # 升级时间上号：每台模拟器单独控制，点一下切换

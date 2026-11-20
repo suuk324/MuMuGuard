@@ -303,14 +303,40 @@ Test-Case '数量越多环越小' {
 }
 
 Write-Host ''
-Write-Host '=== Get-InstanceMemBase（内存刻度）===' -ForegroundColor Cyan
+Write-Host '=== Get-InstanceIndexFromCommandLine（从进程命令行取实例号）===' -ForegroundColor Cyan
 
-Test-Case '6G 实例 -> 8644' {
-    Assert-Equal 8644 (Get-InstanceMemBase -MemoryGB 6)
+Test-Case 'MuMuNxDevice 命令行 -> 4' {
+    $cl = '"D:\Program Files\Netease\MuMu\nx_device\12.0\shell\MuMuNxDevice.exe" -v 4 --vm MuMuPlayer-12.0-4'
+    Assert-Equal '4' (Get-InstanceIndexFromCommandLine -CommandLine $cl)
 }
 
-Test-Case '4G 实例 -> 6596' {
-    Assert-Equal 6596 (Get-InstanceMemBase -MemoryGB 4)
+Test-Case 'MuMuVMMHeadless --comment -> 15.0-5 的 5' {
+    $cl = '"C:\Program Files\MuMuVMMVbox\Hypervisor\MuMuVMMHeadless.exe" --comment MuMuPlayer-15.0-5 --startvm f8c76c57-051b-1c87-1000-000000000005 --vrde config'
+    Assert-Equal '5' (Get-InstanceIndexFromCommandLine -CommandLine $cl)
+}
+
+Test-Case '只有 --startvm uuid 时用末段 -> 1' {
+    $cl = 'MuMuVMMHeadless.exe --startvm f8c76c57-051b-1c87-1000-000000000001'
+    Assert-Equal '1' (Get-InstanceIndexFromCommandLine -CommandLine $cl)
+}
+
+Test-Case '不相关命令行 -> 空串' {
+    Assert-Equal '' (Get-InstanceIndexFromCommandLine -CommandLine '"C:\Windows\System32\notepad.exe"')
+}
+
+Test-Case '空命令行 -> 空串' {
+    Assert-Equal '' (Get-InstanceIndexFromCommandLine -CommandLine '')
+}
+
+Write-Host ''
+Write-Host '=== Get-InstanceMemBase（内存刻度）===' -ForegroundColor Cyan
+
+Test-Case '6G 实例 -> 9144' {
+    Assert-Equal 9144 (Get-InstanceMemBase -MemoryGB 6)
+}
+
+Test-Case '4G 实例 -> 7096' {
+    Assert-Equal 7096 (Get-InstanceMemBase -MemoryGB 4)
 }
 
 Test-Case '未知内存 -> 兜底 9216' {

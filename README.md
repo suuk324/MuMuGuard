@@ -4,7 +4,7 @@
 
 盯着每个实例，掉线自动拉起，等升级时休眠省内存，醒来自动接着跑。
 
-![版本](https://img.shields.io/badge/version-2.2.0-3DDC84)
+![版本](https://img.shields.io/badge/version-2.2.1-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
 ![QQ 群](https://img.shields.io/badge/QQ%E7%BE%A4-1128379535-12B7F5)
@@ -23,6 +23,10 @@ MuMuGuard 是给 MuMu 模拟器多开用的看护面板，运行在 Windows 10 /
 
 ---
 
+## 2.2.1 更新了什么
+
+- **修复了一些问题**。
+- 移除了「启动后操作」里的内置 xxYun 预设按钮：之前误点会覆盖已有配置；现在只保留自动启动应用 / 命令 / 脚本三项，自己按需填写。
 ## 2.2.0 更新了什么
 
 - **新增：实例启动后自动操作（实验，默认关闭）**。在实例详情页点「启动后操作」即可配置：安卓启动完成后自动启动指定应用、执行 adb 命令、或运行 PowerShell 脚本。

@@ -8,6 +8,7 @@ function Get-AnnounceDateKey {
 function Test-AnnounceDue {
     try {
         if ($env:MMG_UITEST -eq '1') { return $false }
+        if ($env:MMG_NOANNOUNCE -eq '1') { return $false }
         if ($env:MMG_ANNOUNCE -eq '1') { return $true }
         # 每天第一次打开会弹；装了新版本后再弹一次（同一版本点了不再提醒就不会再出现）
         if ("$($script:cfg.AnnounceMuteDate)" -ne (Get-AnnounceDateKey)) { return $true }
@@ -25,10 +26,10 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.2.0'
+        Title = 'MuMuGuard 2.2.1'
         Lines = @(
-            '新增：实例启动后自动操作（实验，默认关闭）。',
-            '在实例详情页点「启动后操作」即可配置：安卓启动完成后自动启动应用、执行 adb 命令或运行脚本；内置 xxYun 自动连接预设。其他功能未改动。'
+            '修复了一些问题。',
+            '移除了「启动后操作」里的内置预设按钮，避免误点覆盖已有配置；现在只保留自动启动应用、启动后命令、启动后脚本三项，按需填写。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

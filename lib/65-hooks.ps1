@@ -3,7 +3,7 @@
 # 实例启动钩子（InstanceHooks）
 # 通用能力：实例安卓启动完成后，可自动启动指定 App、执行任意 adb 命令、或运行用户脚本。
 # 默认关闭，不影响看护 / 休眠 / 采集等核心流程；失败只写日志和状态，不阻塞主界面。
-# xxYun 只是内置的一个预设示例（写入 hooks\xxyun-connect.ps1），不是写死逻辑。
+# 具体加速器通过「自动启动应用 / 启动后命令 / 启动后脚本」由用户自己配置。
 
 $script:hookRt = $null
 $script:hookWorkerSb = $null
@@ -177,33 +177,6 @@ function Invoke-HookNow([string]$Index) {
     }
 }
 
-# ---------- xxYun 预设 ----------
-
-function Save-XxyunHookScript {
-    $dir = Join-Path (Get-HookRuntimePath 'DataDir') 'hooks'
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    $path = Join-Path $dir 'xxyun-connect.ps1'
-    $b64 = 'I1JlcXVpcmVzIC1WZXJzaW9uIDUuMQojIHh4WXVuIOWuieWNk+eJiOiHquWKqOi/nuaOpeiEmuacrO+8iOeUsSBNdU11R3VhcmQg6aKE6K6+55Sf5oiQ77yJCiMg55SxIE11TXVHdWFyZCDlkK/liqjpkqnlrZDosIPnlKjvvIznjq/looPlj5jph4/vvJpNTUdfU0VSSUFMIC8gTU1HX0FEQiAvIE1NR19JTlNUQU5DRQokRXJyb3JBY3Rpb25QcmVmZXJlbmNlID0gJ0NvbnRpbnVlJwokc2VyaWFsID0gJGVudjpNTUdfU0VSSUFMCiRhZGIgPSAkZW52Ok1NR19BREIKaWYgKC1ub3QgJGFkYikgeyAkYWRiID0gJ2FkYi5leGUnIH0KJHBrZyA9ICdkZS52cGpzLnh4eXVuJwokbG9nRmlsZSA9IGlmICgkZW52Ok1NR19EQVRBX0RJUikgeyBKb2luLVBhdGggJGVudjpNTUdfREFUQV9ESVIgJ2hvb2tzLmxvZycgfSBlbHNlIHsgSm9pbi1QYXRoIChTcGxpdC1QYXRoIChTcGxpdC1QYXRoICRQU1NjcmlwdFJvb3QgLVBhcmVudCkgLVBhcmVudCkgJ2hvb2tzLmxvZycgfQoKZnVuY3Rpb24gTG9nKFtzdHJpbmddJG0pIHsKICAgIHRyeSB7IEFkZC1Db250ZW50IC1QYXRoICRsb2dGaWxlIC1WYWx1ZSAoJ1t7MDp5eXl5LU1NLWRkIEhIOm1tOnNzfV0geHhZdW7pooTorr46IHsxfScgLWYgKEdldC1EYXRlKSwgJG0pIC1FbmNvZGluZyBVVEY4IH0gY2F0Y2ggeyB9Cn0KZnVuY3Rpb24gU2goW3N0cmluZ10kY21kKSB7CiAgICB0cnkgeyByZXR1cm4gKCYgJGFkYiAtcyAkc2VyaWFsIHNoZWxsICRjbWQgMj4mMSB8IE91dC1TdHJpbmcpIH0gY2F0Y2ggeyByZXR1cm4gJycgfQp9CmZ1bmN0aW9uIFRlc3QtVnBuVXAgewogICAgJHIgPSBTaCAnaXAgLW8gYWRkciBzaG93IHR1bjAgMj4vZGV2L251bGwnCiAgICByZXR1cm4gKCRyIC1tYXRjaCAndHVuMFxzK2luZXQgJykKfQpmdW5jdGlvbiBHZXQtVWlYbWwgewogICAgJG51bGwgPSBTaCAndWlhdXRvbWF0b3IgZHVtcCAvc2RjYXJkL21tZy1ob29rLXVpLnhtbCcKICAgICR0bXAgPSBKb2luLVBhdGggJGVudjpURU1QICdtbWctaG9vay11aS54bWwnCiAgICB0cnkgeyAmICRhZGIgLXMgJHNlcmlhbCBwdWxsIC9zZGNhcmQvbW1nLWhvb2stdWkueG1sICR0bXAgMj4mMSB8IE91dC1OdWxsIH0gY2F0Y2ggeyB9CiAgICBpZiAoVGVzdC1QYXRoICR0bXApIHsgdHJ5IHsgcmV0dXJuIFtTeXN0ZW0uSU8uRmlsZV06OlJlYWRBbGxUZXh0KCR0bXAsIFtTeXN0ZW0uVGV4dC5FbmNvZGluZ106OlVURjgpIH0gY2F0Y2ggeyB9IH0KICAgIHJldHVybiAnJwp9CmZ1bmN0aW9uIFRhcC1Ob2RlKFtzdHJpbmddJHBhdHRlcm4pIHsKICAgICR4bWwgPSBHZXQtVWlYbWwKICAgIGlmICgtbm90ICR4bWwpIHsgcmV0dXJuICRmYWxzZSB9CiAgICBmb3JlYWNoICgkbSBpbiBbcmVnZXhdOjpNYXRjaGVzKCR4bWwsICc8bm9kZVtePl0rPicpKSB7CiAgICAgICAgJG4gPSAkbS5WYWx1ZQogICAgICAgICRkZXNjID0gaWYgKCRuIC1tYXRjaCAnY29udGVudC1kZXNjPSIoW14iXSopIicpIHsgJE1hdGNoZXNbMV0gfSBlbHNlIHsgJycgfQogICAgICAgICR0ZXh0ID0gaWYgKCRuIC1tYXRjaCAndGV4dD0iKFteIl0qKSInKSB7ICRNYXRjaGVzWzFdIH0gZWxzZSB7ICcnIH0KICAgICAgICBpZiAoJGRlc2MgLW1hdGNoICRwYXR0ZXJuIC1vciAkdGV4dCAtbWF0Y2ggJHBhdHRlcm4pIHsKICAgICAgICAgICAgaWYgKCRuIC1tYXRjaCAnYm91bmRzPSJcWyhcZCspLChcZCspXF1cWyhcZCspLChcZCspXF0iJykgewogICAgICAgICAgICAgICAgJHggPSBbaW50XSgoW2ludF0kTWF0Y2hlc1sxXSArIFtpbnRdJE1hdGNoZXNbM10pIC8gMikKICAgICAgICAgICAgICAgICR5ID0gW2ludF0oKFtpbnRdJE1hdGNoZXNbMl0gKyBbaW50XSRNYXRjaGVzWzRdKSAvIDIpCiAgICAgICAgICAgICAgICAkbnVsbCA9IFNoICJpbnB1dCB0YXAgJHggJHkiCiAgICAgICAgICAgICAgICByZXR1cm4gJHRydWUKICAgICAgICAgICAgfQogICAgICAgIH0KICAgIH0KICAgIHJldHVybiAkZmFsc2UKfQoKTG9nICflvIDlp4vmo4Dmn6UnCiMg562J5a6J5Y2T5ZCv5Yqo5a6M5oiQICsg57O757uf56iz5a6a77yM6YG/5YWN5ZKM5byA5py66Ieq5ZCvL+e0q+WtlOmbgOaKoui1hOa6kApmb3IgKCRiID0gMDsgJGIgLWx0IDMwOyAkYisrKSB7CiAgICBpZiAoKFNoICdnZXRwcm9wIHN5cy5ib290X2NvbXBsZXRlZCcpLlRyaW0oKSAtbWF0Y2ggJzEnKSB7IGJyZWFrIH0KICAgIFN0YXJ0LVNsZWVwIC1TZWNvbmRzIDIKfQpTdGFydC1TbGVlcCAtU2Vjb25kcyA4CmlmIChUZXN0LVZwblVwKSB7IExvZyAn5bey6L+e5o6l77yM6Lez6L+HJzsgZXhpdCAwIH0KCmZvciAoJHRyeSA9IDE7ICR0cnkgLWxlIDQ7ICR0cnkrKykgewogICAgTG9nICLlkK/liqggeHhZdW7vvIjnrKwgJHRyeSDmrKHvvIkiCiAgICAkcnVubmluZyA9ICgoU2ggJ3BzIC1BIC1vIE5BTUUnKS5UcmltKCkgLW1hdGNoICdkZVwudnBqc1wueHh5dW4nKQogICAgaWYgKC1ub3QgJHJ1bm5pbmcpIHsKICAgICAgICAjIOWFiOa4heaOieWPr+iDveaui+eVmeeahOaXp+S7u+WKoe+8jOWQpuWImSBBY3Rpdml0eSDlj6/og73ooqvmrbvku7vliqHmjKHkvY/otbfkuI3mnaUKICAgICAgICAkbnVsbCA9IFNoICJhbSBmb3JjZS1zdG9wICRwa2ciCiAgICAgICAgU3RhcnQtU2xlZXAgLVNlY29uZHMgMgogICAgICAgICRudWxsID0gU2ggKCJhbSBzdGFydCAtVyAtbiAkcGtnL2NvbS5mb2xsb3cuY2xhc2guTWFpbkFjdGl2aXR5IikKICAgICAgICBTdGFydC1TbGVlcCAtU2Vjb25kcyA4CiAgICAgICAgJHJ1bm5pbmcgPSAoKFNoICdwcyAtQSAtbyBOQU1FJykuVHJpbSgpIC1tYXRjaCAnZGVcLnZwanNcLnh4eXVuJykKICAgIH0KICAgIGlmICgtbm90ICRydW5uaW5nKSB7CiAgICAgICAgJG51bGwgPSBTaCAoIm1vbmtleSAtcCAkcGtnIC1jIGFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIDEiKQogICAgICAgIFN0YXJ0LVNsZWVwIC1TZWNvbmRzIDgKICAgIH0KICAgIGlmIChUZXN0LVZwblVwKSB7IExvZyAn5bey6L+e5o6l77yIdHVuMCDlt7Llu7rnq4vvvIknOyBleGl0IDAgfQoKICAgICR4bWwgPSBHZXQtVWlYbWwKICAgIGlmICgkeG1sIC1tYXRjaCAn5pyN5Yqh5YWs5ZGKJykgewogICAgICAgIGlmICgtbm90IChUYXAtTm9kZSAn5LuK5pel5LiN5YaN5o+Q56S6JykpIHsgJG51bGwgPSBUYXAtTm9kZSAn5YWz6ZetJyB9CiAgICAgICAgU3RhcnQtU2xlZXAgLVNlY29uZHMgMgogICAgfQogICAgJHhtbCA9IEdldC1VaVhtbAogICAgaWYgKCR4bWwgLW1hdGNoICfnvZHnu5zov57mjqXor7fmsYJ85oOz6KaB6K6+572u5LiA5LiqIFZQTicpIHsKICAgICAgICAkbnVsbCA9IFRhcC1Ob2RlICfnoa7lrpp85YWB6K64fOWQjOaEjycKICAgICAgICBTdGFydC1TbGVlcCAtU2Vjb25kcyAzCiAgICB9CiAgICBpZiAoJHhtbCAtbWF0Y2ggJ+W3sui/nuaOpSwg5pat5byA6L+e5o6lJykgeyBMb2cgJ+W3sui/nuaOpSc7IGV4aXQgMCB9CiAgICBpZiAoJHhtbCAtbWF0Y2ggJ+acqui/nuaOpScpIHsKICAgICAgICBpZiAoVGFwLU5vZGUgJ+acqui/nuaOpScpIHsKICAgICAgICAgICAgZm9yICgkdyA9IDA7ICR3IC1sdCA4OyAkdysrKSB7CiAgICAgICAgICAgICAgICBTdGFydC1TbGVlcCAtU2Vjb25kcyAyCiAgICAgICAgICAgICAgICBpZiAoVGVzdC1WcG5VcCkgeyBMb2cgJ+W3sui/nuaOpe+8iHR1bjAg5bey5bu656uL77yJJzsgZXhpdCAwIH0KICAgICAgICAgICAgfQogICAgICAgIH0KICAgIH0KICAgIFN0YXJ0LVNsZWVwIC1TZWNvbmRzIDUKfQpMb2cgJ+i/nuaOpeWksei0pScKZXhpdCAx'
-    $content = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64))
-
-    [System.IO.File]::WriteAllText($path, $content, (New-Object System.Text.UTF8Encoding $true))
-    return 'hooks\xxyun-connect.ps1'
-}
-
-function Import-XxyunHookPreset([string]$Index) {
-    $scriptRel = Save-XxyunHookScript
-    $h = [ordered]@{
-        Enabled           = $true
-        DelaySec          = 20
-        AutoStartApps     = @('de.vpjs.xxyun')
-        PostStartCommands = @()
-        PostStartScript   = $scriptRel
-    }
-    Set-InstanceHook -Index $Index -Hook (New-InstanceHook $h)
-    Write-GuardLog 'HOOK_PRESET' "实例$Index" '导入 xxYun 自动连接预设'
-    return $h
-}
-
 # ---------- 设置对话框 ----------
 
 function Show-HookDialog([string]$Index) {
@@ -234,21 +207,12 @@ function Show-HookDialog([string]$Index) {
         <TextBox x:Name="InpApps" Text="" FontSize="12" Foreground="#F2F2F5" Background="Transparent" BorderThickness="0"/>
       </Border>
 
-      <Grid Margin="0,10,0,0">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0">
-          <TextBlock Text="延迟（秒）" FontSize="10.5" Foreground="#6E6E78" Margin="0,0,0,5"/>
-          <Border Background="#1A1A1E" CornerRadius="9" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="10,7">
-            <TextBox x:Name="InpDelay" Text="" FontSize="12" Foreground="#F2F2F5" Background="Transparent" BorderThickness="0"/>
-          </Border>
-        </StackPanel>
-        <StackPanel Grid.Column="2">
-          <TextBlock Text="预设" FontSize="10.5" Foreground="#6E6E78" Margin="0,0,0,5"/>
-          <Border x:Name="BtnPreset" Background="#1AFFFFFF" CornerRadius="9" Padding="0,8" Cursor="Hand">
-            <TextBlock Text="xxYun 预设" FontSize="11" Foreground="#E6E6EC" HorizontalAlignment="Center"/>
-          </Border>
-        </StackPanel>
-      </Grid>
+      <StackPanel Margin="0,10,0,0">
+        <TextBlock Text="延迟（秒）" FontSize="10.5" Foreground="#6E6E78" Margin="0,0,0,5"/>
+        <Border Background="#1A1A1E" CornerRadius="9" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="10,7">
+          <TextBox x:Name="InpDelay" Text="" FontSize="12" Foreground="#F2F2F5" Background="Transparent" BorderThickness="0"/>
+        </Border>
+      </StackPanel>
 
       <TextBlock Text="启动后命令（每行一条 adb shell 命令，可留空）" FontSize="10.5" Foreground="#6E6E78" Margin="0,12,0,5"/>
       <Border Background="#1A1A1E" CornerRadius="9" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="10,7">
@@ -329,21 +293,6 @@ function Show-HookDialog([string]$Index) {
         } catch { }
     }.GetNewClosure())
 
-    $dlg.FindName('BtnPreset').Add_MouseLeftButtonUp({
-        try {
-            $null = Import-XxyunHookPreset $Index
-            $h2 = Get-InstanceHook $Index
-            $dlg.FindName('InpApps').Text = (@($h2.AutoStartApps) -join ' ')
-            $dlg.FindName('InpScript').Text = "$($h2.PostStartScript)"
-            $dlg.FindName('InpDelay').Text = "$([int]$h2.DelaySec)"
-            $state.Enabled = [bool]$h2.Enabled
-            & $refreshToggle
-            $dlg.FindName('TxtStatus').Text = '已导入 xxYun 预设并保存'
-            Update-HookWorker
-        } catch {
-            $dlg.FindName('TxtStatus').Text = "导入失败：$($_.Exception.Message)"
-        }
-    }.GetNewClosure())
 
     $dlg.FindName('BtnRun').Add_MouseLeftButtonUp({
         try {

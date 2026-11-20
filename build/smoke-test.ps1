@@ -61,6 +61,7 @@ if ($fail.Count -gt 0) {
 if ($pass -lt 12) { throw ("自检只跑了 {0} 项，太少（界面元素可能缺失）" -f $pass) }
 
 # ---------- 2. 正常启动 ----------
+$env:MMG_NOANNOUNCE = '1'
 $proc2 = $null
 for ($i = 1; $i -le 5; $i++) {
     try { $proc2 = Start-Process -FilePath $target -PassThru -ErrorAction Stop; break }

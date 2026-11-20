@@ -213,6 +213,75 @@ function Get-InstanceIndexFromCommandLine {
     return ''
 }
 
+# 实例启动钩子（InstanceHooks）的默认结构与归一化（纯逻辑，便于单测）
+# 每个实例可配置：启用、延迟秒数、自动启动的应用包名、启动后执行的 adb 命令、启动后执行的脚本
+function New-InstanceHook {
+    param($Saved)
+    $h = [ordered]@{
+        Enabled           = $false
+        DelaySec          = 8
+        AutoStartApps     = @()
+        PostStartCommands = @()
+        PostStartScript   = ''
+    }
+    if ($null -eq $Saved) { return $h }
+    $read = {
+        param($name)
+        try {
+            if ($Saved -is [System.Collections.IDictionary]) {
+                if ($Saved.Contains($name)) { return $Saved[$name] }
+            } else {
+                $p = $Saved.PSObject.Properties[$name]
+                if ($p) { return $p.Value }
+            }
+        } catch { }
+        return $null
+    }
+    $en = & $read 'Enabled'
+    if ($null -ne $en) { $h.Enabled = [bool]$en }
+    $dl = & $read 'DelaySec'
+    if ($null -ne $dl) { try { $h.DelaySec = [Math]::Max(0, [Math]::Min(600, [int]$dl)) } catch { } }
+    $apps = & $read 'AutoStartApps'
+    if ($apps) {
+        $h.AutoStartApps = @($apps | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
+    }
+    $cmds = & $read 'PostStartCommands'
+    if ($cmds) {
+        $h.PostStartCommands = @($cmds | ForEach-Object { "$_" } | Where-Object { "$_".Trim() })
+    }
+    $sc = & $read 'PostStartScript'
+    if ($sc) { $h.PostStartScript = "$sc".Trim() }
+    return $h
+}
+
+# 从可能为 PSCustomObject/哈希表/JSON 的配置里取出某个实例的钩子（纯逻辑）
+function Get-InstanceHookFromStore {
+    param($Store, [string]$Index)
+    $found = $null
+    if ($null -ne $Store) {
+        try {
+            if ($Store -is [System.Collections.IDictionary]) {
+                foreach ($k in $Store.Keys) { if ("$k" -eq "$Index") { $found = $Store[$k]; break } }
+            } else {
+                foreach ($p in $Store.PSObject.Properties) { if ($p.Name -eq "$Index") { $found = $p.Value; break } }
+            }
+        } catch { }
+    }
+    return (New-InstanceHook $found)
+}
+
+# 钩子内容摘要（详情页/日志显示用）
+function Get-InstanceHookSummary {
+    param($Hook)
+    if (-not $Hook -or -not $Hook.Enabled) { return '未设置' }
+    $parts = @()
+    if ($Hook.AutoStartApps -and @($Hook.AutoStartApps).Count -gt 0) { $parts += ('启动 ' + @($Hook.AutoStartApps).Count + ' 个应用') }
+    if ($Hook.PostStartCommands -and @($Hook.PostStartCommands).Count -gt 0) { $parts += (@($Hook.PostStartCommands).Count.ToString() + ' 条命令') }
+    if ($Hook.PostStartScript) { $parts += '脚本' }
+    if ($parts.Count -eq 0) { return '已开启（无动作）' }
+    return ('已开启 · ' + ($parts -join ' / '))
+}
+
 # 环的满刻度：客户机内存(GB) + 图形/转译固定开销
 # 新引擎的 guest 内存在 MuMuVMMHeadless 里，实测 6G 实例总私有约 8.9~9.0G，所以开销按 3000 算
 function Get-InstanceMemBase {

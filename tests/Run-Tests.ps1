@@ -344,6 +344,55 @@ Test-Case '未知内存 -> 兜底 9216' {
 }
 
 Write-Host ''
+Write-Host '=== 实例启动钩子（InstanceHooks）===' -ForegroundColor Cyan
+
+Test-Case '默认钩子：关闭、延迟 8 秒、无动作' {
+    $h = New-InstanceHook $null
+    Assert-Equal $false $h.Enabled
+    Assert-Equal 8 $h.DelaySec
+    Assert-Equal 0 @($h.AutoStartApps).Count
+    Assert-Equal 0 @($h.PostStartCommands).Count
+    Assert-Equal '' $h.PostStartScript
+}
+
+Test-Case '哈希表配置归一化' {
+    $h = New-InstanceHook @{ Enabled = $true; DelaySec = 3; AutoStartApps = @('a.b', ' c.d '); PostStartCommands = @('input tap 1 2'); PostStartScript = 'hooks\x.ps1' }
+    Assert-Equal $true $h.Enabled
+    Assert-Equal 3 $h.DelaySec
+    Assert-Equal 2 @($h.AutoStartApps).Count
+    Assert-Equal 'c.d' @($h.AutoStartApps)[1]
+    Assert-Equal 'hooks\x.ps1' $h.PostStartScript
+}
+
+Test-Case '延迟秒数边界：负数归 0，超大归 600' {
+    Assert-Equal 0 ((New-InstanceHook @{ DelaySec = -5 }).DelaySec)
+    Assert-Equal 600 ((New-InstanceHook @{ DelaySec = 99999 }).DelaySec)
+}
+
+Test-Case '从哈希表配置存储按实例号取钩子' {
+    $store = @{ '1' = @{ Enabled = $true; AutoStartApps = @('de.vpjs.xxyun') } }
+    $h = Get-InstanceHookFromStore $store '1'
+    Assert-Equal $true $h.Enabled
+    Assert-Equal 'de.vpjs.xxyun' @($h.AutoStartApps)[0]
+    $none = Get-InstanceHookFromStore $store '4'
+    Assert-Equal $false $none.Enabled
+}
+
+Test-Case '从 JSON/PSCustomObject 存储取钩子' {
+    $store = '{"2":{"Enabled":true,"DelaySec":2,"PostStartCommands":["am start -n a.b/.Main"]}}' | ConvertFrom-Json
+    $h = Get-InstanceHookFromStore $store '2'
+    Assert-Equal $true $h.Enabled
+    Assert-Equal 2 $h.DelaySec
+    Assert-Equal 'am start -n a.b/.Main' @($h.PostStartCommands)[0]
+}
+
+Test-Case '钩子摘要（关闭 / 已开启）' {
+    Assert-Equal '未设置' (Get-InstanceHookSummary (New-InstanceHook $null))
+    $h = New-InstanceHook @{ Enabled = $true; AutoStartApps = @('de.vpjs.xxyun'); PostStartScript = 'hooks\x.ps1' }
+    Assert-Equal $true ((Get-InstanceHookSummary $h) -like '已开启*')
+}
+
+Write-Host ''
 Write-Host '=== Get-OvercommitLevel（超配判定）===' -ForegroundColor Cyan
 
 Test-Case '50% -> ok' {

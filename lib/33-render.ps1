@@ -950,12 +950,13 @@ function Invoke-UiSelfTest {
     $script:dlgAudit = $true
     $script:dlgAuditErrs = @()
     $script:detailMemMB = 0
-    foreach ($d in @('设置输入', '清除记忆', '实例详情', '公告')) {
+    foreach ($d in @('设置输入', '清除记忆', '实例详情', '启动后操作', '公告')) {
         try {
             switch ($d) {
                 '设置输入' { Show-SettingInput -Key 'LogKeepDays' -Label '日志保留' -Desc '测试' -Value 7 -Unit '天' }
                 '清除记忆' { Show-ClearMemoryDialog }
                 '实例详情' { $ix = '0'; $rw2 = @(Get-ShellRows); $pk2 = @($rw2 | Where-Object { $_.Online } | Select-Object -First 1); if ($pk2.Count -eq 0) { $pk2 = @($rw2 | Select-Object -First 1) }; if ($pk2.Count -gt 0) { $ix = [string]$pk2[0].Index }; Show-InstanceDetail $ix }
+                '启动后操作' { Show-HookDialog '0' }
                 '公告'     { Show-Announcement -Force }
             }
             $lines += "PASS  弹窗 $d"
@@ -972,6 +973,16 @@ function Invoke-UiSelfTest {
         $lines += "PASS  四个弹窗配色完整"
         & $flush
     }
+
+    # 实例启动钩子配置读取（默认关闭时也要能正常读到）
+    try {
+        $hk0 = Get-InstanceHook '0'
+        if ($null -ne $hk0 -and $null -ne $hk0.Enabled) { $lines += "PASS  启动后钩子配置" }
+        else { $lines += "FAIL  启动后钩子配置" }
+    } catch {
+        $lines += "FAIL  启动后钩子配置  $($_.Exception.Message)"
+    }
+    & $flush
 
     # 实例详情内存行：$row.MemMB 笔误曾导致这行永远不显示；没有运行中的实例时跳过
     $dm = 0
@@ -1334,6 +1345,20 @@ function Show-InstanceDetail([string]$Index) {
         }
     } catch { }
     & $addRow '掉线检测' ($(if ($detOff) { '已暂停' } else { '开启中' })) $(if ($detOff) { '#6E6E78' } else { '#34C759' })
+    # 启动后自动操作（通用实例启动钩子，默认关闭）
+    try {
+        $hk = Get-InstanceHook "$Index"
+        & $addRow '启动后操作' (Get-InstanceHookSummary $hk) $(if ($hk.Enabled) { '#34C759' } else { '#6E6E78' })
+        $hookLink = $script:lastRowValue
+        if ($hookLink) {
+            $hookLink.Cursor = 'Hand'
+            $hookLink.ToolTip = '点击配置：实例启动后自动启动应用 / 执行命令 / 运行脚本'
+            $hookLink.Add_MouseLeftButtonUp({
+                try { Show-HookDialog "$Index" } catch { Write-Diag "打开启动后操作失败: $($_.Exception.Message)" }
+                Update-Ui
+            }.GetNewClosure())
+        }
+    } catch { }
 
     $dlg.FindName('TxtDetect').Text = $(if ($detOff) { '恢复检测' } else { '暂停检测' })
     $dlg.FindName('BtnDetect').Add_MouseLeftButtonUp({

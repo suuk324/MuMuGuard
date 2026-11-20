@@ -102,6 +102,8 @@ Invoke-PS2EXE @args
 if (-not (Test-Path $exePath)) { throw 'exe 未生成' }
 $exeSize = [math]::Round((Get-Item $exePath).Length / 1KB, 1)
 Write-Host "  $exeName ($exeSize KB)"
+# 刚写出的 exe 可能被系统/杀软短暂占用，立即启动会报 Access denied 或 SxS 错误；等几秒再跑冒烟
+Start-Sleep -Seconds 8
 
 # ---------- 5b. exe 冒烟测试 ----------
 Write-Host ''

@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq', '63-res')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq', '63-res', '65-hooks')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -253,6 +253,8 @@ $defaultCfg = [ordered]@{
     RecoverFailCount = 2
     RecoverCooldown  = 10
     DetectOff        = @()
+    # 实例启动钩子（实例安卓启动完成后自动执行：启动应用 / adb 命令 / 脚本）
+    InstanceHooks    = @{}
     # 升级休眠
     AutoSleep        = $false
     SleepLeadMin     = 10
@@ -329,7 +331,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.1.1'
+$script:appVersion     = '2.2.0'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -383,6 +385,14 @@ if (-not $gotLock) {
     } catch { }
     exit
 }
+
+
+# ---------------- 实例启动钩子 ----------------
+# 配置里可能只有某个实例开了钩子；worker 是独立后台 Job，失败不影响看护
+try {
+    Initialize-HookRuntime -ManagerExe $MuMuMgr -AdbExe $AdbExe -DataDir $DataDir
+    Update-HookWorker
+} catch { Write-Diag "启动后钩子初始化失败: $($_.Exception.Message)" }
 
 
 # ---------------- 状态 ----------------
@@ -1054,6 +1064,7 @@ $win.Add_Closed({
     try { Stop-RemoteServer } catch { }
     try { Stop-Outbound } catch { }
     $script:adbSync.Stop = $true
+    try { Stop-HookWorker } catch { }
     try {
         if ($win.WindowState -eq 'Normal') {
             $script:cfg.WindowLeft = [math]::Round($win.Left)

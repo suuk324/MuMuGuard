@@ -25,10 +25,10 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.1.1'
+        Title = 'MuMuGuard 2.2.0'
         Lines = @(
-            '修复了一些问题。',
-            '实例内存统计更准确：现在会把 MuMu 虚拟机进程（MuMuVMMHeadless）算进去，6G 实例不再显示成 0.1GB；实例详情页恢复显示内存占用。'
+            '新增：实例启动后自动操作（实验，默认关闭）。',
+            '在实例详情页点「启动后操作」即可配置：安卓启动完成后自动启动应用、执行 adb 命令或运行脚本；内置 xxYun 自动连接预设。其他功能未改动。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

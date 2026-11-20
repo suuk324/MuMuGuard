@@ -56,7 +56,7 @@ function Get-ShellXaml {
             </Border>
             <TextBlock Text="MuMuGuard" Foreground="{DynamicResource T_UI_T1}" FontSize="15" FontWeight="SemiBold"
                        HorizontalAlignment="Center" Margin="0,9,0,0"/>
-            <TextBlock x:Name="TxtVersion" Text="v2.1.1" Foreground="{DynamicResource T_UI_T3}" FontSize="10.5"
+            <TextBlock x:Name="TxtVersion" Text="v2.2.0" Foreground="{DynamicResource T_UI_T3}" FontSize="10.5"
                        HorizontalAlignment="Center" Margin="0,2,0,0"/>
           </StackPanel>
 

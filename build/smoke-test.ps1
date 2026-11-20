@@ -35,7 +35,11 @@ foreach ($p in $logCandidates) { Remove-Item $p -Force -ErrorAction SilentlyCont
 
 # ---------- 1. 自检模式 ----------
 $env:MMG_UITEST = '1'
-$proc = Start-Process -FilePath $target -PassThru
+$proc = $null
+for ($i = 1; $i -le 5; $i++) {
+    try { $proc = Start-Process -FilePath $target -PassThru -ErrorAction Stop; break }
+    catch { if ($i -ge 5) { throw }; Start-Sleep -Seconds 3 }
+}
 [void]$proc.WaitForExit($WaitSeconds * 1000)
 $env:MMG_UITEST = ''
 Start-Sleep -Seconds 1
@@ -57,7 +61,11 @@ if ($fail.Count -gt 0) {
 if ($pass -lt 12) { throw ("自检只跑了 {0} 项，太少（界面元素可能缺失）" -f $pass) }
 
 # ---------- 2. 正常启动 ----------
-$proc2 = Start-Process -FilePath $target -PassThru
+$proc2 = $null
+for ($i = 1; $i -le 5; $i++) {
+    try { $proc2 = Start-Process -FilePath $target -PassThru -ErrorAction Stop; break }
+    catch { if ($i -ge 5) { throw }; Start-Sleep -Seconds 3 }
+}
 Start-Sleep -Seconds 18
 
 Add-Type -AssemblyName System.Drawing

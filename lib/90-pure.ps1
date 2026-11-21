@@ -412,3 +412,48 @@ function Get-SleepStage {
     if ($MinHours -gt 0 -and ($doneAt - $Now).TotalHours -lt $MinHours) { return @{ Action = 'wait'; Reason = 'too-short' } }
     return @{ Action = 'sleep'; Reason = 'ok' }
 }
+# ---------------- 实例发现 / 唤醒通知（纯函数，可单测） ----------------
+
+# 只把「运行中」的实例放进采集清单；没在跑的实例不去查，避免 MuMuManager 卡死
+function Get-RunningDeviceList($Instances) {
+    $out = @()
+    foreach ($ic in @($Instances)) {
+        if (-not $ic) { continue }
+        $running = $false
+        if ($ic.PSObject.Properties.Name -contains 'Running') { $running = ($ic.Running -eq $true) }
+        if (-not $running) { continue }
+        $idx = "$($ic.Index)"
+        if (-not $idx -or $idx -eq '-') { continue }
+        $port = 0
+        if ($ic.PSObject.Properties.Name -contains 'AdbPort') {
+            try { $port = [int]$ic.AdbPort } catch { $port = 0 }
+        }
+        $out += [pscustomobject]@{ Index = $idx; Port = $port }
+    }
+    return $out
+}
+
+# 解析唤醒器写的 wake-notify.json：支持 { items: [...] } 或裸数组；去重、丢弃非法项
+function ConvertFrom-WakeNotifyJson([string]$Json) {
+    if (-not $Json -or $Json.Trim() -eq '') { return @() }
+    $j = $null
+    try { $j = $Json | ConvertFrom-Json } catch { return @() }
+    if (-not $j) { return @() }
+    $raw = @()
+    if ($j.PSObject.Properties.Name -contains 'items') { $raw = @($j.items) }
+    elseif ($j -is [System.Array]) { $raw = @($j) }
+    else { $raw = @($j) }
+    $out = @()
+    $seen = @{}
+    foreach ($x in $raw) {
+        if (-not $x) { continue }
+        $idx = "$($x.Index)".Trim()
+        if ($idx -notmatch '^\d+$') { continue }
+        if ($seen.ContainsKey($idx)) { continue }
+        $seen[$idx] = $true
+        $at = ''
+        try { $at = "$($x.At)" } catch { }
+        $out += [pscustomobject]@{ Index = $idx; At = $at }
+    }
+    return $out
+}

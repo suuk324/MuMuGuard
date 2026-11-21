@@ -689,6 +689,64 @@ Test-Case '唤醒/重启顺序：启动后操作先于紫孔雀' {
     if ($rp -lt 0 -or $rc -gt $rp) { return 'Restart 中启动后操作不在启动紫孔雀之前' }
     return $true
 }
+# ---------------- 实例发现 / 唤醒通知回归 ----------------
+Test-Case '实例发现：只把运行中的实例放进采集清单' {
+    $list = @(
+        [pscustomobject]@{ Index='1'; Running=$true;  AdbPort=16416 },
+        [pscustomobject]@{ Index='2'; Running=$false; AdbPort=16448 },
+        [pscustomobject]@{ Index='4'; Running=$true;  AdbPort='16512' }
+    )
+    $dev = @(Get-RunningDeviceList $list)
+    if ($dev.Count -ne 2) { return "数量 $($dev.Count)，期望 2" }
+    if ("$($dev[0].Index)" -ne '1' -or "$($dev[1].Index)" -ne '4') { return '实例号不对' }
+    if ([int]$dev[1].Port -ne 16512) { return "端口转换失败 $($dev[1].Port)" }
+    return $true
+}
+
+Test-Case '实例发现：空列表/关机实例不报错' {
+    if (@(Get-RunningDeviceList $null).Count -ne 0) { return 'null 应返回空' }
+    if (@(Get-RunningDeviceList @([pscustomobject]@{ Index='0'; Running=$false })).Count -ne 0) { return '关机实例不应入清单' }
+    return $true
+}
+
+Test-Case '实例发现：缺 Running 字段按未运行处理（info 超时安全）' {
+    $list = @([pscustomobject]@{ Index='0'; AdbPort=16384 }, [pscustomobject]@{ Index='1'; AdbPort=16416; Running=$true })
+    $dev = @(Get-RunningDeviceList $list)
+    if ($dev.Count -ne 1 -or "$($dev[0].Index)" -ne '1') { return '缺 Running 的实例不应进入采集清单' }
+    return $true
+}
+Test-Case '唤醒通知：解析 items、去重、丢弃非法项' {
+    $json = '{"items":[{"Index":"1","At":"2026-01-01T00:00:00"},{"Index":"1"},{"Index":"x"},{"Index":"4"}]}'
+    $items = @(ConvertFrom-WakeNotifyJson $json)
+    if ($items.Count -ne 2) { return "数量 $($items.Count)，期望 2" }
+    if ("$($items[0].Index)" -ne '1' -or "$($items[1].Index)" -ne '4') { return '解析结果不对' }
+    if (@(ConvertFrom-WakeNotifyJson '').Count -ne 0) { return '空字符串应返回空' }
+    if (@(ConvertFrom-WakeNotifyJson 'not-json').Count -ne 0) { return '坏 JSON 应返回空' }
+    return $true
+}
+
+Test-Case '实例重扫不依赖窗口可见，且有唤醒通知/窗口恢复立即刷新' {
+    $src = Get-Content (Join-Path $root 'MuMuGuardApp.ps1') -Raw -Encoding UTF8
+    if ($src -notmatch 'Invoke-WakeNotifyRefresh') { return '主计时器没有处理唤醒通知' }
+    if ($src -notmatch 'Invoke-InstanceRefresh -Reason ''定时重扫''') { return '没有定时后台刷新' }
+    if ($src -notmatch 'Add_StateChanged') { return '窗口恢复没有立即刷新' }
+    $i = $src.IndexOf('$rescanTimer.Add_Tick({')
+    $j = $src.IndexOf('$rescanTimer.Start()', $i)
+    if ($i -lt 0 -or $j -le $i) { return '找不到重扫定时器代码块' }
+    $block = $src.Substring($i, $j - $i)
+    if ($block -match 'WindowState|IsVisible') { return '重扫逻辑仍被窗口可见性限制' }
+    if ($src -notmatch 'rescanTimer\.Interval = \[TimeSpan\]::FromSeconds\(30\)') { return '重扫间隔不是 30 秒' }
+    return $true
+}
+
+Test-Case '唤醒器唤醒后先写通知再执行启动后操作' {
+    $w = Get-Content (Join-Path $root 'Waker.ps1') -Raw -Encoding UTF8
+    $wi = $w.IndexOf('Write-WakeNotify $index')
+    $hi = $w.IndexOf('Invoke-StartHook $index')
+    if ($wi -lt 0) { return 'Waker 没有写唤醒通知' }
+    if ($hi -lt 0 -or $wi -gt $hi) { return '通知位置不对（应在启动后操作之前）' }
+    return $true
+}
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {
     Write-Host ("全部通过：{0} 个测试" -f $script:pass) -ForegroundColor Green

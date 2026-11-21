@@ -4,7 +4,7 @@
 
 盯着每个实例，掉线自动拉起，等升级时休眠省内存，醒来自动接着跑。
 
-![版本](https://img.shields.io/badge/version-2.3.0-3DDC84)
+![版本](https://img.shields.io/badge/version-2.3.1-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
 ![QQ 群](https://img.shields.io/badge/QQ%E7%BE%A4-1128379535-12B7F5)
@@ -22,6 +22,13 @@ MuMuGuard 是给 MuMu 模拟器多开用的看护面板，运行在 Windows 10 /
 项目地址：[github.com/suuk324/MuMuGuard](https://github.com/suuk324/MuMuGuard)
 
 ---
+
+## 2.3.1 更新了什么
+
+- **修复了一些问题**。
+- 修复自动唤醒后实例长时间不出现在面板、采集不到数据的问题：实例重扫不再依赖窗口可见性，唤醒器唤醒后会立即通知面板刷新，窗口恢复时也立即刷新。
+- 最小化/收进托盘时采集不再长时间休眠；唤醒后一般几秒到几十秒内就能看到实例数据。
+- 其他功能未改动。
 
 ## 2.3.0 更新了什么
 

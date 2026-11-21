@@ -331,7 +331,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.3.0'
+$script:appVersion     = '2.3.1'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -682,7 +682,8 @@ $workerScript = {
         # 窗口不可见时降低采集频率，减少 adb 进程创建开销
         $idle = $false
         try { $idle = [bool]$sync.Idle } catch { }
-        if ($idle) { Start-Sleep -Seconds 120 } else { Start-Sleep -Seconds 15 }
+        # 最小化时也最多 30 秒采一轮：自动唤醒/手动启动后要尽快抓到实例
+    if ($idle) { Start-Sleep -Seconds 30 } else { Start-Sleep -Seconds 15 }
     }
 }
 
@@ -694,11 +695,7 @@ $workerPs = [powershell]::Create()
 $workerPs.Runspace = $rs
 
 # 传给采集线程的实例清单（只查正在运行的，避免对已关机的实例白跑 adb）
-$devList = @($script:instances | Where-Object {
-    $running = $true
-    if ($_.PSObject.Properties.Name -contains 'Running') { $running = ($_.Running -eq $true) }
-    $running
-} | ForEach-Object { [pscustomobject]@{ Index = $_.Index; Port = $_.AdbPort } })
+$devList = @(Get-RunningDeviceList $script:instances)
 # 每批查几个：3 个以内全查，超过就分批（每批约 15 秒，一轮覆盖全部）
 
 # 采集线程每轮读取这个列表，实例增减后无需重启面板
@@ -856,6 +853,8 @@ $timer = New-Object System.Windows.Threading.DispatcherTimer
 $timer.Interval = [TimeSpan]::FromSeconds(5)
 $timer.Add_Tick({
     $script:tickCount++
+    # 唤醒器唤醒后会写 wake-notify.json：面板最小化时也要马上发现新实例
+    try { Invoke-WakeNotifyRefresh } catch { Write-Diag ('唤醒通知处理异常: ' + $_.Exception.Message) }
     $tp = [System.Diagnostics.Stopwatch]::StartNew()
     $msPre = 0; $msClean = 0; $msUi = 0
     # 通知后台采集：窗口不可见时降频
@@ -941,12 +940,29 @@ $script:recoverTimer.Add_Tick({
 
 # 启动 20 秒后检查一次更新（不阻塞启动）
 # 每 2 分钟重扫一次实例：群友新开模拟器不需要重启面板
+# 定时重扫实例：最小化/收进托盘也要跑，否则自动唤醒的实例会长时间不进采集清单
 $rescanTimer = New-Object System.Windows.Threading.DispatcherTimer
-$rescanTimer.Interval = [TimeSpan]::FromSeconds(120)
+$rescanTimer.Interval = [TimeSpan]::FromSeconds(30)
 $rescanTimer.Add_Tick({
-    try { if ($win -and $win.IsVisible -and $win.WindowState -ne 'Minimized') { [void](Update-InstanceList -VmsDir $script:muInfo.VmsDir -ManagerExe $MuMuMgr) } } catch { }
+    # 兜底：公告开着（主计时器还没启动）时也能处理唤醒通知
+    try { Invoke-WakeNotifyRefresh } catch { Write-Diag ('唤醒通知处理异常: ' + $_.Exception.Message) }
+    try { [void](Invoke-InstanceRefresh -Reason '定时重扫') } catch { Write-Diag ('定时重扫异常: ' + $_.Exception.Message) }
 })
 $rescanTimer.Start()
+
+# 窗口从最小化恢复时立即刷新，不等下一次 30 秒定时器
+try {
+    $win.Add_StateChanged({
+        param($s, $e)
+        try {
+            if ($win -and $win.WindowState -ne 'Minimized') {
+                [void](Invoke-InstanceRefresh -Reason '窗口恢复')
+                foreach ($d in @($script:adbSync.Devices)) { try { $script:adbSync.Force["$($d.Index)"] = $true } catch { } }
+                try { Update-Ui } catch { }
+            }
+        } catch { Write-Diag ('窗口恢复刷新异常: ' + $_.Exception.Message) }
+    })
+} catch { Write-Diag ('注册窗口恢复刷新失败: ' + $_.Exception.Message) }
 
 # 远程访问：队列处理（500ms）+ 状态快照刷新
 $remoteTimer = New-Object System.Windows.Threading.DispatcherTimer

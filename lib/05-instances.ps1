@@ -271,12 +271,12 @@ function Get-InstanceDisplayName {
 # 用 MuMuManager 查询所有实例（最可靠的来源：不依赖目录结构，安卓 12/15 通用）
 # 返回 编号 -> 信息对象
 function Get-MuMuInfoAll {
-    param([string]$ManagerExe)
+    param([string]$ManagerExe, [int]$TimeoutMs = 20000)
 
     $map = @{}
     if (-not $ManagerExe -or -not (Test-Path $ManagerExe)) { return $map }
 
-    $raw = Invoke-CaptureUtf8 -Exe $ManagerExe -ArgList @('info', '-v', 'all')
+    $raw = Invoke-CaptureUtf8 -Exe $ManagerExe -ArgList @('info', '-v', 'all') -TimeoutMs $TimeoutMs
     if (-not $raw -or -not $raw.Trim()) {
         Write-Diag 'MuMuManager info 无输出'
         return $map
@@ -355,11 +355,15 @@ function Merge-InstanceInfo {
 # 重新扫描实例列表（面板运行期间新开/关闭模拟器无需重启）
 # 返回 $true 表示实例数量或编号有变化
 function Update-InstanceList {
-    param([string]$VmsDir, [string]$ManagerExe)
+    param([string]$VmsDir, [string]$ManagerExe, [int]$InfoTimeoutMs = 15000)
 
     $list = @(Get-InstanceConfigs -VmsDir $VmsDir)
-    $info = Get-MuMuInfoAll -ManagerExe $ManagerExe
-    if ($info.Count -gt 0) { $list = Merge-InstanceInfo -Configs $list -InfoMap $info }
+    $info = Get-MuMuInfoAll -ManagerExe $ManagerExe -TimeoutMs $InfoTimeoutMs
+    if ($info.Count -eq 0) {
+        Write-Diag ("实例刷新：MuMuManager info 无返回，保留上次状态（{0}）" -f $ManagerExe)
+        return $false
+    }
+    $list = Merge-InstanceInfo -Configs $list -InfoMap $info
 
     $oldIdx = (@($script:instances | ForEach-Object { "$($_.Index)" }) -join ',')
     $newIdx = (@($list | ForEach-Object { "$($_.Index)" }) -join ',')
@@ -370,11 +374,11 @@ function Update-InstanceList {
 
     # 采集线程的清单跟着更新（新开或关掉的实例都能自动生效）
     try {
-        $script:adbSync.Devices = @($list | Where-Object {
-            $r = $true
-            if ($_.PSObject.Properties.Name -contains 'Running') { $r = ($_.Running -eq $true) }
-            $r
-        } | ForEach-Object { [pscustomobject]@{ Index = $_.Index; Port = $_.AdbPort } })
+        $oldDev = @($script:adbSync.Devices | ForEach-Object { "$($_.Index)" } | Sort-Object) -join ','
+        $newDevs = @(Get-RunningDeviceList $list)
+        $script:adbSync.Devices = $newDevs
+        $newDev = @($newDevs | ForEach-Object { "$($_.Index)" } | Sort-Object) -join ','
+        if ($oldDev -ne $newDev) { Write-Diag ("采集清单更新：{0} -> {1}" -f $(if ($oldDev) { $oldDev } else { '空' }), $(if ($newDev) { $newDev } else { '空' })) }
     } catch { }
 
     if ($oldIdx -ne $newIdx) {
@@ -384,4 +388,43 @@ function Update-InstanceList {
         return $true
     }
     return $false
+}
+# 立即刷新实例列表（不依赖窗口是否可见；唤醒/窗口恢复/定时器都走这里）
+function Invoke-InstanceRefresh {
+    param([string]$Reason = '')
+    try {
+        $changed = Update-InstanceList -VmsDir $script:muInfo.VmsDir -ManagerExe $MuMuMgr -InfoTimeoutMs 8000
+        if ($Reason) {
+            $devs = @($script:adbSync.Devices)
+            $ids = @($devs | ForEach-Object { "$($_.Index)" }) -join ','
+            if (-not $ids) { $ids = '空' }
+            Write-Diag ("实例刷新（{0}）：运行实例 {1} 个 [{2}]" -f $Reason, $devs.Count, $ids)
+        }
+        return $changed
+    } catch {
+        Write-Diag ("实例刷新失败（{0}）: {1}" -f $Reason, $_.Exception.Message)
+        return $false
+    }
+}
+
+# 唤醒器唤醒实例后会写 wake-notify.json；面板每 5 秒检查一次，立即刷新并强制采集
+function Invoke-WakeNotifyRefresh {
+    try {
+        $f = Join-Path $DataDir 'wake-notify.json'
+        if (-not (Test-Path -LiteralPath $f)) { return }
+        $raw = ''
+        try { $raw = Get-Content -LiteralPath $f -Raw -Encoding UTF8 } catch { }
+        try { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue } catch { }
+        $items = @(ConvertFrom-WakeNotifyJson $raw)
+        if ($items.Count -eq 0) { return }
+        $ids = @($items | ForEach-Object { $_.Index }) -join ','
+        Write-Diag ("收到唤醒通知：实例 {0}，立即刷新实例列表" -f $ids)
+        [void](Invoke-InstanceRefresh -Reason '唤醒通知')
+        foreach ($it in $items) {
+            try { $script:adbSync.Force["$($it.Index)"] = $true } catch { }
+        }
+        try { Update-Ui } catch { }
+    } catch {
+        Write-Diag ("处理唤醒通知失败: " + $_.Exception.Message)
+    }
 }

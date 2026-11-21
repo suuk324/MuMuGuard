@@ -212,6 +212,30 @@ function Invoke-StartHook([string]$idx, [string]$serial, [string]$instancePid) {
     return $true
 }
 
+# 唤醒后通知面板立即刷新实例列表（面板可能最小化，不能等它 2 分钟的定时器）
+function Write-WakeNotify([string]$idx) {
+    try {
+        $f = Join-Path $DataDir 'wake-notify.json'
+        $items = @()
+        if (Test-Path -LiteralPath $f) {
+            try {
+                $raw = Get-Content -LiteralPath $f -Raw -Encoding UTF8
+                $j = $raw | ConvertFrom-Json
+                foreach ($x in @($j.items)) {
+                    if ($x -and "$($x.Index)" -match '^\d+$') { $items += [pscustomobject]@{ Index = "$($x.Index)"; At = "$($x.At)" } }
+                }
+            } catch { }
+        }
+        $items = @($items | Where-Object { "$($_.Index)" -ne "$idx" })
+        $items += [pscustomobject]@{ Index = "$idx"; At = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss') }
+        $obj = [pscustomobject]@{ items = @($items) }
+        $tmp = "$f.tmp"
+        [System.IO.File]::WriteAllText($tmp, ($obj | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding $false))
+        Move-Item -LiteralPath $tmp -Destination $f -Force
+        Write-Log "已通知面板刷新实例 $idx"
+    } catch { Write-Log ("写唤醒通知失败: " + $_.Exception.Message) }
+}
+
 # 单实例：避免多个 waker 同时跑。
 # 上一个 waker 被强杀时互斥量会处于 Abandoned 状态，WaitOne 会抛异常但仍算拿到锁；
 # 这里必须捕获，否则唤醒器会静默退出（表现就是「到点不唤醒」）。
@@ -303,6 +327,9 @@ function Invoke-Wake([string]$index) {
         } catch { }
     }
     if (-not $ready) { Write-Log "等待开机超时"; return $false }
+
+    # 通知面板：实例已经起来，立即刷新列表/开始采集（面板可能最小化）
+    Write-WakeNotify $index
 
     # 2.5) 先执行「启动后操作」（如连 VPN），脚本成功退出后再启动紫孔雀
     # 紫孔雀有开机自启广播，可能抢在 VPN 前面起来：先停掉，等启动后操作完成再主动启动

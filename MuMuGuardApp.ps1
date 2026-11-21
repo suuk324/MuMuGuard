@@ -331,7 +331,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.3.1'
+$script:appVersion     = '2.3.2'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -487,6 +487,57 @@ $workerScript = {
     }
 
 
+    function Stop-ProcessTree([int]$procId) {
+        try {
+            Get-CimInstance Win32_Process -Filter ("ParentProcessId=" + $procId) -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree ([int]$_.ProcessId) }
+        } catch { }
+        try { Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue } catch { }
+    }
+
+    function Invoke-ExeTimeout([string]$exe, [string[]]$argList, [int]$timeoutMs = 8000) {
+        $res = [pscustomobject]@{ Ok = $false; Output = ''; Error = ''; TimedOut = $false }
+        try {
+            if (-not $exe -or -not (Test-Path -LiteralPath $exe)) { $res.Error = '找不到可执行文件'; return $res }
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = $exe
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $psi.CreateNoWindow = $true
+            try { $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8; $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8 } catch { }
+            $argText = ''
+            foreach ($a in @($argList)) {
+                $s = "$a"
+                if ($argText.Length -gt 0) { $argText += ' ' }
+                if ($s -match '[\s"]') { $argText += '"' + ($s -replace '"', '\"') + '"' } else { $argText += $s }
+            }
+            $psi.Arguments = $argText
+            $proc = [System.Diagnostics.Process]::Start($psi)
+            $outTask = $proc.StandardOutput.ReadToEndAsync()
+            $errTask = $proc.StandardError.ReadToEndAsync()
+            if (-not $proc.WaitForExit($timeoutMs)) {
+                $res.TimedOut = $true
+                $res.Error = "超时 ${timeoutMs}ms"
+                try { Stop-ProcessTree $proc.Id } catch { }
+                try { $proc.Kill() } catch { }
+                try { if ($outTask.Wait(1500)) { $res.Output = "$($outTask.Result)" } } catch { }
+                return $res
+            }
+            $proc.WaitForExit()
+            $res.Ok = $true
+            $out = ''
+            $err = ''
+            try { $out = "$($outTask.Result)" } catch { }
+            try { $err = "$($errTask.Result)" } catch { }
+            $res.Output = ($out + "`n" + $err).Trim()
+            $res.Error = $err.Trim()
+            return $res
+        } catch {
+            $res.Error = $_.Exception.Message
+            return $res
+        }
+    }
+
     $prevNemu = @{}
     $prevTime = $null
     $connected = @{}
@@ -504,6 +555,7 @@ $workerScript = {
             # 一次抖动就会永久降级，导致实例再也采不到数据；每 10 轮重试一次主通道
             if ($mgrAdbSkip -and ($cycle % 10 -eq 0)) { $mgrAdbSkip = $false; $mgrAdbFail = 0 }
             $now  = Get-Date
+            $sync.Heartbeat = $now
             $out  = @{}
             $span = 30.0
             if ($prevTime) {
@@ -552,38 +604,42 @@ $workerScript = {
                 $errText = ''
                 $chan = ''
 
-                # 通道一：MuMuManager adb（不依赖 adb 路径与端口，安卓 12/15 通吃）
+                # 通道一：MuMuManager adb（带超时，卡住就杀，不能拖死整个采集线程）
                 if ($mumuMgr -and -not $mgrAdbSkip -and (Test-Path $mumuMgr)) {
                     try {
-                        $out1 = (& $mumuMgr adb -v $i -c "shell $cmd" 2>&1 | Out-String)
-                        if ($null -eq $out1) { $out1 = '' }
-                        if ($out1 -match 'READY') {
+                        $r1 = Invoke-ExeTimeout $mumuMgr @('adb', '-v', "$i", '-c', ("shell $cmd")) 8000
+                        $out1 = "$($r1.Output)"
+                        if ($r1.TimedOut) { $errText = '通道1超时'; $mgrAdbFail++ }
+                        elseif ($out1 -match 'READY') {
                             $res = $out1; $chan = 'mumu'; $mgrAdbFail = 0
                         } else {
                             $errText = ($out1 -replace '\s+', ' ').Trim()
+                            if ($r1.Error) { $errText = ("$errText " + $r1.Error).Trim() }
                             $mgrAdbFail++
                         }
                     } catch { $errText = $_.Exception.Message; $mgrAdbFail++ }
                 }
 
-
-                # 通道二：MuMuManager sh（直接跑 shell，不经过 adb，部分版本只有这个）
+                # 通道二：MuMuManager sh（带超时）
                 if ($res -notmatch 'READY' -and $mumuMgr -and (Test-Path $mumuMgr)) {
                     try {
-                        $outSh = (& $mumuMgr sh -v $i -c $cmd 2>&1 | Out-String)
-                        if ($null -eq $outSh) { $outSh = '' }
-                        if ($outSh -match 'READY') { $res = $outSh; $chan = 'mumush' }
+                        $r2 = Invoke-ExeTimeout $mumuMgr @('sh', '-v', "$i", '-c', $cmd) 8000
+                        $outSh = "$($r2.Output)"
+                        if ($r2.TimedOut) { if (-not $errText) { $errText = '通道2超时' } }
+                        elseif ($outSh -match 'READY') { $res = $outSh; $chan = 'mumush' }
                         elseif (-not $errText) { $errText = ($outSh -replace '\s+', ' ').Trim() }
                     } catch { if (-not $errText) { $errText = $_.Exception.Message } }
                 }
 
-                # 通道三：直连 adb（兜底）
+                # 通道三：直连 adb（带超时兜底）
                 if ($res -notmatch 'READY' -and $port) {
                     $serial = "127.0.0.1:$port"
-                    try { & $adbExe connect $serial *> $null } catch { }
+                    $null = Invoke-ExeTimeout $adbExe @('connect', $serial) 5000
                     try {
-                        $out2 = ((& $adbExe -s $serial shell $cmd 2>&1) -join "`n")
-                        if ($out2 -match 'READY') { $res = $out2; $chan = 'adb'; if ($mgrAdbFail -ge 3) { $mgrAdbSkip = $true } }
+                        $r3 = Invoke-ExeTimeout $adbExe @('-s', $serial, 'shell', $cmd) 8000
+                        $out2 = "$($r3.Output)"
+                        if ($r3.TimedOut) { if (-not $errText) { $errText = '直连 adb 超时' } }
+                        elseif ($out2 -match 'READY') { $res = $out2; $chan = 'adb'; if ($mgrAdbFail -ge 3) { $mgrAdbSkip = $true } }
                         elseif (-not $errText) { $errText = ($out2 -replace '\s+', ' ').Trim() }
                     } catch { if (-not $errText) { $errText = $_.Exception.Message } }
                 }
@@ -670,6 +726,7 @@ $workerScript = {
                 }
                 # 强制重读完成，撤掉标记，恢复常态轮询
                 if ($forceSet.ContainsKey($i)) { try { $sync.Force.Remove($i) } catch { } }
+                $sync.Heartbeat = Get-Date
             }
 
             $prevTime = $now
@@ -687,27 +744,74 @@ $workerScript = {
     }
 }
 
-$rs = [runspacefactory]::CreateRunspace()
-$rs.ApartmentState = 'MTA'
-$rs.ThreadOptions  = 'ReuseThread'
-$rs.Open()
-$workerPs = [powershell]::Create()
-$workerPs.Runspace = $rs
+$script:adbWorkerPs = $null
+$script:adbWorkerRs = $null
+$script:adbWorkerHandle = $null
+$script:adbWorkerStartedAt = $null
+$script:lastAdbRestart = $null
 
-# 传给采集线程的实例清单（只查正在运行的，避免对已关机的实例白跑 adb）
-$devList = @(Get-RunningDeviceList $script:instances)
-# 每批查几个：3 个以内全查，超过就分批（每批约 15 秒，一轮覆盖全部）
+function Start-AdbSyncWorker {
+    try {
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.ApartmentState = 'MTA'
+        $rs.ThreadOptions  = 'ReuseThread'
+        $rs.Open()
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
 
-# 采集线程每轮读取这个列表，实例增减后无需重启面板
-$script:adbSync.Devices = $devList
-$batchSize = if ($devList.Count -le 3) { $devList.Count } else { [math]::Max(2, [int][math]::Ceiling($devList.Count / 5)) }
+        $devList = @($script:adbSync.Devices)
+        $batchSize = if ($devList.Count -le 3) { $devList.Count } else { [math]::Max(2, [int][math]::Ceiling($devList.Count / 5)) }
 
-            # 采集线程是独立 runspace，拿不到主线程的函数；exe 版又没有 lib 目录，
-            # 所以把解析函数定义成文本传进去，脚本版和 exe 版行为一致
-            $pureFuncText = ''
-            try { $pureFuncText = 'function Get-UpgradeFromMemoryJson { ' + (Get-Command Get-UpgradeFromMemoryJson -ErrorAction Stop).Definition + ' }' } catch { }
-[void]$workerPs.AddScript($workerScript).AddArgument($script:adbSync).AddArgument($MuMuRoot).AddArgument($AdbExe).AddArgument($PkgScript).AddArgument($PkgGame).AddArgument((Join-Path $Root 'lib\90-pure.ps1')).AddArgument($devList).AddArgument($batchSize).AddArgument($MuMuMgr).AddArgument($pureFuncText)
-$workerHandle = $workerPs.BeginInvoke()
+        # 采集线程是独立 runspace，拿不到主线程的函数；exe 版又没有 lib 目录，
+        # 所以把解析函数定义成文本传进去，脚本版和 exe 版行为一致
+        $pureFuncText = ''
+        try { $pureFuncText = 'function Get-UpgradeFromMemoryJson { ' + (Get-Command Get-UpgradeFromMemoryJson -ErrorAction Stop).Definition + ' }' } catch { }
+        [void]$ps.AddScript($workerScript).AddArgument($script:adbSync).AddArgument($MuMuRoot).AddArgument($AdbExe).AddArgument($PkgScript).AddArgument($PkgGame).AddArgument((Join-Path $Root 'lib\90-pure.ps1')).AddArgument($devList).AddArgument($batchSize).AddArgument($MuMuMgr).AddArgument($pureFuncText)
+        $script:adbWorkerPs = $ps
+        $script:adbWorkerRs = $rs
+        $script:adbWorkerHandle = $ps.BeginInvoke()
+        $script:adbSync.Heartbeat = Get-Date
+        $script:adbWorkerStartedAt = Get-Date
+        Write-Diag ("采集线程已启动：设备 {0} 个，batch={1}" -f $devList.Count, $batchSize)
+    } catch {
+        Write-Diag ("启动采集线程失败: " + $_.Exception.Message)
+    }
+}
+
+function Restart-AdbSyncWorker([string]$Reason = '看门狗') {
+    try {
+        $now = Get-Date
+        if ($script:lastAdbRestart -and (($now - $script:lastAdbRestart).TotalSeconds -lt 40)) { return }
+        $script:lastAdbRestart = $now
+        Write-GuardLog 'SYNC_RESTART' '-' ("采集线程看门狗重启：" + $Reason)
+        Write-Diag ("采集线程看门狗：{0}，重启采集线程" -f $Reason)
+        try { $script:adbSync.Stop = $true } catch { }
+        if ($script:adbWorkerPs) { try { $script:adbWorkerPs.Stop() } catch { } }
+        if ($script:adbWorkerRs) { try { $script:adbWorkerRs.Close() } catch { } ; try { $script:adbWorkerRs.Dispose() } catch { } }
+        $script:adbWorkerPs = $null
+        $script:adbWorkerRs = $null
+        try { $script:adbSync.Stop = $false } catch { }
+        Start-AdbSyncWorker
+    } catch {
+        Write-Diag ("重启采集线程失败: " + $_.Exception.Message)
+    }
+}
+
+function Test-AdbSyncWatchdog {
+    try {
+        if ($script:adbSync.Stop) { return }
+        if (-not $script:adbWorkerStartedAt) { return }
+        $hb = $script:adbSync.Heartbeat
+        if (-not $hb) { $hb = $script:adbWorkerStartedAt }
+        if (Test-SyncHeartbeatStale -Heartbeat $hb -Now (Get-Date) -LimitSec 120) {
+            Restart-AdbSyncWorker '采集心跳超过 120 秒未更新'
+        }
+    } catch { Write-Diag ("采集线程看门狗异常: " + $_.Exception.Message) }
+}
+
+# 初始化采集清单：启动时先算一次运行中的实例，不能等 30 秒重扫
+$script:adbSync.Devices = @(Get-RunningDeviceList $script:instances)
+Start-AdbSyncWorker
 
 # ---------------- 主界面 XAML ----------------
 
@@ -855,6 +959,8 @@ $timer.Add_Tick({
     $script:tickCount++
     # 唤醒器唤醒后会写 wake-notify.json：面板最小化时也要马上发现新实例
     try { Invoke-WakeNotifyRefresh } catch { Write-Diag ('唤醒通知处理异常: ' + $_.Exception.Message) }
+    # 采集线程看门狗：心跳超过 120 秒没更新就重启采集线程
+    try { Test-AdbSyncWatchdog } catch { Write-Diag ('采集看门狗异常: ' + $_.Exception.Message) }
     $tp = [System.Diagnostics.Stopwatch]::StartNew()
     $msPre = 0; $msClean = 0; $msUi = 0
     # 通知后台采集：窗口不可见时降频
@@ -944,8 +1050,9 @@ $script:recoverTimer.Add_Tick({
 $rescanTimer = New-Object System.Windows.Threading.DispatcherTimer
 $rescanTimer.Interval = [TimeSpan]::FromSeconds(30)
 $rescanTimer.Add_Tick({
-    # 兜底：公告开着（主计时器还没启动）时也能处理唤醒通知
+    # 兜底：公告开着（主计时器还没启动）时也能处理唤醒通知和采集看门狗
     try { Invoke-WakeNotifyRefresh } catch { Write-Diag ('唤醒通知处理异常: ' + $_.Exception.Message) }
+    try { Test-AdbSyncWatchdog } catch { Write-Diag ('采集看门狗异常: ' + $_.Exception.Message) }
     try { [void](Invoke-InstanceRefresh -Reason '定时重扫') } catch { Write-Diag ('定时重扫异常: ' + $_.Exception.Message) }
 })
 $rescanTimer.Start()
@@ -1080,6 +1187,10 @@ $win.Add_Closed({
     try { Stop-RemoteServer } catch { }
     try { Stop-Outbound } catch { }
     $script:adbSync.Stop = $true
+    try { if ($script:adbWorkerPs) { $script:adbWorkerPs.Stop() } } catch { }
+    try { if ($script:adbWorkerPs) { $script:adbWorkerPs.Dispose() } } catch { }
+    try { if ($script:adbWorkerRs) { $script:adbWorkerRs.Close() } } catch { }
+    try { if ($script:adbWorkerRs) { $script:adbWorkerRs.Dispose() } } catch { }
     try { Stop-HookWorker } catch { }
     try {
         if ($win.WindowState -eq 'Normal') {
@@ -1090,7 +1201,7 @@ $win.Add_Closed({
         Save-Config
     } catch { }
     Save-Trend
-    try { $workerPs.Stop() } catch { }
+    # 采集线程已在上面 $script:adbWorkerPs 处停止并释放
     # 彻底退出：连唤醒器一起关掉
     Stop-AllWakers
     try { $tray.Visible = $false; $tray.Dispose() } catch { }

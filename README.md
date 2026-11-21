@@ -4,7 +4,7 @@
 
 盯着每个实例，掉线自动拉起，等升级时休眠省内存，醒来自动接着跑。
 
-![版本](https://img.shields.io/badge/version-2.3.1-3DDC84)
+![版本](https://img.shields.io/badge/version-2.3.2-3DDC84)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0A0D14)
 ![许可](https://img.shields.io/badge/license-MIT-blue)
 ![QQ 群](https://img.shields.io/badge/QQ%E7%BE%A4-1128379535-12B7F5)
@@ -22,6 +22,13 @@ MuMuGuard 是给 MuMu 模拟器多开用的看护面板，运行在 Windows 10 /
 项目地址：[github.com/suuk324/MuMuGuard](https://github.com/suuk324/MuMuGuard)
 
 ---
+
+## 2.3.2 更新了什么
+
+- **修复了一些问题**。
+- 给采集线程的所有 MuMuManager / adb 调用加了超时：命令卡住会被杀掉，不再拖死整个采集线程；单个实例超时不影响其他实例。
+- 增加采集线程心跳看门狗：心跳超过 120 秒没更新会自动重启采集线程，并写诊断日志。
+- 其他功能未改动。
 
 ## 2.3.1 更新了什么
 

@@ -747,6 +747,26 @@ Test-Case '唤醒器唤醒后先写通知再执行启动后操作' {
     if ($hi -lt 0 -or $wi -gt $hi) { return '通知位置不对（应在启动后操作之前）' }
     return $true
 }
+# ---------------- 采集超时 / 心跳看门狗回归 ----------------
+Test-Case '采集心跳：新鲜/过期/缺失判定' {
+    $now = Get-Date
+    if (Test-SyncHeartbeatStale -Heartbeat $now.AddSeconds(-10) -Now $now -LimitSec 120) { return '10 秒前的心跳不应算过期' }
+    if (-not (Test-SyncHeartbeatStale -Heartbeat $now.AddSeconds(-300) -Now $now -LimitSec 120)) { return '300 秒前的心跳应算过期' }
+    if (-not (Test-SyncHeartbeatStale -Heartbeat $null -Now $now -LimitSec 120)) { return '缺失心跳应算过期' }
+    if (-not (Test-SyncHeartbeatStale -Heartbeat 'not-a-date' -Now $now -LimitSec 120)) { return '非法心跳应算过期' }
+    return $true
+}
+
+Test-Case '采集线程有超时执行和心跳看门狗（静态检查）' {
+    $src = Get-Content (Join-Path $root 'MuMuGuardApp.ps1') -Raw -Encoding UTF8
+    if ($src -notmatch 'function Invoke-ExeTimeout') { return '没有带超时的进程执行函数' }
+    if ($src -notmatch 'function Restart-AdbSyncWorker') { return '没有采集线程重启函数' }
+    if ($src -notmatch 'function Test-AdbSyncWatchdog') { return '没有采集看门狗函数' }
+    if ($src -notmatch 'Test-AdbSyncWatchdog') { return '看门狗没有被调用' }
+    if ($src -notmatch 'Invoke-ExeTimeout \$mumuMgr') { return 'MuMuManager 通道没有走超时执行' }
+    if ($src -notmatch 'Invoke-ExeTimeout \$adbExe') { return '直连 adb 没有走超时执行' }
+    return $true
+}
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {
     Write-Host ("全部通过：{0} 个测试" -f $script:pass) -ForegroundColor Green

@@ -457,3 +457,10 @@ function ConvertFrom-WakeNotifyJson([string]$Json) {
     }
     return $out
 }
+# 采集线程心跳是否过期（纯函数，可单测）
+function Test-SyncHeartbeatStale {
+    param($Heartbeat, [datetime]$Now, [int]$LimitSec = 120)
+    if (-not $Heartbeat) { return $true }
+    try { $hb = [datetime]$Heartbeat } catch { return $true }
+    try { return ((($Now - $hb).TotalSeconds) -gt $LimitSec) } catch { return $true }
+}

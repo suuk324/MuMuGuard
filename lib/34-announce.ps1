@@ -26,10 +26,10 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.3.1'
+        Title = 'MuMuGuard 2.3.2'
         Lines = @(
             '修复了一些问题。',
-            '修复了自动唤醒后实例长时间不出现在列表、采集不到数据的问题，监控刷新更快；其他功能未改动。'
+            '给采集线程的 MuMuManager/adb 调用加了超时和心跳看门狗：卡住会自动重启采集线程，不再出现长时间检测不到实例。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

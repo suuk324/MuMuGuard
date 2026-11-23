@@ -767,6 +767,59 @@ Test-Case '采集线程有超时执行和心跳看门狗（静态检查）' {
     if ($src -notmatch 'Invoke-ExeTimeout \$adbExe') { return '直连 adb 没有走超时执行' }
     return $true
 }
+# ---------------- 紫孔雀配置同步（独立功能） ----------------
+Test-Case '配置同步：选择源/目标/跳过离线实例' {
+    $rows = @(
+        [pscustomobject]@{ Index = '0'; Name = '源'; Online = $true; WakeAt = $null },
+        [pscustomobject]@{ Index = '1'; Name = '目标1'; Online = $true; WakeAt = $null },
+        [pscustomobject]@{ Index = '2'; Name = '休眠'; Online = $false; WakeAt = $true },
+        [pscustomobject]@{ Index = '3'; Name = '关机'; Online = $false; WakeAt = $null }
+    )
+    $plan = Get-ZkqSyncPlan -Instances $rows -Source '0' -Selected @('1', '2', '3')
+    if (-not $plan.Ok) { return "应允许同步，实际: $($plan.Message)" }
+    if (@($plan.Targets).Count -ne 1) { return "目标数应为 1，实际 $((@($plan.Targets)).Count)" }
+    if ("$($plan.Targets[0].Index)" -ne '1') { return '目标实例不对' }
+    if (@($plan.Skipped).Count -ne 2) { return "跳过数应为 2，实际 $((@($plan.Skipped)).Count)" }
+    return $true
+}
+
+Test-Case '配置同步：源未运行 / 无目标时拒绝' {
+    $rows = @(
+        [pscustomobject]@{ Index = '0'; Name = '源'; Online = $false; WakeAt = $null },
+        [pscustomobject]@{ Index = '1'; Name = '目标'; Online = $true; WakeAt = $null }
+    )
+    $p1 = Get-ZkqSyncPlan -Instances $rows -Source '0' -Selected @('1')
+    if ($p1.Ok) { return '源未运行时不应允许同步' }
+    $p2 = Get-ZkqSyncPlan -Instances $rows -Source '1' -Selected @()
+    if ($p2.Ok) { return '没有选目标时不应允许同步' }
+    return $true
+}
+
+Test-Case '配置同步：MD5 输出解析' {
+    $h = ConvertFrom-ZkqSyncMd5 'D41D8CD98F00B204E9800998ECF8427E  /sdcard/zkqFiles/zkq_config.json'
+    if ($h -ne 'd41d8cd98f00b204e9800998ecf8427e') { return "MD5 解析结果: $h" }
+    if ((ConvertFrom-ZkqSyncMd5 '') -ne '') { return '空文本应返回空串' }
+    if ((ConvertFrom-ZkqSyncMd5 'not-a-hash') -ne '') { return '非法文本应返回空串' }
+    return $true
+}
+
+Test-Case '配置同步：页面/后台脚本/看护隔离（静态检查）' {
+    $mod = Get-Content (Join-Path $root 'lib\66-zkqsync.ps1') -Raw -Encoding UTF8
+    if ($mod -notmatch "b64 = '([^']+)'") { return '后台 worker 没有 base64 内嵌' }
+    $b64 = $Matches[1]
+    if (-not $b64) { return 'worker base64 为空' }
+    $workerText = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64))
+    if ($workerText -notmatch 'force-stop' -or $workerText -notmatch 'md5sum' -or $workerText -notmatch 'push') { return 'worker 缺少停止/推送/MD5 步骤' }
+    try { [void][scriptblock]::Create($workerText) } catch { return ('worker 语法错误: ' + $_.Exception.Message) }
+    $shell = Get-Content (Join-Path $root 'lib\32-shell.ps1') -Raw -Encoding UTF8
+    if ($shell -notmatch 'x:Name="Nav6"' -or $shell -notmatch 'x:Name="Page6"') { return '缺少导航或配置同步页面' }
+    $render = Get-Content (Join-Path $root 'lib\33-render.ps1') -Raw -Encoding UTF8
+    if ($render -notmatch 'Render-ShellSync') { return '页面没有接入 Update-Ui' }
+    $actions = Get-Content (Join-Path $root 'lib\20-actions.ps1') -Raw -Encoding UTF8
+    if ($actions -notmatch 'zkqSyncBusy') { return '自动恢复/自动休眠没有同步锁' }
+    return $true
+}
+
 Write-Host ('=' * 50)
 if ($script:fail -eq 0) {
     Write-Host ("全部通过：{0} 个测试" -f $script:pass) -ForegroundColor Green

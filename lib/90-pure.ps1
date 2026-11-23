@@ -464,3 +464,62 @@ function Test-SyncHeartbeatStale {
     try { $hb = [datetime]$Heartbeat } catch { return $true }
     try { return ((($Now - $hb).TotalSeconds) -gt $LimitSec) } catch { return $true }
 }
+
+# ================= 紫孔雀配置同步（独立功能，不参与看护/采集） =================
+# 纯逻辑：根据实例行和用户选择，算出同步源、目标、跳过项。
+# 约定：Instances 为对象数组，至少含 Index / Online / Name，可能含 WakeAt。
+function Get-ZkqSyncPlan {
+    param(
+        $Instances,
+        [string]$Source,
+        [string[]]$Selected = @()
+    )
+
+    $rows = @($Instances)
+    $src = $null
+    foreach ($r in $rows) {
+        if ("$($r.Index)" -eq "$Source") { $src = $r; break }
+    }
+    if (-not $src) {
+        return @{ Ok = $false; Message = '没有找到源实例'; Source = $null; Targets = @(); Skipped = @() }
+    }
+    $srcSleep = $false
+    try { if ($src.PSObject.Properties.Name -contains 'WakeAt' -and $src.WakeAt) { $srcSleep = $true } } catch { }
+    if ($src.Online -ne $true -or $srcSleep) {
+        return @{ Ok = $false; Message = '源实例没有在运行，无法读取配置'; Source = $null; Targets = @(); Skipped = @() }
+    }
+
+    $targets = @()
+    $skipped = @()
+    $sel = @($Selected | Where-Object { $_ -ne $null -and "$_" -ne '' } | ForEach-Object { "$_" })
+    foreach ($r in $rows) {
+        $idx = "$($r.Index)"
+        if ($idx -eq "$Source") { continue }
+        if ($sel -notcontains $idx) { continue }
+
+        $sleep = $false
+        try { if ($r.PSObject.Properties.Name -contains 'WakeAt' -and $r.WakeAt) { $sleep = $true } } catch { }
+        if ($r.Online -eq $true -and (-not $sleep)) {
+            $targets += $r
+        } else {
+            $reason = $(if ($sleep) { '休眠中' } else { '未启动' })
+            $name = ''
+            try { $name = "$($r.Name)" } catch { }
+            $skipped += [pscustomobject]@{ Index = $idx; Name = $name; Reason = $reason }
+        }
+    }
+
+    if ($targets.Count -eq 0) {
+        return @{ Ok = $false; Message = '没有可同步的目标实例（请先启动目标实例）'; Source = $src; Targets = @(); Skipped = $skipped }
+    }
+    return @{ Ok = $true; Message = ''; Source = $src; Targets = @($targets); Skipped = @($skipped) }
+}
+
+# 从 adb shell md5sum 输出里取 32 位 MD5；取不到返回空串。
+function ConvertFrom-ZkqSyncMd5 {
+    param([string]$Text)
+    if (-not $Text) { return '' }
+    $m = [regex]::Match($Text, '(?i)\b([0-9a-f]{32})\b')
+    if ($m.Success) { return $m.Groups[1].Value.ToLower() }
+    return ''
+}

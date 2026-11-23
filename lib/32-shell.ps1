@@ -56,7 +56,7 @@ function Get-ShellXaml {
             </Border>
             <TextBlock Text="MuMuGuard" Foreground="{DynamicResource T_UI_T1}" FontSize="15" FontWeight="SemiBold"
                        HorizontalAlignment="Center" Margin="0,9,0,0"/>
-            <TextBlock x:Name="TxtVersion" Text="v2.3.2" Foreground="{DynamicResource T_UI_T3}" FontSize="10.5"
+            <TextBlock x:Name="TxtVersion" Text="v2.4.0" Foreground="{DynamicResource T_UI_T3}" FontSize="10.5"
                        HorizontalAlignment="Center" Margin="0,2,0,0"/>
           </StackPanel>
 
@@ -88,6 +88,12 @@ function Get-ShellXaml {
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
               <TextBlock x:Name="Nav5Ico" Text="⚙" FontSize="13" Foreground="{DynamicResource T_UI_T2}" Width="20"/>
               <TextBlock x:Name="Nav5Txt" Text="设置" FontSize="12.5" Foreground="{DynamicResource T_UI_T2}"/>
+            </StackPanel>
+          </Border>
+          <Border x:Name="Nav6" Style="{StaticResource NavItem}" Padding="12,0" Background="Transparent">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock x:Name="Nav6Ico" Text="⇄" FontSize="13" Foreground="{DynamicResource T_UI_T2}" Width="20"/>
+              <TextBlock x:Name="Nav6Txt" Text="配置同步" FontSize="12.5" Foreground="{DynamicResource T_UI_T2}"/>
             </StackPanel>
           </Border>
         </StackPanel>
@@ -379,6 +385,64 @@ function Get-ShellXaml {
                         <Border x:Name="BtnResetCfg" Padding="14,0" Height="44" Background="Transparent" Cursor="Hand"><TextBlock Text="恢复默认设置" FontSize="12" Foreground="{DynamicResource T_UI_ERR}" VerticalAlignment="Center"/></Border>
                 </StackPanel>
               </Grid>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </Grid>
+
+        <Grid x:Name="Page6" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
+          <Grid Margin="0,14,0,0">
+            <Rectangle RadiusX="11" RadiusY="11" Fill="{DynamicResource T_UI_CARD}" Stroke="{DynamicResource T_UI_LINE}" StrokeThickness="1"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" TextOptions.TextFormattingMode="Display">
+              <StackPanel Margin="16,14,16,18">
+                <TextBlock Text="紫孔雀配置同步" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource T_UI_T1}"/>
+                <TextBlock Text="选一个运行中的实例作为模板，把它的 zkq_config.json 推到其他实例。只改紫孔雀配置，不碰 MuMu 本体、看护配置和休眠任务。" FontSize="11" Foreground="{DynamicResource T_UI_T3}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+
+                <Grid Margin="0,14,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="14"/>
+                    <ColumnDefinition Width="230"/>
+                  </Grid.ColumnDefinitions>
+
+                  <StackPanel Grid.Column="0">
+                    <TextBlock Text="源实例（模板）" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,0,0,4"/>
+                    <WrapPanel x:Name="PnlSyncSources" Margin="0,2,0,0"/>
+
+                    <TextBlock Text="目标实例" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,14,0,4"/>
+                    <Border Background="#08FFFFFF" BorderBrush="#12FFFFFF" BorderThickness="1" CornerRadius="9" Padding="12,8">
+                      <ScrollViewer MaxHeight="168" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="PnlSyncTargets"/>
+                      </ScrollViewer>
+                    </Border>
+                    <Border x:Name="BtnSyncRefresh" Padding="10,5" Background="#14FFFFFF" CornerRadius="7" HorizontalAlignment="Left" Margin="0,10,0,0" Cursor="Hand">
+                      <TextBlock Text="刷新实例列表" FontSize="10.5" Foreground="{DynamicResource T_UI_T2}"/>
+                    </Border>
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="2">
+                    <TextBlock Text="同步选项" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,0,0,6"/>
+                    <CheckBox x:Name="ChkSyncBackup" Content="同步前备份原配置" IsChecked="True" FontSize="11.5" Foreground="{DynamicResource T_UI_T1}" Margin="0,4,0,0"/>
+                    <CheckBox x:Name="ChkSyncRestart" Content="同步后重启紫孔雀" IsChecked="True" FontSize="11.5" Foreground="{DynamicResource T_UI_T1}" Margin="0,6,0,0"/>
+                    <TextBlock Text="同步前会先强制停止目标实例的紫孔雀，避免旧配置被写回。关闭“重启”后紫孔雀保持停止，下次启动时才读取新配置。" FontSize="10" Foreground="{DynamicResource T_UI_T3}" TextWrapping="Wrap" Margin="0,7,0,0"/>
+
+                    <Border x:Name="BtnSyncStart" Padding="12,7" Background="#2E10B981" CornerRadius="8" Margin="0,14,0,0" Cursor="Hand">
+                      <TextBlock x:Name="TxtSyncStart" Text="开始同步" FontSize="11.5" FontWeight="SemiBold" Foreground="#F2F2F5" HorizontalAlignment="Center"/>
+                    </Border>
+                    <Border x:Name="BtnSyncCancel" Padding="12,7" Background="#14FFFFFF" CornerRadius="8" Margin="0,7,0,0" Cursor="Hand">
+                      <TextBlock Text="停止" FontSize="11" Foreground="{DynamicResource T_UI_T2}" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="TxtSyncStatus" Text="等待开始" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                    <TextBlock Text="只修改 /sdcard/zkqFiles/zkq_config.json。目标实例需已启动；关机和休眠实例会跳过。" FontSize="10" Foreground="{DynamicResource T_UI_T3}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                  </StackPanel>
+                </Grid>
+
+                <TextBlock Text="同步日志" FontSize="10.5" Foreground="{DynamicResource T_UI_T3}" Margin="2,16,0,4"/>
+                <Border Background="#08FFFFFF" BorderBrush="#12FFFFFF" BorderThickness="1" CornerRadius="9" Padding="10,8">
+                  <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock x:Name="TxtSyncLog" Text="尚未开始。" FontFamily="Consolas" FontSize="10.5" Foreground="{DynamicResource T_UI_T2}" TextWrapping="Wrap"/>
+                  </ScrollViewer>
+                </Border>
               </StackPanel>
             </ScrollViewer>
           </Grid>

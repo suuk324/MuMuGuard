@@ -26,10 +26,10 @@ function Set-AnnounceMuteToday {
 
 function Get-AnnounceContent {
     return [pscustomobject]@{
-        Title = 'MuMuGuard 2.3.2'
+        Title = 'MuMuGuard 2.4.0'
         Lines = @(
-            '修复了一些问题。',
-            '给采集线程的 MuMuManager/adb 调用加了超时和心跳看门狗：卡住会自动重启采集线程，不再出现长时间检测不到实例。'
+            '新增「配置同步」页面：把源实例的紫孔雀配置一键同步到其他运行中的实例。',
+            '支持同步前备份、同步后重启紫孔雀、MD5 校验；关机/休眠实例会跳过，同步期间暂停对应实例的掉线恢复和自动休眠。'
         )
         Repo = 'github.com/suuk324/MuMuGuard'
         RepoUrl = 'https://github.com/suuk324/MuMuGuard'

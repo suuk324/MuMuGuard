@@ -6,17 +6,18 @@ $script:shellFilter = 'all'
 
 function Switch-ShellPage([int]$n) {
     if (-not $script:shellWin) { return }
-    if ($n -lt 1 -or $n -gt 5) { return }
+    if ($n -lt 1 -or $n -gt 6) { return }
     $script:shellPage = $n
-    $pages = @('Page1', 'Page2', 'Page3', 'Page4', 'Page5')
+    $pages = @('Page1', 'Page2', 'Page3', 'Page4', 'Page5', 'Page6')
     $titles = @(
         @('概览', "$($script:shellSummary)"),
         @('实例管理', '对每个实例单独启动、唤醒、重启或暂停检测'),
         @('健康检查', '系统层面的内存、服务与权限状态'),
         @('事件记录', '最近的守护动作与异常'),
-        @('设置', '阈值、路径与休眠规则')
+        @('设置', '阈值、路径与休眠规则'),
+        @('配置同步', '把紫孔雀配置从模板实例同步到其他实例')
     )
-    for ($i = 1; $i -le 5; $i++) {
+    for ($i = 1; $i -le 6; $i++) {
         $pg = $script:shellWin.FindName($pages[$i - 1])
         $nv = $script:shellWin.FindName("Nav$i")
         $ico = $script:shellWin.FindName("Nav$i" + 'Ico')
@@ -118,7 +119,7 @@ function Initialize-Shell {
     Update-FilterChips
 
     # 导航
-    1..5 | ForEach-Object {
+    1..6 | ForEach-Object {
         $idx = $_
         $nav = $Win.FindName("Nav$idx")
         if ($nav) { $nav.Add_MouseLeftButtonUp({ Switch-ShellPage $idx; Update-Ui }.GetNewClosure()) }
@@ -766,6 +767,7 @@ function Update-Ui {
             3 { Render-ShellHealth }
             4 { Render-ShellEvents -Target 'PnlEventDetail' -Limit 40 }
             5 { Render-ShellSettings }
+            6 { Render-ShellSync }
         }
     } catch {
         Write-Diag ("界面刷新异常: " + $_.Exception.Message + " @ " + $_.InvocationInfo.ScriptName + ":" + $_.InvocationInfo.ScriptLineNumber)
@@ -896,7 +898,7 @@ function Invoke-UiSelfTest {
     $lines += "===== UI 自检 $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ====="
     $flush = { try { $lines | Set-Content -Path $log -Encoding UTF8 } catch { } }
 
-    $targets = @('Nav1', 'Nav2', 'Nav3', 'Nav4', 'Nav5', 'BtnRefresh', 'BtnCompact', 'BtnGuardRun', 'BtnSleepRun', 'BtnCleanNow', 'BtnOpenLog', 'BtnExportCfg', 'BtnResetCfg', 'TxtEventSearch', 'HealthCard')
+    $targets = @('Nav1', 'Nav2', 'Nav3', 'Nav4', 'Nav5', 'Nav6', 'BtnRefresh', 'BtnCompact', 'BtnGuardRun', 'BtnSleepRun', 'BtnCleanNow', 'BtnOpenLog', 'BtnExportCfg', 'BtnResetCfg', 'TxtEventSearch', 'HealthCard')
     foreach ($n in $targets) {
         $el = $win.FindName($n)
         if (-not $el) { $lines += "MISS  $n  元素不存在"; continue }
@@ -945,8 +947,8 @@ function Invoke-UiSelfTest {
         & $flush
     }
 
-    # 五页渲染
-    foreach ($p in 1..5) {
+    # 六页渲染
+    foreach ($p in 1..6) {
         try {
             Switch-ShellPage $p
             Update-Ui

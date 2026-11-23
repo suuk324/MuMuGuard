@@ -241,6 +241,8 @@ function Clear-StaleSleepEntries {
 function Invoke-AutoSleep {
     if ($script:cfg.AutoSleep -ne $true) { return }
     if (-not $script:guardRunning) { return }
+    # 配置同步期间暂停自动休眠，避免刚重启的紫孔雀/游戏被判定为空闲
+    if ($script:zkqSyncBusy -eq $true) { return }
 
     $leadMin  = [double]$script:cfg.SleepLeadMin
     $maxHours = [double]$script:cfg.SleepMaxHours
@@ -406,6 +408,12 @@ function Invoke-AutoRecover {
     foreach ($r in $data) {
         $idx = "$($r.Index)"
         if ($idx -eq '-') { continue }
+
+        # 配置同步期间会主动 force-stop 紫孔雀，不能把同步误判成掉线并自动恢复
+        if ($script:zkqSyncBusy -eq $true -and @($script:zkqSyncBusyTargets) -contains $idx) {
+            $script:failCount[$idx] = 0
+            continue
+        }
 
         # 该实例的检测被手动暂停
         if (@($script:cfg.DetectOff | Where-Object { $_ -ne $null }) -contains $idx) {

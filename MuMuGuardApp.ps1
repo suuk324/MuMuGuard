@@ -140,7 +140,7 @@ $Root     = $PSScriptRoot
 
 # ---------------- 加载模块 ----------------
 $libPath = Join-Path $Root 'lib'
-foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq', '63-res', '65-hooks')) {
+foreach ($f in @('90-pure', '00-common', '15-theme', '05-instances', '10-data', '20-actions', '30-ui', '32-shell', '33-render', '34-announce', '40-tray', '50-update', '70-qr', '60-remote', '61-outbound', '62-zkq', '63-res', '65-hooks', '66-zkqsync')) {
     $p = Join-Path $libPath ($f + '.ps1')
     if (Test-Path $p) { . $p }
     else { throw "缺少模块: $p" }
@@ -331,7 +331,7 @@ if ($MuMuRoot) {
 # ---------------- 实例发现 ----------------
 # 从 install_config.json 定位 adb / manager（自动适配 MuMu 12 / 15）
 # 版本号
-$script:appVersion     = '2.3.2'
+$script:appVersion     = '2.4.0'
 $verFile = Join-Path $Root 'VERSION'
 if (Test-Path $verFile) { $script:appVersion = (Get-Content $verFile -Raw).Trim() }
 
@@ -916,6 +916,7 @@ try {
     $mIco = Join-Path $MuMuRoot 'nx_device\15.0\shell\MuMuPlayer.ico'
     if (Test-Path $mIco) { $instSrc = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$mIco) }
 } catch { }
+try { Initialize-ZkqSyncRuntime -DataDir $DataDir -AdbExe $AdbExe } catch { Write-Diag "配置同步初始化异常: $($_.Exception.Message)" }
 Initialize-Shell -Win $win -Logo $icoSrc -InstanceIcon $instSrc
 if ($env:MMG_UITEST -eq '1') { $script:uiTestPending = $true }
 # ---------------- 导出报告 ----------------
@@ -957,6 +958,10 @@ $timer = New-Object System.Windows.Threading.DispatcherTimer
 $timer.Interval = [TimeSpan]::FromSeconds(5)
 $timer.Add_Tick({
     $script:tickCount++
+    # 配置同步后台任务的状态刷新（只读状态文件，不阻塞界面）
+    if ($script:zkqSyncState -and $script:zkqSyncState.Running) {
+        try { Update-ZkqSyncStatus } catch { }
+    }
     # 唤醒器唤醒后会写 wake-notify.json：面板最小化时也要马上发现新实例
     try { Invoke-WakeNotifyRefresh } catch { Write-Diag ('唤醒通知处理异常: ' + $_.Exception.Message) }
     # 采集线程看门狗：心跳超过 120 秒没更新就重启采集线程
